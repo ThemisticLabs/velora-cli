@@ -1,0 +1,29 @@
+{
+  "name": "velora-cli",
+  "version": "0.1.0-dev.0",
+  "private": true,
+  "type": "module",
+  "description": "Local anonymization for the tools you already use.",
+  "bin": {
+    "velora": "dist/velora"
+  },
+  "engines": {
+    "bun": ">=1.3.14"
+  },
+  "scripts": {
+    "build": "bun build src/cli.ts --compile --outfile dist/velora --no-compile-autoload-dotenv --no-compile-autoload-bunfig",
+    "check": "bun run --bun tsc --noEmit",
+    "start": "bun run src/cli.ts",
+    "test": "bun run build && bun test"
+  },
+  "dependencies": {
+    "@inquirer/core": "12.0.3",
+    "@inquirer/select": "5.2.5",
+    "commander": "15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.3",
+    "typescript": "7.0.2"
+  },
+  "packageManager": "bun@1.3.14"
+}
