@@ -89,11 +89,13 @@ Piped output is plain. `NO_COLOR`, `TERM=dumb`, and `FORCE_COLOR=0` disable colo
 
 ## Setup preview
 
-Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. Verification is not connected yet: the key is neither sent nor saved, and no device is activated. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.
+Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. The key is sent to the Themistic license server for a signed access check. The result shows expiry, device capacity, and entitled models. The key is not saved and no device is activated. Failed checks offer Try again and Go back. Model downloads are not connected yet. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.
 
-The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Completion and Ctrl+C restore the original terminal with one summary. `src/render-setup.ts` owns the setup layout; prompts handle keyboard input.
+The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Completion and Ctrl+C restore the original terminal with one summary. `src/render-setup.ts` stores the current step heading; `src/use-setup-screen.ts` redraws the frame and footer when terminal dimensions change. Prompts retain their input and selection state.
 
 
-The header uses a small static Unicode dot mark on the left, derived from the original Themistic SVG logo. It remains visible during setup. There is no startup animation or delay. Terminals below 24 rows show the product name alone. Setup requires at least 60 columns and 20 rows.
+The header uses a small static Unicode dot mark derived from the original Themistic SVG logo. Setup uses a compact text header below 28 rows. There is no startup delay. Setup requires at least 60 columns and 20 rows.
 
-The setup footer is positioned on the penultimate terminal row when each step opens. Prompt validation does not move it. Below 24 terminal rows, the header shows only the product name; larger terminals use a four-row logo. Resizing cancels the preview, restores the terminal, and asks you to run setup again. Live reflow with preserved input is not implemented.
+The footer follows the terminal height. Resizing preserves the current input, selection and detail view. Below the minimum size, a notice replaces the content until the terminal is enlarged. Model tables show at least three models when available, with more rows in taller terminals.
+
+License letters are normalized to uppercase as you type or paste. Model details come from the signed API response. List entries have full-width dividers and short descriptions; More above and More below indicate hidden entries. Enter opens a model; left/right arrows page through its overview, strengths, limitations, and installation status. Enter returns to the list.

@@ -3,7 +3,7 @@
 
 Local anonymization for the tools you already use.
 
-> **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup preview, not a finished release. Model downloads, license verification, and the local API are still being built.
+> **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup preview, not a finished release. Model downloads and the local API are still being built.
 
 velora is an open-source CLI from Themistic, being built to run model families such as Skira and Veyra on your device and make them available through a local API.
 <img width="1049" height="678" alt="veloraCli" src="https://github.com/user-attachments/assets/7f823111-9c24-42ab-a826-82351f19f289" />
@@ -15,7 +15,7 @@ The API will return anonymized text, with the original-value mapping included wh
 
 ## Development status
 
-The TypeScript CLI currently provides help, version output, suggestions for misspelled commands, and an interactive setup preview. License input is not verified or saved. Model installation and the local API are not available yet, and there is no published release.
+The TypeScript CLI currently provides help, version output, suggestions for misspelled commands, and an interactive setup preview. License access is checked with the Themistic server; the key is not saved. Model installation and the local API are not available yet, and there is no published release.
 
 Development uses Bun. The build produces a standalone executable with its runtime included, so users do not need to install Bun or Node.js. Homebrew, WinGet, and direct release downloads are planned.
 
@@ -27,4 +27,4 @@ The CLI and its models are distributed separately. Licensed models will use the 
 
 ## Setup preview
 
-Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. Verification is not connected yet: the key is neither sent nor saved, and no device is activated. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.
+Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. The key is sent to the Themistic license server for a signed access check. The result shows expiry, device capacity, and entitled models. The key is not saved and no device is activated. Failed checks offer Try again and Go back. Model downloads are not connected yet. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.

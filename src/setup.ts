@@ -1,4 +1,8 @@
-import select from '@inquirer/select';
+import select from './select-option.js';
+import useSetupScreen from './use-setup-screen.js';
+import { createPrompt, useEffect } from '@inquirer/core';
+import licenseAccess from './license-access.js';
+import modelList from './model-list.js';
 import licenseInput from './license-input.js';
 import style from './style.js';
 import renderSetup from './render-setup.js';
@@ -22,39 +26,8 @@ export default async function setup(): Promise<void> {
     var LEAVE_ALTERNATE_SCREEN = '\u001b[?1049l';
     var SHOW_CURSOR = '\u001b[?25h';
     var controller = new AbortController();
-    var onResize = function () {
-        controller.abort();
-    };
-    var theme = {
-        prefix: { idle: style('›', 'accent'), done: style('›', 'accent') },
-        style: {
-            answer: function (text: string) {
-                return style(text, 'accent');
-            },
-            highlight: function (text: string) {
-                return style(text, 'accent');
-            },
-            message: function (text: string) {
-                return style(text, 'strong');
-            },
-            description: function (text: string) {
-                return style(text, 'muted');
-            },
-            error: function (text: string) {
-                return text;
-            },
-            help: function (text: string) {
-                return style(text, 'muted');
-            },
-            keysHelpTip: function () {
-                return undefined;
-            }
-        }
-    };
-
     var summary = 'Setup did not finish. Run velora setup again.';
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
-    process.stdout.on('resize', onResize);
 
     try {
         while (true) {
@@ -65,31 +38,65 @@ export default async function setup(): Promise<void> {
                     { name: 'Use a license', value: 'license', description: 'Access licensed models with your Themistic key.' },
                     { name: 'Use a public model', value: 'public', description: 'Start without a license. Public Veyra1 is coming later.' }
                 ],
-                loop: false,
-                theme: theme
+                loop: false
             }, { signal: controller.signal });
 
             if (choice === 'license') {
-                break;
+                while (true) {
+                    renderSetup('Enter your license.', 'Your key is sent to Themistic to check access.', 'Enter Continue  ·  Ctrl+C Cancel');
+                    var license = await licenseInput({}, { signal: controller.signal });
+                    renderSetup('Checking your license.', 'No device will be activated.', 'Ctrl+C Cancel');
+                    var requestController = new AbortController();
+                    var check = createPrompt<Awaited<ReturnType<typeof licenseAccess>>, Record<string, never>>(function (_config, done) {
+                        useEffect(function () {
+                            var active = true;
+                            void licenseAccess(license, AbortSignal.any([controller.signal, requestController.signal])).then(function (result) {
+                                if (active) {
+                                    done(result);
+                                }
+                            }).catch(function () {
+                                if (active) {
+                                    done({ ok: false, message: 'The license check was interrupted.' });
+                                }
+                            });
+                            return function () {
+                                active = false;
+                                requestController.abort();
+                            };
+                        }, []);
+                        return useSetupScreen(style('Checking license access…', 'muted'));
+                    });
+                    var result = await check({}, { signal: controller.signal });
+                    license = '';
+                    if (!result.ok) {
+                        renderSetup('License check unsuccessful.', result.message, '↑/↓ Move  ·  Enter Select  ·  Ctrl+C Cancel');
+                        var action = await select({ message: 'Next step', choices: [
+                            { name: 'Try again', value: 'retry' }, { name: 'Go back', value: 'back' }
+                        ] }, { signal: controller.signal });
+                        if (action === 'retry') {
+                            continue;
+                        }
+                        break;
+                    }
+                    var expires = new Date(result.expiresAt).toISOString().slice(0, 10);
+                    var next = await modelList(result.models, 'Expires ' + expires + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices, controller.signal);
+                    if (next === 'finish') {
+                        summary = 'License verified. No key saved or device activated.';
+                        return;
+                    }
+                    break;
+                }
+                continue;
             }
 
             renderSetup('Public models will be available soon.', 'Veyra1 is coming. You can use a license in the meantime.', 'Enter Go back  ·  Ctrl+C Cancel');
             await select({
                 message: 'Next step',
-                choices: [{ name: 'Go back', value: 'back' }],
-                theme: theme
+                choices: [{ name: 'Go back', value: 'back' }]
             }, { signal: controller.signal });
         }
 
-        renderSetup('Enter your license.', 'Preview only. Your key will not be sent or saved.', 'Enter Continue  ·  Ctrl+C Cancel');
-        await licenseInput({}, { signal: controller.signal });
-        summary = 'License entry complete. Verification is not connected yet. No key was saved and no device was activated.';
     } catch (error) {
-        if (controller.signal.aborted) {
-            summary = 'Terminal resized. Run velora setup again to use the new size.';
-            process.exitCode = 1;
-            return;
-        }
         if (error instanceof Error && error.name === 'ExitPromptError') {
             summary = 'Setup cancelled.';
             process.exitCode = 130;
@@ -98,7 +105,6 @@ export default async function setup(): Promise<void> {
         summary = 'Setup failed unexpectedly.';
         throw error;
     } finally {
-        process.stdout.off('resize', onResize);
         process.stdout.write(SHOW_CURSOR + LEAVE_ALTERNATE_SCREEN);
         process.stdout.write(style('velora', 'accent') + '  ' + summary + '\n');
     }

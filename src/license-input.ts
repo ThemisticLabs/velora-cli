@@ -1,5 +1,6 @@
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import style from './style.js';
+import useSetupScreen from './use-setup-screen.js';
 
 export default createPrompt<string, Record<string, never>>(function (_config, done) {
     var [value, setValue] = useState('');
@@ -20,6 +21,10 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
     }, [value, revealedIndex]);
 
     useKeypress(function (key, terminal) {
+        if (process.stdout.columns < 60 || process.stdout.rows < 20) {
+            terminal.line = value;
+            return;
+        }
         setRevealedIndex(-1);
         if (isEnterKey(key)) {
             var license = value.trim();
@@ -32,7 +37,7 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
             done(license);
             return;
         }
-        var nextValue = terminal.line;
+        var nextValue = terminal.line.toUpperCase();
         if (nextValue.length === value.length + 1 && nextValue.startsWith(value) && /^[!-~]$/.test(nextValue.slice(-1))) {
             setRevealedIndex(nextValue.length - 1);
         }
@@ -54,5 +59,5 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
         maskedValue += '*';
     }
     var content = style('›', 'accent') + ' ' + style('License key:', 'strong') + ' ' + maskedValue;
-    return [content, error];
+    return useSetupScreen(content, error, true);
 });
