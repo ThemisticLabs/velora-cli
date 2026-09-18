@@ -99,3 +99,5 @@ The header uses a small static Unicode dot mark derived from the original Themis
 The footer follows the terminal height. Resizing preserves the current input, selection and detail view. Below the minimum size, a notice replaces the content until the terminal is enlarged. Model tables show at least three models when available, with more rows in taller terminals.
 
 License letters are normalized to uppercase as you type or paste. Model details come from the signed API response. List entries have full-width dividers and short descriptions; More above and More below indicate hidden entries. Enter opens a model; left/right arrows page through its overview, strengths, limitations, and installation status. Enter returns to the list.
+
+Press F1 to open documentation for the current setup step or selected model. The links currently use placeholder routes on `docs.themistic.com`; see [ARCHITECTURE.md](ARCHITECTURE.md#contextual-documentation). Letters such as D remain ordinary input in license keys.

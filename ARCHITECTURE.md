@@ -103,3 +103,17 @@ The fixed endpoint is `https://api.themistic.com/v1/license/check`, with `operat
 Tests use an injected transport and test signing key; production exposes no endpoint or trust-key command-line override.
 
 Model descriptions are optional signed API fields. Older servers keep working with an explicit unavailable-description fallback. The CLI rejects control characters and oversized metadata before terminal rendering. License input normalizes letters to uppercase; the value submitted to the API uses the same normalized form.
+
+## Contextual documentation
+
+F1 opens documentation without changing the active input or selection. The footer displays the shortcut in every normal setup view. The shared screen hook handles the key; model selection overrides the destination with the highlighted model ID. No license key, device identity or input text is included in the URL.
+
+These routes are agreed placeholders until the documentation site is published:
+
+| Context | URL |
+| --- | --- |
+| Setup and navigation actions | `https://docs.themistic.com/velora/setup` |
+| License input, verification and errors | `https://docs.themistic.com/licenses` |
+| Highlighted model or its detail pages | `https://docs.themistic.com/models/<model-id>` |
+
+`src/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. “Sent to browser” confirms the opener completed, not that the page loaded. Browser launch arguments were verified using a test opener on macOS; the placeholder site and other platform handlers are not live-verified.

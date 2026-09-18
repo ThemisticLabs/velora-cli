@@ -43,9 +43,9 @@ export default async function setup(): Promise<void> {
 
             if (choice === 'license') {
                 while (true) {
-                    renderSetup('Enter your license.', 'Your key is sent to Themistic to check access.', 'Enter Continue  ·  Ctrl+C Cancel');
+                    renderSetup('Enter your license.', 'Your key is sent to Themistic to check access.', 'Enter Continue  ·  Ctrl+C Cancel', '/licenses');
                     var license = await licenseInput({}, { signal: controller.signal });
-                    renderSetup('Checking your license.', 'No device will be activated.', 'Ctrl+C Cancel');
+                    renderSetup('Checking your license.', 'No device will be activated.', 'Ctrl+C Cancel', '/licenses');
                     var requestController = new AbortController();
                     var check = createPrompt<Awaited<ReturnType<typeof licenseAccess>>, Record<string, never>>(function (_config, done) {
                         useEffect(function () {
@@ -69,7 +69,7 @@ export default async function setup(): Promise<void> {
                     var result = await check({}, { signal: controller.signal });
                     license = '';
                     if (!result.ok) {
-                        renderSetup('License check unsuccessful.', result.message, '↑/↓ Move  ·  Enter Select  ·  Ctrl+C Cancel');
+                        renderSetup('License check unsuccessful.', result.message, '↑/↓ Move  ·  Enter Select  ·  Ctrl+C Cancel', '/licenses');
                         var action = await select({ message: 'Next step', choices: [
                             { name: 'Try again', value: 'retry' }, { name: 'Go back', value: 'back' }
                         ] }, { signal: controller.signal });

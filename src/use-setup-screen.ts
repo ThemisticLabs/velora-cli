@@ -1,16 +1,39 @@
-import { useEffect, useState } from '@inquirer/core';
+import { useEffect, useKeypress, useRef, useState } from '@inquirer/core';
 import { setupLayout } from './render-setup.js';
 import style from './style.js';
 import header from './header.js';
+import openDocumentation from './open-documentation.js';
 
-export default function useSetupScreen(content: string, error = '', inputCursor = false): [string, string] {
+export default function useSetupScreen(content: string, error = '', inputCursor = false, documentationPath = setupLayout.documentationPath): [string, string] {
     var [, setSize] = useState('');
+    var [documentationStatus, setDocumentationStatus] = useState('');
+    var opening = useRef(false);
+    var active = useRef(true);
+    useKeypress(function (key) {
+        if (key.name !== 'f1' || opening.current) {
+            return;
+        }
+        opening.current = true;
+        setDocumentationStatus('Opening documentation…');
+        void openDocumentation('https://docs.themistic.com' + documentationPath).then(function (opened) {
+            opening.current = false;
+            if (!active.current) {
+                return;
+            }
+            if (!opened) {
+                setDocumentationStatus('Could not open browser. Press F1 to retry.');
+                return;
+            }
+            setDocumentationStatus('Sent to browser. Press F1 to open again.');
+        });
+    });
     useEffect(function () {
         var onResize = function () {
             setSize(process.stdout.columns + 'x' + process.stdout.rows);
         };
         process.stdout.on('resize', onResize);
         return function () {
+            active.current = false;
             process.stdout.off('resize', onResize);
         };
     }, []);
@@ -44,8 +67,10 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     if (error) {
         errorRows = error.split('\n').length;
     }
-    var padding = Math.max(0, rows - contentRows - errorRows - 2);
+    var padding = Math.max(0, rows - contentRows - errorRows - 3);
     bottom += '\n'.repeat(padding);
     bottom += style(setupLayout.footer.slice(0, columns - 1), 'muted');
+    var documentationHint = documentationStatus || 'Press F1 to open documentation';
+    bottom += '\n' + style(documentationHint.slice(0, columns - 1), 'muted');
     return [screen, bottom];
 }

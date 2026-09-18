@@ -89,14 +89,18 @@ export default async function modelList(models: LicenseModel[], summary: string,
                 finish = style('› Finish', 'accent');
             }
             output += back + '    ' + finish;
-            return useSetupScreen(output);
+            var documentationPath = '/velora/setup';
+            if (activeIndex < models.length) {
+                documentationPath = '/models/' + encodeURIComponent(models[activeIndex]!.id);
+            }
+            return useSetupScreen(output, '', false, documentationPath);
         });
         var selected = await choose({}, { signal });
         if (selected === 'back' || selected === 'finish') {
             return selected;
         }
 
-        renderSetup('Model details.', selected.name.slice(0, process.stdout.columns - 4), '←/→ Pages · Enter Back · Ctrl+C Cancel');
+        renderSetup('Model details.', selected.name.slice(0, process.stdout.columns - 4), '←/→ Pages · Enter Back · Ctrl+C Cancel', '/models/' + encodeURIComponent(selected.id));
         var sections = [
             { title: 'Overview', text: selected.description },
             { title: 'Strengths', text: selected.strengths },
