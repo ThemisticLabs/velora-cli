@@ -27,4 +27,4 @@ The CLI and its models are distributed separately. Licensed models will use the 
 
 ## Setup preview
 
-Run `velora setup` in an interactive terminal to choose license access or a public model. License input is hidden, but verification is not connected yet: the key is neither sent nor saved, and no device is activated. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.
+Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. Verification is not connected yet: the key is neither sent nor saved, and no device is activated. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.

@@ -15,7 +15,7 @@ The preview accepts a non-empty license key, masks its display, and ends with an
 | `src/cli.ts` | Configure Commander, register commands, and dispatch arguments. |
 | `src/setup.ts` | Own the setup flow, prompt theme, alternate-screen lifecycle, and completion status. |
 | `src/render-setup.ts` | Draw the setup header, text, dividers, and positioned footer. |
-| `src/license-input.ts` | Read masked input and reject an empty or whitespace-only key. |
+| `src/license-input.ts` | Briefly reveal the last appended character, mask input, and reject an empty or whitespace-only key. |
 | `src/header.ts` | Combine the product name, embedded version, and compact mark according to terminal size. |
 | `src/style.ts` | Apply terminal styles and the Themistic accent, respecting color environment variables. |
 | `src/assets/mark.json` | Store the static Unicode Braille mark derived from the Themistic logo. |
@@ -76,7 +76,7 @@ Commander handles commands. `@inquirer/select` handles selection prompts; `@inqu
 
 ## Data boundaries
 
-The preview holds input in process memory. Masking protects terminal display, not memory. The preview discards the prompt result. JavaScript strings cannot be reliably erased from memory by assigning another value.
+The preview holds input in process memory. The last appended printable ASCII character is shown for 600 ms, then masked. Further input masks the previous character immediately. Deletion and navigation hide the revealed character. The prompt effect clears its timer on changes and exit. Masking limits terminal visibility, not memory access. The preview discards the prompt result. JavaScript strings cannot be reliably erased from memory by assigning another value.
 
 Future engines and model weights remain separate from this repository and executable. License verification, device registration, download integrity, and engine startup need explicit integration before any setup step can report success. The local API and optional anonymization mapping are planned behavior, not implemented contracts.
 
