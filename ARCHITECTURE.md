@@ -52,7 +52,7 @@ Commander owns argument parsing and suggestions. `package.json` is the version s
 5. For licensed access, read the key and run a cancellable access check. Failures offer retry or back; verified results show models and offer back or finish.
 6. Restore the original screen and cursor in `finally`, then print one summary.
 
-Ctrl+C is identified through Inquirer's `ExitPromptError` and exits with status 130. A terminal resize redraws the active prompt while preserving its state. Unexpected errors propagate after cleanup so their original cause remains available. Successful completion follows a verified valid access response. It does not activate a device or install a model.
+Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive setup normally with status 0, so script runners do not report a failure for a deliberate cancellation. A terminal resize redraws the active prompt while preserving its state. Unexpected errors propagate after cleanup so their original cause remains available. Successful completion follows a verified valid access response. It does not activate a device or install a model.
 
 `set-setup-layout.ts` stores the current step's labels. Every prompt calls `use-setup-screen.ts`, which subscribes to resize events and redraws the full frame through Inquirer's rendering cycle. The resize listener is removed when the prompt settles. Input, selected models and detail pages remain in prompt state. Below 60 columns or 20 rows, the prompt displays a size notice and suspends normal interaction; Ctrl+C still cancels. The header is compact below 28 rows, and the model table reserves space for at least three models and separate actions.
 

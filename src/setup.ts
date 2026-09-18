@@ -96,7 +96,7 @@ export default async function setup(): Promise<void> {
     } catch (error) {
         if (error instanceof Error && error.name === 'ExitPromptError') {
             summary = 'Setup cancelled.';
-            process.exitCode = 130;
+            process.exitCode = 0;
             return;
         }
         summary = 'Setup failed unexpectedly.';
