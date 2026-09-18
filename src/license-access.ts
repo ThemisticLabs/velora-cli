@@ -1,3 +1,5 @@
+import { createPublicKey, randomBytes, verify } from 'node:crypto';
+
 export type LicenseModel = {
     id: string;
     name: string;
@@ -7,18 +9,19 @@ export type LicenseModel = {
     downloadReason: string | null;
 };
 
-import { createPublicKey, randomBytes, verify } from 'node:crypto';
-
 export default async function licenseAccess(license: string, signal: AbortSignal, transport = fetch,
     publicKey = '8e0879487aca58247073518a7aa2b215eec0779b0bb3274f1a67bf70c519b153') {
     if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
         return { ok: false as const, message: 'Check the license key and try again.' };
     }
 
+    var PROBE_ID_BYTES = 32;
+    var NONCE_BYTES = 24;
+    var MAX_MODEL_TEXT_LENGTH = 2000;
     var request = {
         operation: 'access', license_key: license, model_id: null,
         // This read-only probe does not claim an existing device identity.
-        hw: randomBytes(32).toString('hex'), nonce: randomBytes(24).toString('base64url')
+        hw: randomBytes(PROBE_ID_BYTES).toString('hex'), nonce: randomBytes(NONCE_BYTES).toString('base64url')
     };
     var MAX_RESPONSE_BYTES = 262144;
     var REQUEST_TIMEOUT_MS = 15000;
@@ -60,8 +63,8 @@ export default async function licenseAccess(license: string, signal: AbortSignal
         if (!verify(null, raw, key, Buffer.from(signature, 'base64'))) {
             return { ok: false as const, message: 'The server response could not be verified.' };
         }
-        var data = JSON.parse(raw.toString('utf8'));
-        if (!data || typeof data !== 'object' || data.nonce !== request.nonce) {
+        var data: unknown = JSON.parse(raw.toString('utf8'));
+        if (!isRecord(data) || data.nonce !== request.nonce) {
             return { ok: false as const, message: 'The server response does not match this request.' };
         }
         // Busy responses bind only the nonce, as defined by the server contract.
@@ -76,35 +79,70 @@ export default async function licenseAccess(license: string, signal: AbortSignal
                 unknown_key: 'This license key was not found.', expired: 'This license has expired.',
                 revoked: 'This license has been revoked.', not_yet_valid: 'This license is not valid yet.'
             };
-            return { ok: false as const, message: reasons[data.reason] || 'This license could not be verified.' };
+            var message = 'This license could not be verified.';
+            if (typeof data.reason === 'string' && Object.hasOwn(reasons, data.reason)) {
+                message = reasons[data.reason]!;
+            }
+            return { ok: false as const, message };
         }
         var access = data.access;
-        if (!response.ok || data.valid !== true || !access || access.status !== 'ok' ||
-            typeof access.expires_at !== 'string' || !Number.isFinite(Date.parse(access.expires_at)) ||
-            !Number.isSafeInteger(access.max_devices) || access.max_devices < 1 ||
-            !Number.isSafeInteger(access.registered_devices) || access.registered_devices < 0 || !Array.isArray(access.models)) {
+        if (!response.ok || data.valid !== true || !isRecord(access) || access.status !== 'ok') {
             return { ok: false as const, message: 'The server returned incomplete license details.' };
         }
+        var expiresAt = access.expires_at;
+        var maxDevices = access.max_devices;
+        var registeredDevices = access.registered_devices;
+        if (typeof expiresAt !== 'string' || !Number.isFinite(Date.parse(expiresAt))) {
+            return { ok: false as const, message: 'The server returned an invalid license expiry.' };
+        }
+        if (typeof maxDevices !== 'number' || !Number.isSafeInteger(maxDevices) || maxDevices < 1) {
+            return { ok: false as const, message: 'The server returned an invalid device limit.' };
+        }
+        if (typeof registeredDevices !== 'number' || !Number.isSafeInteger(registeredDevices) || registeredDevices < 0) {
+            return { ok: false as const, message: 'The server returned an invalid device count.' };
+        }
+        if (!Array.isArray(access.models)) {
+            return { ok: false as const, message: 'The server returned an invalid model list.' };
+        }
         var models: LicenseModel[] = [];
-        for (var model of access.models) {
-            if (!model || typeof model.model_id !== 'string' || !/^[a-z0-9_-]{2,64}$/.test(model.model_id) || model.entitled !== true) {
+        var receivedModels: unknown[] = access.models;
+        for (var model of receivedModels) {
+            if (!isRecord(model) || typeof model.model_id !== 'string' || !/^[a-z0-9_-]{2,64}$/.test(model.model_id) || model.entitled !== true) {
                 return { ok: false as const, message: 'The server returned invalid model details.' };
             }
-            for (var field of ['display_name', 'description', 'strengths', 'limitations']) {
-                if (model[field] !== undefined && (typeof model[field] !== 'string' || model[field].length > 2000 || /[\x00-\x1f\x7f-\x9f]/.test(model[field]))) {
+            var metadata = {
+                display_name: model.model_id,
+                description: 'No description published yet.',
+                strengths: 'Not documented yet.',
+                limitations: 'Not documented yet.'
+            };
+            var textFields: (keyof typeof metadata)[] = ['display_name', 'description', 'strengths', 'limitations'];
+            for (var field of textFields) {
+                var text = model[field];
+                if (text === undefined) {
+                    continue;
+                }
+                if (typeof text !== 'string' || text.length > MAX_MODEL_TEXT_LENGTH || /[\x00-\x1f\x7f-\x9f]/.test(text)) {
                     return { ok: false as const, message: 'The server returned invalid model details.' };
                 }
+                if (text) {
+                    metadata[field] = text;
+                }
             }
-            models.push({ id: model.model_id, name: model.display_name || model.model_id,
-                description: model.description || 'No description published yet.',
-                strengths: model.strengths || 'Not documented yet.', limitations: model.limitations || 'Not documented yet.',
-                downloadReason: null });
+            var licenseModel: LicenseModel = {
+                id: model.model_id,
+                name: metadata.display_name,
+                description: metadata.description,
+                strengths: metadata.strengths,
+                limitations: metadata.limitations,
+                downloadReason: null
+            };
             if (typeof model.download_reason === 'string' && /^[a-z_]{1,64}$/.test(model.download_reason)) {
-                models[models.length - 1]!.downloadReason = model.download_reason;
+                licenseModel.downloadReason = model.download_reason;
             }
+            models.push(licenseModel);
         }
-        return { ok: true as const, expiresAt: access.expires_at as string,
-            maxDevices: access.max_devices as number, registeredDevices: access.registered_devices as number, models };
+        return { ok: true as const, expiresAt, maxDevices, registeredDevices, models };
     } catch {
         if (signal.aborted) {
             throw signal.reason;
@@ -114,4 +152,8 @@ export default async function licenseAccess(license: string, signal: AbortSignal
         }
         return { ok: false as const, message: 'Could not read a verified server response. Try again.' };
     }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

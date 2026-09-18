@@ -91,7 +91,7 @@ Piped output is plain. `NO_COLOR`, `TERM=dumb`, and `FORCE_COLOR=0` disable colo
 
 Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. The key is sent to the Themistic license server for a signed access check. The result shows expiry, device capacity, and entitled models. The key is not saved and no device is activated. Failed checks offer Try again and Go back. Model downloads are not connected yet. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.
 
-The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Completion and Ctrl+C restore the original terminal with one summary. `src/render-setup.ts` stores the current step heading; `src/use-setup-screen.ts` redraws the frame and footer when terminal dimensions change. Prompts retain their input and selection state.
+The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Completion and Ctrl+C restore the original terminal with one summary. `src/set-setup-layout.ts` stores the current step heading; `src/use-setup-screen.ts` redraws the frame and footer when terminal dimensions change. Prompts retain their input and selection state.
 
 
 The header uses a small static Unicode dot mark derived from the original Themistic SVG logo. Setup uses a compact text header below 28 rows. There is no startup delay. Setup requires at least 60 columns and 20 rows.

@@ -14,7 +14,8 @@ Setup sends the entered key over HTTPS for a signed read-only access check and d
 | --- | --- |
 | `src/cli.ts` | Configure Commander, register commands, and dispatch arguments. |
 | `src/setup.ts` | Own the setup flow, prompt theme, alternate-screen lifecycle, and completion status. |
-| `src/render-setup.ts` | Store the title, detail and footer for the current setup step. |
+| `src/set-setup-layout.ts` | Store the title, detail and footer for the current setup step. |
+| `src/setup-dimensions.ts` | Define terminal limits and derive available content space from the rendered header. |
 | `src/use-setup-screen.ts` | Render the shared frame and footer and subscribe to terminal resizing without restarting prompts. |
 | `src/select-option.ts` | Handle setup choices with persistent selection and the shared responsive frame. |
 | `src/license-access.ts` | Perform the bounded HTTPS access request, verify Ed25519 signatures and request binding, and validate the returned fields. |
@@ -53,7 +54,7 @@ Commander owns argument parsing and suggestions. `package.json` is the version s
 
 Ctrl+C is identified through Inquirer's `ExitPromptError` and exits with status 130. A terminal resize redraws the active prompt while preserving its state. Unexpected errors propagate after cleanup so their original cause remains available. Successful completion follows a verified valid access response. It does not activate a device or install a model.
 
-`render-setup.ts` stores the current step's labels. Every prompt calls `use-setup-screen.ts`, which subscribes to resize events and redraws the full frame through Inquirer's rendering cycle. The resize listener is removed when the prompt settles. Input, selected models and detail pages remain in prompt state. Below 60 columns or 20 rows, the prompt displays a size notice and suspends normal interaction; Ctrl+C still cancels. The header is compact below 28 rows, and the model table reserves space for at least three models and separate actions.
+`set-setup-layout.ts` stores the current step's labels. Every prompt calls `use-setup-screen.ts`, which subscribes to resize events and redraws the full frame through Inquirer's rendering cycle. The resize listener is removed when the prompt settles. Input, selected models and detail pages remain in prompt state. Below 60 columns or 20 rows, the prompt displays a size notice and suspends normal interaction; Ctrl+C still cancels. The header is compact below 28 rows, and the model table reserves space for at least three models and separate actions.
 
 ## Terminal conventions
 

@@ -78,3 +78,40 @@ test.each([false, true])('signed model descriptions reject terminal controls: %s
         expect(result.models[0]?.limitations).toBe('Weekdays may be missed.');
     }
 });
+
+test.each([
+    { field: 'expires_at', value: 123, message: 'The server returned an invalid license expiry.' },
+    { field: 'max_devices', value: '50', message: 'The server returned an invalid device limit.' },
+    { field: 'registered_devices', value: -1, message: 'The server returned an invalid device count.' },
+    { field: 'models', value: {}, message: 'The server returned an invalid model list.' },
+    { field: 'models', value: [null], message: 'The server returned invalid model details.' },
+    { field: 'models', value: [{ model_id: 'skira7alpha', entitled: true, description: 123 }], message: 'The server returned invalid model details.' }
+])('signed response validates $field before using it', async function (scenario) {
+    var transport = async function (_url: unknown, options: RequestInit | undefined) {
+        var request = JSON.parse(options?.body as string);
+        var access: Record<string, unknown> = {
+            status: 'ok',
+            expires_at: '2026-10-18T10:00:00Z',
+            max_devices: 50,
+            registered_devices: 0,
+            models: []
+        };
+        access[scenario.field] = scenario.value;
+        var raw = Buffer.from(JSON.stringify({ ...request, valid: true, access }));
+        var signature = sign(null, raw, keys.privateKey).toString('base64');
+        return new Response(raw, { headers: { 'X-Signature': signature } });
+    };
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, transport as typeof fetch, publicKey);
+    expect(result).toEqual({ ok: false, message: scenario.message });
+});
+
+test('unknown rejection reasons cannot resolve to inherited object properties', async function () {
+    var transport = async function (_url: unknown, options: RequestInit | undefined) {
+        var request = JSON.parse(options?.body as string);
+        var raw = Buffer.from(JSON.stringify({ ...request, valid: false, reason: 'constructor' }));
+        var signature = sign(null, raw, keys.privateKey).toString('base64');
+        return new Response(raw, { status: 403, headers: { 'X-Signature': signature } });
+    };
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, transport as typeof fetch, publicKey);
+    expect(result).toEqual({ ok: false, message: 'This license could not be verified.' });
+});

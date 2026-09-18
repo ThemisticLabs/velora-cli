@@ -1,7 +1,7 @@
 import { useEffect, useKeypress, useRef, useState } from '@inquirer/core';
-import { setupLayout } from './render-setup.js';
+import { setupLayout } from './set-setup-layout.js';
 import style from './style.js';
-import header from './header.js';
+import setupDimensions, { MIN_COLUMNS, MIN_ROWS, FOOTER_ROWS, TERMINAL_BOTTOM_MARGIN_ROWS } from './setup-dimensions.js';
 import openDocumentation from './open-documentation.js';
 
 export default function useSetupScreen(content: string, error = '', inputCursor = false, documentationPath = setupLayout.documentationPath): [string, string] {
@@ -41,17 +41,15 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     var CLEAR_SCREEN = '\u001b[H\u001b[2J';
     var HIDE_CURSOR = '\u001b[?25l';
     var SHOW_CURSOR = '\u001b[?25h';
-    var columns = process.stdout.columns;
-    var rows = process.stdout.rows;
-    if (columns < 60 || rows < 20) {
-        var notice = 'Enlarge terminal to 60 × 20.';
+    var dimensions = setupDimensions();
+    var columns = dimensions.columns;
+    var rows = dimensions.rows;
+    if (dimensions.tooSmall) {
+        var notice = 'Enlarge terminal to ' + MIN_COLUMNS + ' × ' + MIN_ROWS + '.';
         return [HIDE_CURSOR + CLEAR_SCREEN + notice.slice(0, Math.max(1, columns - 1)), ''];
     }
-    var width = columns - 4;
-    var screen = CLEAR_SCREEN + '  ' + style('velora', 'accent') + '\n';
-    if (rows >= 28) {
-        screen = CLEAR_SCREEN + header();
-    }
+    var width = dimensions.contentWidth;
+    var screen = CLEAR_SCREEN + dimensions.headerText;
     var cursor = HIDE_CURSOR;
     if (inputCursor) {
         cursor = SHOW_CURSOR;
@@ -67,7 +65,7 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     if (error) {
         errorRows = error.split('\n').length;
     }
-    var padding = Math.max(0, rows - contentRows - errorRows - 3);
+    var padding = Math.max(0, rows - contentRows - errorRows - FOOTER_ROWS - TERMINAL_BOTTOM_MARGIN_ROWS);
     bottom += '\n'.repeat(padding);
     bottom += style(setupLayout.footer.slice(0, columns - 1), 'muted');
     var documentationHint = documentationStatus || 'Press F1 to open documentation';

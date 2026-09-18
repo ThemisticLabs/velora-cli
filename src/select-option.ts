@@ -1,3 +1,4 @@
+import setupDimensions from './setup-dimensions.js';
 import { createPrompt, isEnterKey, useKeypress, useState } from '@inquirer/core';
 import useSetupScreen from './use-setup-screen.js';
 import style from './style.js';
@@ -5,13 +6,12 @@ import style from './style.js';
 type Selection = {
     message: string;
     choices: { name: string; value: string; description?: string }[];
-    loop?: boolean;
 };
 
 export default createPrompt<string, Selection>(function (config, done) {
     var [index, setIndex] = useState(0);
     useKeypress(function (key) {
-        if (process.stdout.columns < 60 || process.stdout.rows < 20) {
+        if (setupDimensions().tooSmall) {
             return;
         }
         if (isEnterKey(key)) {
@@ -25,7 +25,7 @@ export default createPrompt<string, Selection>(function (config, done) {
             setIndex(Math.max(0, index - 1));
         }
     });
-    var width = Math.max(1, process.stdout.columns - 4);
+    var width = setupDimensions().contentWidth;
     var content = style(config.message.slice(0, width), 'strong') + '\n\n';
     for (var choiceIndex = 0; choiceIndex < config.choices.length; choiceIndex++) {
         var name = config.choices[choiceIndex]!.name.slice(0, width);

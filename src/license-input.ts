@@ -1,3 +1,4 @@
+import setupDimensions from './setup-dimensions.js';
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import style from './style.js';
 import useSetupScreen from './use-setup-screen.js';
@@ -21,7 +22,7 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
     }, [value, revealedIndex]);
 
     useKeypress(function (key, terminal) {
-        if (process.stdout.columns < 60 || process.stdout.rows < 20) {
+        if (setupDimensions().tooSmall) {
             terminal.line = value;
             return;
         }

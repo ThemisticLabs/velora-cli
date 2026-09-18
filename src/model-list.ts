@@ -1,17 +1,18 @@
-import { createPrompt, isEnterKey, useKeypress, useState } from '@inquirer/core';
+import setupDimensions from './setup-dimensions.js';
+import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import type { LicenseModel } from './license-access.js';
-import renderSetup from './render-setup.js';
+import setSetupLayout from './set-setup-layout.js';
 import style from './style.js';
 import useSetupScreen from './use-setup-screen.js';
 
-export default async function modelList(models: LicenseModel[], summary: string, signal: AbortSignal) {
+export default async function modelList(models: LicenseModel[], summary: string, signal?: AbortSignal) {
     var selectedIndex = 0;
     while (true) {
-        renderSetup('Your models.', summary, '↑/↓ Scroll · Enter Open · Ctrl+C Cancel');
+        setSetupLayout('Your models.', summary, '↑/↓ Scroll · Enter Open · Ctrl+C Cancel');
         var choose = createPrompt<LicenseModel | 'back' | 'finish', Record<string, never>>(function (_config, done) {
             var [activeIndex, setActiveIndex] = useState(selectedIndex);
             useKeypress(function (key) {
-                if (process.stdout.columns < 60 || process.stdout.rows < 20) {
+                if (setupDimensions().tooSmall) {
                     return;
                 }
                 if (isEnterKey(key)) {
@@ -34,23 +35,28 @@ export default async function modelList(models: LicenseModel[], summary: string,
                     setActiveIndex(Math.max(0, activeIndex - 1));
                 }
             });
-            var layoutRows = 14;
-            if (process.stdout.rows >= 28) {
-                layoutRows += 5;
-            }
-            var VISIBLE_MODELS = Math.max(3, Math.floor((process.stdout.rows - layoutRows) / 2));
+            var dimensions = setupDimensions();
+            var TABLE_HEADING_ROWS = 2;
+            var TABLE_ACTION_ROWS = 3;
+            var MODEL_ROWS = 2;
+            var MIN_VISIBLE_MODELS = 3;
+            var availableModelRows = dimensions.contentRows - TABLE_HEADING_ROWS - TABLE_ACTION_ROWS;
+            var visibleModels = Math.max(MIN_VISIBLE_MODELS, Math.floor(availableModelRows / MODEL_ROWS));
             var modelIndex = Math.min(activeIndex, models.length - 1);
-            var start = Math.max(0, modelIndex - VISIBLE_MODELS + 1);
-            var end = Math.min(models.length, start + VISIBLE_MODELS);
-            var width = Math.max(56, process.stdout.columns - 4);
+            var start = Math.max(0, modelIndex - visibleModels + 1);
+            var end = Math.min(models.length, start + visibleModels);
+            var width = dimensions.contentWidth;
             var NAME_WIDTH = 18;
-            var descriptionWidth = width - NAME_WIDTH - 3;
-            var separator = style('─'.repeat(NAME_WIDTH) + '┼' + '─'.repeat(descriptionWidth + 2), 'divider');
+            var SELECTION_MARKER_COLUMNS = 2;
+            var COLUMN_DIVIDER_COLUMNS = 1;
+            var DESCRIPTION_PADDING_COLUMNS = 2;
+            var descriptionWidth = width - NAME_WIDTH - COLUMN_DIVIDER_COLUMNS - DESCRIPTION_PADDING_COLUMNS;
+            var separator = style('─'.repeat(NAME_WIDTH) + '┼' + '─'.repeat(descriptionWidth + DESCRIPTION_PADDING_COLUMNS), 'divider');
             var output = '  ' + style('Model'.padEnd(NAME_WIDTH), 'muted') + style('│', 'divider') + style(' Description', 'muted') + '\n';
             output += '  ' + separator + '\n';
             for (var index = start; index < end; index++) {
                 var model = models[index]!;
-                var name = model.name.slice(0, NAME_WIDTH - 2);
+                var name = model.name.slice(0, NAME_WIDTH - SELECTION_MARKER_COLUMNS);
                 var marker = '  ';
                 if (index === activeIndex) {
                     marker = '› ';
@@ -100,19 +106,21 @@ export default async function modelList(models: LicenseModel[], summary: string,
             return selected;
         }
 
-        renderSetup('Model details.', selected.name.slice(0, process.stdout.columns - 4), '←/→ Pages · Enter Back · Ctrl+C Cancel', '/models/' + encodeURIComponent(selected.id));
+        setSetupLayout('Model details.', selected.name, '←/→ Pages · Enter Back · Ctrl+C Cancel', '/models/' + encodeURIComponent(selected.id));
+        var installationText = 'Model downloads are not connected in velora yet.';
+        if (selected.downloadReason === 'release_withdrawn') {
+            installationText = 'This release has been withdrawn from download.';
+        }
         var sections = [
             { title: 'Overview', text: selected.description },
             { title: 'Strengths', text: selected.strengths },
             { title: 'Known limitations', text: selected.limitations },
-            { title: 'Installation', text: 'Model downloads are not connected in velora yet.' }
+            { title: 'Installation', text: installationText }
         ];
-        if (selected.downloadReason === 'release_withdrawn') {
-            sections[3]!.text = 'This release has been withdrawn from download.';
-        }
         var details = createPrompt<void, Record<string, never>>(function (_config, done) {
             var pages: string[] = [];
-            var width = Math.max(54, process.stdout.columns - 6);
+            var DETAIL_TEXT_INSET_COLUMNS = 2;
+            var width = Math.max(1, setupDimensions().contentWidth - DETAIL_TEXT_INSET_COLUMNS);
             var LINES_PER_PAGE = 5;
             for (var section of sections) {
                 var lines = [];
@@ -143,8 +151,14 @@ export default async function modelList(models: LicenseModel[], summary: string,
                 }
             }
             var [pageIndex, setPageIndex] = useState(0);
+            var currentPageIndex = Math.min(pageIndex, pages.length - 1);
+            useEffect(function () {
+                if (pageIndex !== currentPageIndex) {
+                    setPageIndex(currentPageIndex);
+                }
+            }, [pageIndex, currentPageIndex]);
             useKeypress(function (key) {
-                if (process.stdout.columns < 60 || process.stdout.rows < 20) {
+                if (setupDimensions().tooSmall) {
                     return;
                 }
                 if (isEnterKey(key) || key.name === 'escape') {
@@ -152,13 +166,13 @@ export default async function modelList(models: LicenseModel[], summary: string,
                     return;
                 }
                 if (key.name === 'right') {
-                    setPageIndex(Math.min(pages.length - 1, pageIndex + 1));
+                    setPageIndex(Math.min(pages.length - 1, currentPageIndex + 1));
                 }
                 if (key.name === 'left') {
-                    setPageIndex(Math.max(0, pageIndex - 1));
+                    setPageIndex(Math.max(0, currentPageIndex - 1));
                 }
             });
-            return useSetupScreen(pages[Math.min(pageIndex, pages.length - 1)] + style('Page ' + (pageIndex + 1) + ' of ' + pages.length, 'muted'));
+            return useSetupScreen(pages[currentPageIndex] + style('Page ' + (currentPageIndex + 1) + ' of ' + pages.length, 'muted'));
         });
         await details({}, { signal });
     }
