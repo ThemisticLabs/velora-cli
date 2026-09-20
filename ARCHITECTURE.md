@@ -118,3 +118,15 @@ These routes are agreed placeholders until the documentation site is published:
 | Highlighted model or its detail pages | `https://docs.themistic.com/models/<model-id>` |
 
 `src/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. “Sent to browser” confirms the opener completed, not that the page loaded. Browser launch arguments were verified using a test opener on macOS; the placeholder site and other platform handlers are not live-verified.
+
+## Installation checks
+
+`src/doctor.ts` implements `velora doctor`. It reports OS and architecture without claiming model support, looks for an executable in absolute PATH directories without running it, and probes the default data location with a temporary directory and file. The probe is removed afterward. Missing data directories are not created; their nearest existing parent is checked instead.
+
+Default data locations are `~/Library/Application Support/velora` on macOS, `%LOCALAPPDATA%/velora` on Windows (falling back to `~/AppData/Local/velora`), and `$XDG_DATA_HOME/velora` on Linux (falling back to `~/.local/share/velora`). Relative environment paths are ignored. These are proposed storage locations for future installation; no engine is installed by this command.
+
+The server check makes a GET request to the public license-check endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. No license or device identity is sent. The injected transport lets tests simulate network failures without contacting production.
+
+Interactive output updates in the alternate screen, then restores the terminal and prints the final report once. Piped output receives only the final report. Ctrl+C cancels the request and restores the terminal. Action items result in exit code 1. Cancellation exits normally.
+
+The report reuses `src/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. No new icons, colours or web components are introduced.

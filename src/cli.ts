@@ -3,6 +3,7 @@
 import packageInfo from '../package.json' with { type: 'json' };
 import { Command } from 'commander';
 import setup from './setup.js';
+import doctor from './doctor.js';
 import style from './style.js';
 import header from './header.js';
 
@@ -28,7 +29,7 @@ program.helpOption('-h, --help', 'Show available commands');
 program.addHelpCommand(false);
 program.showSuggestionAfterError();
 program.showHelpAfterError('\nRun velora --help to see available commands.');
-program.addHelpText('after', '\n' + style('Try it', 'strong') + '\n  ' + style('velora --version', 'accent') + '  Show the current version\n\n' + style('In development', 'strong') + '\n  Model setup and the local API are not available yet.\n');
+program.addHelpText('after', '\n' + style('Try it', 'strong') + '\n  ' + style('velora --version', 'accent') + '  Show the current version\n\n' + style('In development', 'strong') + '\n  License checks and model browsing are available. Downloads and the local API are not available yet.\n');
 
 program.command('help')
     .description('Show available commands')
@@ -39,6 +40,12 @@ program.command('help')
 program.command('setup')
     .description('Choose license access or a public model (preview)')
     .action(setup);
+
+program.command('doctor')
+    .description('Check your system, global command, storage and server connection')
+    .action(function () {
+        return doctor();
+    });
 
 if (process.argv.length === 2) {
     program.outputHelp();

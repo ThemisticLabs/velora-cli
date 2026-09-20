@@ -94,3 +94,14 @@ test('setup requires an interactive terminal and exposes preview help', function
     assert.equal(help.status, 0);
     assert.match(help.stdout, /preview/);
 });
+
+test('doctor is discoverable and has command help without running checks', function () {
+    var help = spawnSync(CLI_PATH, ['doctor', '--help'], { encoding: 'utf8' });
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /Usage: velora doctor/);
+    assert.match(help.stdout, /server connection/);
+    assert.doesNotMatch(help.stdout, /No license checked|HTTP [0-9]/);
+    var typo = spawnSync(CLI_PATH, ['doctr'], { encoding: 'utf8' });
+    assert.equal(typo.status, 1);
+    assert.match(typo.stderr, /Did you mean doctor/);
+});

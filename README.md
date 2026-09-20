@@ -28,3 +28,9 @@ The CLI and its models are distributed separately. Licensed models will use the 
 ## Setup preview
 
 Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. The key is sent to the Themistic license server for a signed access check. The result shows expiry, device capacity, and entitled models. The key is not saved and no device is activated. Failed checks offer Try again and Go back. Model downloads are not connected yet. Public Veyra1 installation is not available in this preview. Press Ctrl+C to cancel.
+
+## Check your installation
+
+Run `velora doctor`, or `bun run start doctor` from the source checkout. It reports your system, checks whether the global command is in PATH, tests storage access and contacts the license server without a license key.
+
+Checks that need attention include a next step. Exit code 0 means the checks completed without an action item; exit code 1 means something needs attention. These checks do not verify engine or model readiness.
