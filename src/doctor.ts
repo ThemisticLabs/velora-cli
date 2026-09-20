@@ -146,15 +146,6 @@ export default async function doctor(transport = fetch): Promise<void> {
             serverCheck.status = 'Action';
             serverCheck.detail = 'Connection failed or timed out. Check your connection, then run velora doctor again.';
         }
-        if (controller.signal.aborted) {
-            return;
-        }
-        for (var check of checks) {
-            if (check.status === 'Action') {
-                process.exitCode = 1;
-                break;
-            }
-        }
     } finally {
         process.off('SIGINT', cancel);
         if (interactive) {

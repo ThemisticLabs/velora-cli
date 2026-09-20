@@ -127,6 +127,6 @@ Default data locations are `~/Library/Application Support/velora` on macOS, `%LO
 
 The server check makes a GET request to the public license-check endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. No license or device identity is sent. The injected transport lets tests simulate network failures without contacting production.
 
-Interactive output updates in the alternate screen, then restores the terminal and prints the final report once. Piped output receives only the final report. Ctrl+C cancels the request and restores the terminal. Action items result in exit code 1. Cancellation exits normally.
+Interactive output updates in the alternate screen, then restores the terminal and prints the final report once. Piped output receives only the final report. Ctrl+C cancels the request and restores the terminal. Completed checks exit normally even when they report action items, so script runners do not add an error to the diagnostic report. Exit code 0 does not imply that all checks passed. Cancellation also exits normally; unexpected unhandled errors still fail the command.
 
 The report reuses `src/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. No new icons, colours or web components are introduced.

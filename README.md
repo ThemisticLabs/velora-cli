@@ -33,4 +33,4 @@ Run `velora setup` in an interactive terminal to choose license access or a publ
 
 Run `velora doctor`, or `bun run start doctor` from the source checkout. It reports your system, checks whether the global command is in PATH, tests storage access and contacts the license server without a license key.
 
-Checks that need attention include a next step. Exit code 0 means the checks completed without an action item; exit code 1 means something needs attention. These checks do not verify engine or model readiness.
+Checks that need attention include a next step. A completed report exits normally, even when a check needs attention. Read the individual results; exit code 0 does not mean every check passed. These checks do not verify engine or model readiness.

@@ -39,7 +39,7 @@ test('doctor checks PATH without executing the discovered command and sends no c
     }
 });
 
-test.each(['unavailable', 'http error'])('doctor reports missing PATH and server failure: %s', function (scenario) {
+test.each(['unavailable', 'http error'])('doctor reports missing PATH and server failure without failing the command: %s', function (scenario) {
     var response = "throw new TypeError('Network unavailable');";
     if (scenario === 'http error') {
         response = "return new Response('', { status: 503 });";
@@ -48,7 +48,7 @@ test.each(['unavailable', 'http error'])('doctor reports missing PATH and server
     var result = spawnSync(process.execPath, ['-e', script], {
         env: { ...process.env, PATH: '', NO_COLOR: '1' }, encoding: 'utf8'
     });
-    assert.equal(result.status, 1);
+    assert.equal(result.status, 0);
     assert.match(result.stdout, /Add the folder containing velora to PATH/);
     assert.match(result.stdout, /Action\s+License server/);
     if (scenario === 'http error') {
