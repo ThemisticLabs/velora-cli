@@ -6,7 +6,7 @@ Local anonymization for the tools you already use.
 > **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup preview, not a finished release. Model downloads and the local API are still being built.
 
 velora is an open-source CLI from Themistic, being built to run model families such as Skira and Veyra on your device and make them available through a local API.
-<img width="1049" height="678" alt="veloraCli" src="https://github.com/user-attachments/assets/7f823111-9c24-42ab-a826-82351f19f289" />
+<img width="1179" height="761" alt="VeloraCli" src="https://github.com/user-attachments/assets/23185312-759a-44a4-94c8-f10075d08203" />
 ## A clear path from setup to your first result
 
 Choose a model, follow its setup, and create an API key for your tools. velora is designed to guide you through model downloads and license activation, with commands to check, pause, and resume the local service. On macOS, a small menu bar control will keep its status close at hand.
