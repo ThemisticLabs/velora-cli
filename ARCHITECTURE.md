@@ -23,7 +23,7 @@ Setup sends the entered key over HTTPS for a signed read-only access check and d
 | `src/license-input.ts` | Briefly reveal the last appended character, mask input, and reject an empty or whitespace-only key. |
 | `src/header.ts` | Combine the product name, embedded version, and compact mark according to terminal size. |
 | `src/style.ts` | Apply terminal styles and the Themistic accent, respecting color environment variables. |
-| `src/assets/mark.json` | Store the static Unicode Braille mark derived from the Themistic logo. |
+| `src/assets/mark.json` | Store the static Unicode Braille mark derived from the Themistic TC logo. |
 | `src/assets/logo.svg` | Keep an unchanged local copy of the original Themistic logo artwork. |
 | `src/assets/SOURCES.md` | Record asset provenance. |
 | `tests/cli.test.mjs` | Test the compiled CLI through child processes. |

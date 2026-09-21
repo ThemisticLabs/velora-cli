@@ -94,7 +94,7 @@ Run `velora setup` in an interactive terminal to choose license access or a publ
 The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Completion and Ctrl+C restore the original terminal with one summary. `src/set-setup-layout.ts` stores the current step heading; `src/use-setup-screen.ts` redraws the frame and footer when terminal dimensions change. Prompts retain their input and selection state.
 
 
-The header uses a small static Unicode dot mark derived from the original Themistic SVG logo. Setup uses a compact text header below 28 rows. There is no startup delay. Setup requires at least 60 columns and 20 rows.
+The header uses a small static Unicode Braille mark derived from the supplied Themistic TC SVG logo. Setup uses a compact text header below 28 rows. There is no startup delay. Setup requires at least 60 columns and 20 rows.
 
 The footer follows the terminal height. Resizing preserves the current input, selection and detail view. Below the minimum size, a notice replaces the content until the terminal is enlarged. Model tables show at least three models when available, with more rows in taller terminals.
 
