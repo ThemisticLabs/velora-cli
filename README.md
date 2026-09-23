@@ -25,6 +25,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the current implementation and its bo
 
 The CLI and its models are distributed separately. Licensed models will use the Themistic license server to download their engine packages. The planned public Veyra1 model will offer a path without a license key.
 
+## Main menu
+
+Run `velora` to open the menu. On first use, it guides you through license setup and model installation. A saved license takes you directly to the menu on later launches.
+
+The menu shows the selected model and **Settings**. Settings let you change your license, switch between installed models, install another model, delete a model after confirmation, edit update permissions, and check for velora or model package updates. Selection is saved locally. The engine is not running yet, so selection does not mean a model is loaded.
+
+Deleting a model removes its local package and engine preferences. Your saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic installation is not implemented yet.
+
 ## Setup
 
 Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. The key is sent to the Themistic license server for a signed access check. The result shows expiry, device capacity, and entitled models. Verified keys are saved in the system credential store. Setup can reuse the saved license or replace it after another successful check. The access check does not activate a device. Failed checks offer Try again and Go back. Open a model and press I to install. After confirmation, the download registers this device with the license, displays byte-based progress and logs, and verifies the signed package. Space pauses after the current request; Ctrl+C cancels and removes temporary files. Existing installations are not replaced. Public Veyra1 installation is not available yet. Press Ctrl+C to cancel.

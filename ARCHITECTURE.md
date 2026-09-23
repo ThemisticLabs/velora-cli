@@ -14,6 +14,8 @@ Setup sends the entered key over HTTPS for a signed read-only access check and d
 src/
   cli.ts       Command registration and startup
   commands/    Doctor and license commands
+  menu/        Main menu, settings and cancellable menu tasks
+  models/      Installed package inventory, selection and deletion
   setup/       Guided installation and model selection
   license/     Access verification and secure license storage
   downloads/   Signed package transfer and verification
@@ -28,7 +30,7 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | File | Responsibility |
 | --- | --- |
 | `src/cli.ts` | Configure Commander, register commands, and dispatch arguments. |
-| `src/setup/setup.ts` | Own the setup flow, prompt theme, alternate-screen lifecycle, and completion status. |
+| `src/setup/setup.ts` | Own the setup flow, prompt theme, model access checks and update permission prompts. |
 | `src/terminal/set-setup-layout.ts` | Store the title, detail and footer for the current setup step. |
 | `src/terminal/setup-dimensions.ts` | Define terminal limits and derive available content space from the rendered header. |
 | `src/terminal/use-setup-screen.ts` | Render the shared frame and footer and subscribe to terminal resizing without restarting prompts. |
@@ -50,10 +52,11 @@ Each implementation module has one callable public entry point. The command entr
 ```text
 arguments
   src/cli.ts (Commander)
-    help or no arguments -> styled help and header
+    help or piped input  -> styled help and header
+    no arguments (TTY)   -> first setup or main menu
     version              -> package version
     unknown command      -> error and spelling suggestion
-    setup                -> src/setup/setup.ts
+    setup                -> setup, then main menu
 ```
 
 Commander owns argument parsing and suggestions. `package.json` is the version source for both command output and the header. The source imports use `.js` extensions under the NodeNext TypeScript configuration; they resolve to the TypeScript modules during development and bundling. They do not require duplicate hand-maintained JavaScript files.
@@ -65,11 +68,23 @@ Commander owns argument parsing and suggestions. `package.json` is the version s
 3. Draw the access selection and let Inquirer handle keyboard navigation.
 4. For public access, show the availability notice and return on Go back.
 5. For licensed access, read the key and run a cancellable access check. Failures offer retry or back; verified results show models and offer back or finish.
-6. Restore the original screen and cursor in `finally`, then print one summary.
+6. Return to the main menu after setup. The menu owns the alternate screen and restores it once on exit.
 
-Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive setup normally with status 0, so script runners do not report a failure for a deliberate cancellation. A terminal resize redraws the active prompt while preserving its state. Unexpected errors propagate after cleanup so their original cause remains available. Download completion follows package and manifest verification, a final catalog check, and publication of the installation state. Cancelling waits for download cleanup before leaving the alternate screen.
+Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive setup normally with status 0, so script runners do not report a failure for a deliberate cancellation. A terminal resize redraws the active prompt while preserving its state. The menu reports unexpected failures without exposing raw exception details. Download completion follows package and manifest verification, a final catalog check, and publication of the installation state. Cancelling waits for download cleanup before leaving the alternate screen.
 
 `set-setup-layout.ts` stores the current step's labels. Every prompt calls `use-setup-screen.ts`, which subscribes to resize events and redraws the full frame through Inquirer's rendering cycle. The resize listener is removed when the prompt settles. Input, selected models and detail pages remain in prompt state. Below 60 columns or 20 rows, the prompt displays a size notice and suspends normal interaction; Ctrl+C still cancels. The header is compact below 28 rows, and the model table reserves space for at least three models and separate actions.
+
+## Main menu and settings
+
+`menu/main-menu.ts` owns the interactive session. It reads the system credential store once at startup and runs setup only when no key is saved or `velora setup` was requested. It does not perform a network license check just to open the menu. Existing startup update consent remains separate.
+
+`settings-menu.ts` dispatches actions. `model-settings.ts` handles selection and confirmed deletion; `update-settings.ts` edits permissions. Shared prompts keep navigation and the footer stable and scroll when choices do not fit. `terminal/run-terminal-task.ts` keeps asynchronous work cancellable and waits for pending native writes before restoring the terminal.
+
+`models/installed-models.ts` reads each model's `current.json` and checks its package directory. New downloads persist the verified model display name; older installations use their model ID. `selected-model.json` records the choice atomically. A single existing model is selected when there is no selection file. This is package selection, not engine startup or inference readiness.
+
+Selection and deletion honor the model's `.update.lock`. Deletion moves the model directory into a private `.delete-*` directory before removing it. Interrupted cleanup leaves that directory outside the model inventory and reports cleanup failure. License storage, device identity and other models are untouched. Linked storage and linked package directories are rejected.
+
+CLI permission reads and writes are shared by startup and Settings through `cli-update-preferences.ts`. Settings show the saved values before editing; leaving the editor without completing both choices leaves them unchanged. Manual update checks do not change automatic-check consent. Model checks use the existing signed catalog protocol and compare release sequences. They do not download or install a package. CLI checks distinguish an unavailable check from a confirmed current version.
 
 ## Terminal conventions
 
@@ -104,7 +119,7 @@ Engines and model weights remain separate from this repository and executable. D
 
 - Setup requires at least 60 columns and 20 rows. Smaller terminals receive a plain instruction before the alternate screen opens, so navigation and cancel hints are not silently truncated.
 - Resizing preserves prompt state. Detail text is rewrapped to the new width; on multi-page sections, the page index is retained and clamped to the available pages.
-- Unexpected errors propagate after terminal cleanup. Do not include license input in future error messages or diagnostic context.
+- Menu failures use public messages after terminal cleanup. Do not include license input in error messages or diagnostic context.
 - Automated tests cover command behavior, color controls, version output, runtime independence, and non-interactive setup rejection.
 - Terminal checks also exercised the 60-by-20 layout, public access and Go back, empty license validation, long masked input, Ctrl+C, undersized terminals, and resize cleanup. These were PTY checks, not automated visual assertions or cross-platform verification.
 

@@ -16,6 +16,7 @@ export type DownloadOptions = {
     license: string;
     hw: string;
     modelId: string;
+    modelName?: string;
     root: string;
     signal: AbortSignal;
     onProgress: (progress: DownloadProgress) => void;
@@ -180,7 +181,7 @@ export default async function downloadModel(options: DownloadOptions) {
                 throw error;
             }
         }
-        var state = { model_id: modelId, version: release.version, revision: release.revision,
+        var state = { model_id: modelId, model_name: options.modelName, version: release.version, revision: release.revision,
             sequence: release.sequence, engine_version: release.engine_version, highest_sequences: { [modelId]: release.sequence } };
         var statePath = join(temporary, 'current.json');
         var stateFile = await open(statePath, 'wx', 0o600);

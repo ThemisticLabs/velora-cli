@@ -3,7 +3,7 @@
 import packageInfo from '../package.json' with { type: 'json' };
 import { Command } from 'commander';
 import startupUpdate from './updates/startup-update.js';
-import setup from './setup/setup.js';
+import mainMenu from './menu/main-menu.js';
 import licenseCommand from './commands/license-command.js';
 import doctor from './commands/doctor.js';
 import style from './terminal/style.js';
@@ -61,7 +61,7 @@ program.command('help')
 
 program.command('setup')
     .description('Set up license access and install a model')
-    .action(setup);
+    .action(function () { return mainMenu(true); });
 
 program.command('doctor')
     .description('Check your system, global command, storage and server connection')
@@ -85,8 +85,12 @@ license.command('status')
 license.action(function () { license.outputHelp(); });
 
 if (process.argv.length === 2) {
-    program.outputHelp();
-    process.exit(0);
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+        await mainMenu();
+    } else {
+        program.outputHelp();
+    }
+    process.exit(process.exitCode || 0);
 }
 
 await program.parseAsync();

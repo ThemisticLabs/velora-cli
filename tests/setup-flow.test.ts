@@ -13,10 +13,8 @@ test.skipIf(process.platform === 'win32').each(['navigation', 'complete', 'cance
         expect(await child.exited).toBe(0);
         expect(output).toContain('Flow verified.');
         expect(output).not.toContain('FIXTURE-LICENSE');
-        expect(output).toContain('\u001b[?1049l');
-        if (scenario === 'cancel-after-install') {
-            expect(output).toContain('is installed. Setup cancelled before engine update preferences were saved.');
-        }
+        expect(output).not.toContain('\u001b[?1049h');
+        expect(output).not.toContain('\u001b[?1049l');
     } finally {
         clearTimeout(timeout);
         child.kill();

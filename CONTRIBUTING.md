@@ -29,6 +29,8 @@ velora-cli/
   src/
     cli.ts          CLI entry point
     commands/       Doctor and license commands
+    menu/           Main menu and settings
+    models/         Installed model selection and deletion
     setup/          Guided setup and model selection
     license/        Verification and credential storage
     downloads/      Package downloads and integrity checks
@@ -100,7 +102,7 @@ Piped output is plain. `NO_COLOR`, `TERM=dumb`, and `FORCE_COLOR=0` disable colo
 
 Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. The key is sent to the Themistic license server for a signed access check. The result shows expiry, device capacity, and entitled models. Verified keys are saved in the system credential store. Setup can reuse the saved license or replace it after another successful check. The access check does not activate a device. Failed checks offer Try again and Go back. Open a model and press I to install. After confirmation, the download registers this device with the license, displays byte-based progress and logs, and verifies the signed package. Space pauses after the current request; Ctrl+C cancels and removes temporary files. Existing installations are not replaced. Public Veyra1 installation is not available yet. Press Ctrl+C to cancel.
 
-The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Completion and Ctrl+C restore the original terminal with one summary. `src/terminal/set-setup-layout.ts` stores the current step heading; `src/terminal/use-setup-screen.ts` redraws the frame and footer when terminal dimensions change. Prompts retain their input and selection state.
+The interactive setup uses the terminal’s alternate screen. Each step replaces the previous view. Setup completion returns to the main menu. Ctrl+C restores the original terminal. `src/terminal/set-setup-layout.ts` stores the current step heading; `src/terminal/use-setup-screen.ts` redraws the frame and footer when terminal dimensions change. Prompts retain their input and selection state.
 
 
 The header uses a small static Unicode Braille mark derived from the supplied Themistic TC SVG logo. Setup uses a compact text header below 28 rows. There is no startup delay. Setup requires at least 60 columns and 20 rows.
@@ -122,3 +124,9 @@ After a successful model download, setup asks whether the engine may check for i
 The first interactive launch records a pending choice without contacting GitHub. On the second interactive launch, velora asks whether it may check GitHub for new versions on startup and, if allowed, whether it may install updates automatically when that feature becomes available. No is selected by default for both questions. The choices are saved in `cli-updates.json` in the platform data directory, separately from engine permissions. Only explicit consent enables the check on subsequent interactive launches, with a 1.5-second request timeout. Set `checkAutomatically` to `false` in this file to disable checks; remove the file to restart the two-launch consent flow. Unreadable or invalid preferences disable checks. A newer version appears in the header. Offline, unavailable, malformed and rate-limited responses do not block normal use beyond that timeout. Piped commands keep their existing output and do not check for updates. Automatic installation permission is stored as `installAutomatically`; there is no CLI installer yet. Existing check permission is preserved; users who previously allowed checks are asked only for the missing installation choice.
 
 Run `bun run start setup` to test license access and model installation.
+
+## Main menu checks
+
+Run `bun run start` in a terminal. A saved license opens the main menu; without one, setup runs first. Use Settings for model management, license changes and update permissions. Ctrl+C restores the terminal. Selection means a local package has been chosen, not that the engine is running.
+
+Menu tests use isolated credential and network fixtures. Storage tests cover selection persistence, deletion scope, held installation locks, missing packages and symlinks. Keep tests away from real licenses and installed models.

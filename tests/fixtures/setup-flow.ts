@@ -70,8 +70,17 @@ mock.module('../../src/updates/engine-update-preferences.js', function () {
         saved = true;
     } };
 });
+mock.module('../../src/models/installed-models.js', function () {
+    return { default: async function () { return []; } };
+});
 var setup = (await import('../../src/setup/setup.js')).default;
-await setup();
+try {
+    assert.equal(await setup(), true);
+    assert.notEqual(scenario, 'cancel-after-install');
+} catch (error) {
+    assert.equal(scenario, 'cancel-after-install');
+    assert.equal((error as Error).name, 'ExitPromptError');
+}
 assert.equal(choices.length, 0);
 assert.equal(downloads, 1);
 assert.equal(saved, scenario === 'complete');

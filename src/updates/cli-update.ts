@@ -1,12 +1,15 @@
 import { semver } from 'bun';
 import packageInfo from '../../package.json' with { type: 'json' };
 
+export var updateCheckStatus: 'unavailable' | 'current' | 'available' = 'unavailable';
+
 export var availableVersion: string | null = null;
 
 export default async function cliUpdate(transport = fetch, currentVersion = packageInfo.version, signal?: AbortSignal): Promise<string | null> {
     var CHECK_TIMEOUT_MS = 1500;
     var MAX_RESPONSE_BYTES = 128 * 1024;
     availableVersion = null;
+    updateCheckStatus = 'unavailable';
     var requestSignal = AbortSignal.timeout(CHECK_TIMEOUT_MS);
     if (signal) {
         requestSignal = AbortSignal.any([signal, requestSignal]);
@@ -50,10 +53,12 @@ export default async function cliUpdate(transport = fetch, currentVersion = pack
             return null;
         }
         var version = tag.replace(/^v/, '');
+        updateCheckStatus = 'current';
         if (semver.order(version, currentVersion) !== 1) {
             return null;
         }
         availableVersion = version;
+        updateCheckStatus = 'available';
         return version;
     } catch {
         return null;

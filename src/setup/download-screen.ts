@@ -35,7 +35,7 @@ export default async function downloadScreen(license: string, model: LicenseMode
                             throw new DownloadError('Model storage directories must not be symbolic links.');
                         }
                     }
-                    var installation = await downloadModel({ license, hw: identity.hw, modelId: model.id,
+                    var installation = await downloadModel({ license, hw: identity.hw, modelId: model.id, modelName: model.name,
                         root: join(directory, 'models', model.id), signal: controller.signal,
                         waitForResume: async function () {
                             var PAUSE_POLL_MS = 100;
