@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { test } from 'bun:test';
 
-var CLI_PATH = fileURLToPath(new URL('../dist/velora', import.meta.url));
+var executable = '../dist/velora';
+if (process.platform === 'win32') {
+    executable += '.exe';
+}
+var CLI_PATH = process.env.VELORA_TEST_BINARY || fileURLToPath(new URL(executable, import.meta.url));
 var packageInfo = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 test('help works from another directory through every supported form', function () {

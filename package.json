@@ -14,7 +14,9 @@
     "build": "bun build src/cli.ts --compile --outfile dist/velora --no-compile-autoload-dotenv --no-compile-autoload-bunfig",
     "check": "bun run --bun tsc --noEmit",
     "start": "bun run src/cli.ts",
-    "test": "bun run build && bun test"
+    "test": "bun run build && bun test",
+    "release:build": "bun run scripts/release-build.ts",
+    "release:manifest": "bun run scripts/release-manifest.ts"
   },
   "dependencies": {
     "@inquirer/core": "12.0.3",
