@@ -40,7 +40,7 @@ test.each(['valid', 'invalid signature', 'wrong nonce', 'wrong device', 'expired
         }
         return new Response(raw, { status, headers: { 'X-Signature': signature } });
     };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, transport as typeof fetch, publicKey);
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
     expect(result.ok).toBe(scenario === 'valid');
     if (result.ok) {
         expect(result.models[0]?.id).toBe('skira7alpha');
@@ -50,7 +50,7 @@ test.each(['valid', 'invalid signature', 'wrong nonce', 'wrong device', 'expired
 });
 
 test('invalid key never reaches the network', async function () {
-    var result = await licenseAccess('bad', new AbortController().signal, function () {
+    var result = await licenseAccess('bad', new AbortController().signal, 'a'.repeat(64), function () {
         throw new Error('Unexpected request');
     } as typeof fetch);
     expect(result).toEqual({ ok: false, message: 'Check the license key and try again.' });
@@ -70,7 +70,7 @@ test.each([false, true])('signed model descriptions reject terminal controls: %s
         } }));
         return new Response(raw, { headers: { 'X-Signature': sign(null, raw, keys.privateKey).toString('base64') } });
     };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, transport as typeof fetch, publicKey);
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
     expect(result.ok).toBe(!unsafe);
     if (result.ok) {
         expect(result.models[0]?.name).toBe('Skira 7 Alpha');
@@ -101,7 +101,7 @@ test.each([
         var signature = sign(null, raw, keys.privateKey).toString('base64');
         return new Response(raw, { headers: { 'X-Signature': signature } });
     };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, transport as typeof fetch, publicKey);
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
     expect(result).toEqual({ ok: false, message: scenario.message });
 });
 
@@ -112,6 +112,17 @@ test('unknown rejection reasons cannot resolve to inherited object properties', 
         var signature = sign(null, raw, keys.privateKey).toString('base64');
         return new Response(raw, { status: 403, headers: { 'X-Signature': signature } });
     };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, transport as typeof fetch, publicKey);
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
     expect(result).toEqual({ ok: false, message: 'This license could not be verified.' });
+});
+
+test.each(['', '../device', 'g'.repeat(64)])('invalid device identity does not reach the server: %s', async function (hw) {
+    var calls = 0;
+    var transport = Object.assign(async function () {
+        calls++;
+        return new Response();
+    }, { preconnect: function () {} });
+    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, hw, transport);
+    expect(result.ok).toBe(false);
+    expect(calls).toBe(0);
 });

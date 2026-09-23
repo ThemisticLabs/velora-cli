@@ -10,7 +10,7 @@
     "noEmitOnError": true,
     "verbatimModuleSyntax": true,
     "types": [
-      "node"
+      "bun"
     ],
     "noEmit": true,
     "resolveJsonModule": true

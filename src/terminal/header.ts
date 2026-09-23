@@ -2,8 +2,8 @@ import mark from '../assets/mark.json' with { type: 'json' };
 import packageInfo from '../../package.json' with { type: 'json' };
 import style from './style.js';
 
-export default function header(): string {
-    if ((process.stdout.columns || 80) < 40 || (process.stdout.rows || 24) < 24) {
+export default function header(compact = false): string {
+    if (compact || (process.stdout.columns || 80) < 40 || (process.stdout.rows || 24) < 24) {
         return '\n  ' + style('velora', 'accent') + '\n';
     }
 

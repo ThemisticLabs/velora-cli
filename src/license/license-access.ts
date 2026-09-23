@@ -1,4 +1,5 @@
 import { createPublicKey, randomBytes, verify } from 'node:crypto';
+var PACKAGE_PUBLIC_KEY = '8e0879487aca58247073518a7aa2b215eec0779b0bb3274f1a67bf70c519b153';
 
 export type LicenseModel = {
     id: string;
@@ -7,21 +8,23 @@ export type LicenseModel = {
     strengths: string;
     limitations: string;
     downloadReason: string | null;
+    canDownload: boolean;
 };
 
-export default async function licenseAccess(license: string, signal: AbortSignal, transport = fetch,
-    publicKey = '8e0879487aca58247073518a7aa2b215eec0779b0bb3274f1a67bf70c519b153') {
+export default async function licenseAccess(license: string, signal: AbortSignal, deviceHw: string, transport = fetch,
+    publicKey = PACKAGE_PUBLIC_KEY) {
     if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
         return { ok: false as const, message: 'Check the license key and try again.' };
     }
 
-    var PROBE_ID_BYTES = 32;
+    if (!/^[a-f0-9]{16,64}$/.test(deviceHw)) {
+        return { ok: false as const, message: 'The device identity is invalid.' };
+    }
     var NONCE_BYTES = 24;
     var MAX_MODEL_TEXT_LENGTH = 2000;
     var request = {
         operation: 'access', license_key: license, model_id: null,
-        // This read-only probe does not claim an existing device identity.
-        hw: randomBytes(PROBE_ID_BYTES).toString('hex'), nonce: randomBytes(NONCE_BYTES).toString('base64url')
+        hw: deviceHw, nonce: randomBytes(NONCE_BYTES).toString('base64url')
     };
     var MAX_RESPONSE_BYTES = 262144;
     var REQUEST_TIMEOUT_MS = 15000;
@@ -135,6 +138,7 @@ export default async function licenseAccess(license: string, signal: AbortSignal
                 description: metadata.description,
                 strengths: metadata.strengths,
                 limitations: metadata.limitations,
+                canDownload: model.can_download === true,
                 downloadReason: null
             };
             if (typeof model.download_reason === 'string' && /^[a-z_]{1,64}$/.test(model.download_reason)) {

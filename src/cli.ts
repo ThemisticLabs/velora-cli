@@ -3,6 +3,7 @@
 import packageInfo from '../package.json' with { type: 'json' };
 import { Command } from 'commander';
 import setup from './setup/setup.js';
+import licenseCommand from './commands/license-command.js';
 import doctor from './commands/doctor.js';
 import style from './terminal/style.js';
 import header from './terminal/header.js';
@@ -46,6 +47,21 @@ program.command('doctor')
     .action(function () {
         return doctor();
     });
+
+var license = program.command('license')
+    .description('Manage your saved license and check device capacity');
+license.configureOutput({
+    outputError: function (_message, write) {
+        write('Invalid license command. Use velora license set or velora license status. Enter keys only in the masked prompt.\n');
+    }
+});
+license.command('set')
+    .description('Verify and securely save a license key')
+    .action(function () { return licenseCommand('set'); });
+license.command('status')
+    .description('Show license expiry and device usage')
+    .action(function () { return licenseCommand('status'); });
+license.action(function () { license.outputHelp(); });
 
 if (process.argv.length === 2) {
     program.outputHelp();
