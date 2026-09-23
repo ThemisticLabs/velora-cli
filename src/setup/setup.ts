@@ -2,8 +2,10 @@ import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimens
 import select from './select-option.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
 import { createPrompt, useEffect } from '@inquirer/core';
+import engineUpdatePreferences from '../updates/engine-update-preferences.js';
 import manageLicense from '../license/manage-license.js';
 import licenseStore from '../license/license-store.js';
+import downloadScreen from './download-screen.js';
 import modelList from './model-list.js';
 import licenseInput from './license-input.js';
 import style from '../terminal/style.js';
@@ -26,6 +28,7 @@ export default async function setup(): Promise<void> {
     var LEAVE_ALTERNATE_SCREEN = '\u001b[?1049l';
     var SHOW_CURSOR = '\u001b[?25h';
     var summary = 'Setup did not finish. Run velora setup again.';
+    var installedModel: string | undefined;
     var licenseTask: ReturnType<typeof manageLicense> | undefined;
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
 
@@ -121,10 +124,51 @@ export default async function setup(): Promise<void> {
                     }
                     break;
                 }
+                license = result.license;
                 var expires = new Date(result.expiresAt).toISOString().slice(0, 10);
-                var next = await modelList(result.models, 'Expires ' + expires + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices);
-                if (next === 'finish') {
-                    summary = 'License ready.';
+                while (true) {
+                    var next = await modelList(result.models, 'Expires ' + expires + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices);
+                    if (next === 'finish') {
+                        summary = 'License ready.';
+                        return;
+                    }
+                    if (next === 'back') {
+                        break;
+                    }
+                    setSetupLayout('Download ' + next.name + '?', 'This registers this device with your license.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/models/' + next.id);
+                    var confirmation = await select({ message: 'Continue with installation?', choices: [
+                        { name: 'Download model', value: 'download' }, { name: 'Go back', value: 'back' }
+                    ] });
+                    if (confirmation === 'back') {
+                        continue;
+                    }
+                    var downloadOutcome = await downloadScreen(license, next);
+                    if (downloadOutcome === 'cancelled-after-install') {
+                        summary = next.name + ' is installed. Setup cancelled before engine update preferences were saved.';
+                        return;
+                    }
+                    if (downloadOutcome !== 'complete') {
+                        continue;
+                    }
+                    installedModel = next.name;
+                    setSetupLayout('Engine update checks.', 'Allow this model’s engine to look for its own updates.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
+                    var checks = await select({ message: 'Allow the engine to check for updates itself?', choices: [
+                        { name: 'No, do not check automatically', value: 'no' }, { name: 'Yes, allow automatic engine checks', value: 'yes' }
+                    ] });
+                    var installAutomatically = false;
+                    if (checks === 'yes') {
+                        setSetupLayout('Engine update installation.', 'Allow the engine to install its own eligible updates.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
+                        var installation = await select({ message: 'Allow the engine to install updates automatically?', choices: [
+                            { name: 'No, install manually', value: 'no' }, { name: 'Yes, allow automatic engine installation', value: 'yes' }
+                        ] });
+                        installAutomatically = installation === 'yes';
+                    }
+                    try {
+                        await engineUpdatePreferences(next.id, { checkAutomatically: checks === 'yes', installAutomatically });
+                        summary = next.name + ' installed. Update preferences saved; automatic engine updates are not available yet.';
+                    } catch {
+                        summary = next.name + ' is installed. Could not save engine update preferences. Check storage permissions.';
+                    }
                     return;
                 }
                 break;
@@ -134,6 +178,9 @@ export default async function setup(): Promise<void> {
     } catch (error) {
         if (error instanceof Error && error.name === 'ExitPromptError') {
             summary = 'Setup cancelled.';
+            if (installedModel) {
+                summary = installedModel + ' is installed. Setup cancelled before engine update preferences were saved.';
+            }
             process.exitCode = 0;
             return;
         }

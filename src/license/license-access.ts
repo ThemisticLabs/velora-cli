@@ -1,5 +1,5 @@
 import { createPublicKey, randomBytes, verify } from 'node:crypto';
-var PACKAGE_PUBLIC_KEY = '8e0879487aca58247073518a7aa2b215eec0779b0bb3274f1a67bf70c519b153';
+import { PACKAGE_PUBLIC_KEY } from '../downloads/package-request.js';
 
 export type LicenseModel = {
     id: string;

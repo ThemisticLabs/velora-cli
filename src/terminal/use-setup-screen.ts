@@ -24,7 +24,7 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
                 setDocumentationStatus('Could not open browser. Press F1 to retry.');
                 return;
             }
-            setDocumentationStatus('Sent to browser. Press F1 to open again.');
+            setDocumentationStatus('');
         });
     });
     useEffect(function () {

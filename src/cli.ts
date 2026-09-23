@@ -30,7 +30,7 @@ program.helpOption('-h, --help', 'Show available commands');
 program.addHelpCommand(false);
 program.showSuggestionAfterError();
 program.showHelpAfterError('\nRun velora --help to see available commands.');
-program.addHelpText('after', '\n' + style('Try it', 'strong') + '\n  ' + style('velora --version', 'accent') + '  Show the current version\n\n' + style('In development', 'strong') + '\n  License checks and model browsing are available. Downloads and the local API are not available yet.\n');
+program.addHelpText('after', '\nThe local API is not available yet.\n');
 
 program.command('help')
     .description('Show available commands')
@@ -39,7 +39,7 @@ program.command('help')
     });
 
 program.command('setup')
-    .description('Choose license access or a public model (preview)')
+    .description('Set up license access and install a model')
     .action(setup);
 
 program.command('doctor')

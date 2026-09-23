@@ -106,8 +106,12 @@ export default async function modelList(models: LicenseModel[], summary: string,
             return selected;
         }
 
-        setSetupLayout('Model details.', selected.name, '←/→ Pages · Enter Back · Ctrl+C Cancel', '/models/' + encodeURIComponent(selected.id));
-        var installationText = 'Model downloads are not connected in velora yet.';
+        var modelToInstall = selected;
+        setSetupLayout('Model details.', selected.name, '←/→ Pages · I Install · Enter Back · Ctrl+C Cancel', '/models/' + encodeURIComponent(selected.id));
+        var installationText = 'No downloadable release is available for this model.';
+        if (selected.canDownload) {
+            installationText = 'Press I to download this model. This registers this device with your license. The package is verified before installation.';
+        }
         if (selected.downloadReason === 'release_withdrawn') {
             installationText = 'This release has been withdrawn from download.';
         }
@@ -117,7 +121,7 @@ export default async function modelList(models: LicenseModel[], summary: string,
             { title: 'Known limitations', text: selected.limitations },
             { title: 'Installation', text: installationText }
         ];
-        var details = createPrompt<void, Record<string, never>>(function (_config, done) {
+        var details = createPrompt<'back' | 'install', Record<string, never>>(function (_config, done) {
             var pages: string[] = [];
             var DETAIL_TEXT_INSET_COLUMNS = 2;
             var width = Math.max(1, setupDimensions().contentWidth - DETAIL_TEXT_INSET_COLUMNS);
@@ -161,8 +165,12 @@ export default async function modelList(models: LicenseModel[], summary: string,
                 if (setupDimensions().tooSmall) {
                     return;
                 }
+                if (key.name === 'i' && modelToInstall.canDownload) {
+                    done('install');
+                    return;
+                }
                 if (isEnterKey(key) || key.name === 'escape') {
-                    done();
+                    done('back');
                     return;
                 }
                 if (key.name === 'right') {
@@ -174,6 +182,8 @@ export default async function modelList(models: LicenseModel[], summary: string,
             });
             return useSetupScreen(pages[currentPageIndex] + style('Page ' + (currentPageIndex + 1) + ' of ' + pages.length, 'muted'));
         });
-        await details({}, { signal });
+        if (await details({}, { signal }) === 'install') {
+            return selected;
+        }
     }
 }

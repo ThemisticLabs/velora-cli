@@ -86,13 +86,14 @@ test('a reported white terminal background uses themistic ultramarine', function
     assert.match(result.stdout, /\u001b\[38;2;37;37;204m/);
 });
 
-test('setup requires an interactive terminal and exposes preview help', function () {
+test('setup requires an interactive terminal and exposes installation help', function () {
     var result = spawnSync(CLI_PATH, ['setup'], { encoding: 'utf8' });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /interactive terminal/);
     var help = spawnSync(CLI_PATH, ['setup', '--help'], { encoding: 'utf8' });
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /preview/);
+    assert.match(help.stdout, /install a model/);
+    assert.doesNotMatch(help.stdout, /preview/i);
 });
 
 test('doctor is discoverable and has command help without running checks', function () {
