@@ -2,11 +2,32 @@
 
 import packageInfo from '../package.json' with { type: 'json' };
 import { Command } from 'commander';
+import startupUpdate from './updates/startup-update.js';
 import setup from './setup/setup.js';
 import licenseCommand from './commands/license-command.js';
 import doctor from './commands/doctor.js';
 import style from './terminal/style.js';
 import header from './terminal/header.js';
+
+if (process.stdin.isTTY && process.stdout.isTTY) {
+    var startupController = new AbortController();
+    var cancelStartup = function () { startupController.abort(); };
+    process.once('SIGINT', cancelStartup);
+    try {
+        await startupUpdate(startupController.signal);
+    } catch (error) {
+        if (!(error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) && !startupController.signal.aborted) {
+            throw error;
+        }
+        startupController.abort();
+    } finally {
+        process.removeListener('SIGINT', cancelStartup);
+    }
+    if (startupController.signal.aborted) {
+        process.stdout.write('velora  Cancelled.\n');
+        process.exit(0);
+    }
+}
 
 var program = new Command();
 

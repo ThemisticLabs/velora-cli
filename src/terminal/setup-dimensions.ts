@@ -1,5 +1,4 @@
 import header from './header.js';
-import style from './style.js';
 
 export var MIN_COLUMNS = 60;
 export var MIN_ROWS = 20;
@@ -12,7 +11,7 @@ export default function setupDimensions() {
     var STEP_HEADING_ROWS = 4;
     var columns = process.stdout.columns;
     var rows = process.stdout.rows;
-    var headerText = '  ' + style('velora', 'accent') + '\n';
+    var headerText = header(true);
     if (rows >= FULL_HEADER_MIN_ROWS) {
         headerText = header();
     }

@@ -1,7 +1,9 @@
 import { access, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { homedir, release } from 'node:os';
+import { release } from 'node:os';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
+import { availableVersion } from '../updates/cli-update.js';
+import defaultDataDirectory from '../system/data-directory.js';
 import packageInfo from '../../package.json' with { type: 'json' };
 import style from '../terminal/style.js';
 
@@ -76,25 +78,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
         }
 
         if (dataDirectory === undefined) {
-            var userDirectory = homedir();
-            switch (process.platform) {
-                case 'darwin':
-                    dataDirectory = join(userDirectory, 'Library', 'Application Support', 'velora');
-                    break;
-                case 'win32':
-                    var localData = process.env.LOCALAPPDATA;
-                    if (!localData || !isAbsolute(localData)) {
-                        localData = join(userDirectory, 'AppData', 'Local');
-                    }
-                    dataDirectory = join(localData, 'velora');
-                    break;
-                default:
-                    var xdgData = process.env.XDG_DATA_HOME;
-                    if (!xdgData || !isAbsolute(xdgData)) {
-                        xdgData = join(userDirectory, '.local', 'share');
-                    }
-                    dataDirectory = join(xdgData, 'velora');
-            }
+            dataDirectory = defaultDataDirectory();
         }
         storageCheck.status = 'Checking';
         storageCheck.detail = dataDirectory;
@@ -203,6 +187,9 @@ function render(checks: Check[], mode: 'progress' | 'report'): void {
     var width = Math.max(1, Math.min(MAX_WIDTH, (process.stdout.columns || MAX_WIDTH) - 1));
     var separator = style('─'.repeat(width), 'divider');
     var output = style('velora', 'accent') + '  ' + style('doctor', 'strong') + '  ' + packageInfo.version + '\n';
+    if (availableVersion) {
+        output += style(('Update available: velora ' + availableVersion).slice(0, width), 'accent') + '\n';
+    }
     output += separator + '\n';
     for (var check of checks) {
         output += '\n' + style(check.status.padEnd(STATUS_COLUMN_WIDTH), 'accent') + style(check.name, 'strong') + '\n';
