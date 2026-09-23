@@ -1,5 +1,5 @@
-import mark from './assets/mark.json' with { type: 'json' };
-import packageInfo from '../package.json' with { type: 'json' };
+import mark from '../assets/mark.json' with { type: 'json' };
+import packageInfo from '../../package.json' with { type: 'json' };
 import style from './style.js';
 
 export default function header(): string {

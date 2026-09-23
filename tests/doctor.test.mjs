@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-var DOCTOR_PATH = fileURLToPath(new URL('../src/doctor.ts', import.meta.url));
+var DOCTOR_PATH = fileURLToPath(new URL('../src/commands/doctor.ts', import.meta.url));
 
 test('doctor checks PATH without executing the command and removes its storage probe', function () {
     var directory = mkdtempSync(join(tmpdir(), 'velora-doctor-test-'));

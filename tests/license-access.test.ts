@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import licenseAccess from '../src/license-access.js';
+import licenseAccess from '../src/license/license-access.js';
 
 var keys = generateKeyPairSync('ed25519');
 var publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');

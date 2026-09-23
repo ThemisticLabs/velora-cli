@@ -2,10 +2,10 @@
 
 import packageInfo from '../package.json' with { type: 'json' };
 import { Command } from 'commander';
-import setup from './setup.js';
-import doctor from './doctor.js';
-import style from './style.js';
-import header from './header.js';
+import setup from './setup/setup.js';
+import doctor from './commands/doctor.js';
+import style from './terminal/style.js';
+import header from './terminal/header.js';
 
 var program = new Command();
 

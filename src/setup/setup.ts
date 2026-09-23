@@ -1,12 +1,12 @@
-import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from './setup-dimensions.js';
+import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimensions.js';
 import select from './select-option.js';
-import useSetupScreen from './use-setup-screen.js';
+import useSetupScreen from '../terminal/use-setup-screen.js';
 import { createPrompt, useEffect } from '@inquirer/core';
-import licenseAccess from './license-access.js';
+import licenseAccess from '../license/license-access.js';
 import modelList from './model-list.js';
 import licenseInput from './license-input.js';
-import style from './style.js';
-import setSetupLayout from './set-setup-layout.js';
+import style from '../terminal/style.js';
+import setSetupLayout from '../terminal/set-setup-layout.js';
 
 export default async function setup(): Promise<void> {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {

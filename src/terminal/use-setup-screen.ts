@@ -2,7 +2,7 @@ import { useEffect, useKeypress, useRef, useState } from '@inquirer/core';
 import { setupLayout } from './set-setup-layout.js';
 import style from './style.js';
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS, FOOTER_ROWS, TERMINAL_BOTTOM_MARGIN_ROWS } from './setup-dimensions.js';
-import openDocumentation from './open-documentation.js';
+import openDocumentation from '../system/open-documentation.js';
 
 export default function useSetupScreen(content: string, error = '', inputCursor = false, documentationPath = setupLayout.documentationPath): [string, string] {
     var [, setSize] = useState('');

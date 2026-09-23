@@ -1,7 +1,7 @@
-import setupDimensions from './setup-dimensions.js';
+import setupDimensions from '../terminal/setup-dimensions.js';
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
-import style from './style.js';
-import useSetupScreen from './use-setup-screen.js';
+import style from '../terminal/style.js';
+import useSetupScreen from '../terminal/use-setup-screen.js';
 
 export default createPrompt<string, Record<string, never>>(function (_config, done) {
     var [value, setValue] = useState('');

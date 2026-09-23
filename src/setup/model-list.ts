@@ -1,9 +1,9 @@
-import setupDimensions from './setup-dimensions.js';
+import setupDimensions from '../terminal/setup-dimensions.js';
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
-import type { LicenseModel } from './license-access.js';
-import setSetupLayout from './set-setup-layout.js';
-import style from './style.js';
-import useSetupScreen from './use-setup-screen.js';
+import type { LicenseModel } from '../license/license-access.js';
+import setSetupLayout from '../terminal/set-setup-layout.js';
+import style from '../terminal/style.js';
+import useSetupScreen from '../terminal/use-setup-screen.js';
 
 export default async function modelList(models: LicenseModel[], summary: string, signal?: AbortSignal) {
     var selectedIndex = 0;

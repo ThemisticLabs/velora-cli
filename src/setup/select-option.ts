@@ -1,7 +1,7 @@
-import setupDimensions from './setup-dimensions.js';
+import setupDimensions from '../terminal/setup-dimensions.js';
 import { createPrompt, isEnterKey, useKeypress, useState } from '@inquirer/core';
-import useSetupScreen from './use-setup-screen.js';
-import style from './style.js';
+import useSetupScreen from '../terminal/use-setup-screen.js';
+import style from '../terminal/style.js';
 
 type Selection = {
     message: string;

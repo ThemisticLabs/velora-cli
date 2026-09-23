@@ -2,8 +2,8 @@ import { access, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { homedir, release } from 'node:os';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
-import packageInfo from '../package.json' with { type: 'json' };
-import style from './style.js';
+import packageInfo from '../../package.json' with { type: 'json' };
+import style from '../terminal/style.js';
 
 type Check = {
     name: string;
