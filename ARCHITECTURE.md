@@ -194,3 +194,7 @@ Only explicit `DownloadError` messages are displayed verbatim. Transport, parser
 Cancellation waits for the in-flight operation. If publication already completed, setup reports that the model is installed instead of implying that cancellation undid it. Cancelling the subsequent preferences questions leaves the installation intact. A failed preferences write preserves existing settings and reports that they were not changed. Pause is honored before the first catalog request, so a paused transfer does not begin device registration.
 
 PTY regression tests run actual prompts with isolated fixture modules and temporary storage through Bun's terminal API. They cover unexpected error redaction, disk-full messages, cancellation before installation, cancellation during publication and cancellation after completion. These PTY tests are skipped on Windows. Sudden power loss, native Windows/Linux credential stores, production model inference and automatic engine updates remain outside the verified scope.
+
+## Shared menu navigation
+
+Selection prompts explicitly enable Escape with `back: true`; back navigation is shown in the footer and is not a selectable row. Enter activates the selected action. Model details retain left/right paging and use the shared list renderer and navigation hook for the installation action. Escape also returns from details when the terminal is below the minimum size.

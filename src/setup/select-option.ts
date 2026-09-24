@@ -7,6 +7,7 @@ import style from '../terminal/style.js';
 
 type Selection = {
     message: string;
+    back?: boolean;
     initialValue?: string;
     columns?: ListColumn[];
     emptyMessage?: string;
@@ -26,7 +27,7 @@ export default createPrompt<string, Selection>(function (config, done) {
     }
     var selected = useListNavigation({ values, initialValue: config.initialValue, onSelect: done,
         onBack: function () {
-            if (values.includes('back')) {
+            if (config.back) {
                 done('back');
             }
         }
@@ -60,8 +61,10 @@ export default createPrompt<string, Selection>(function (config, done) {
     if (description) {
         DESCRIPTION_ROWS = 1;
     }
-    content += renderList({ rows, columns: config.columns, actions: config.actions, selected,
-        width, height: setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS, emptyMessage: config.emptyMessage });
+    if (values.length || config.emptyMessage) {
+        content += renderList({ rows, columns: config.columns, actions: config.actions, selected,
+            width, height: setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS, emptyMessage: config.emptyMessage });
+    }
     content += '  ' + style(description.slice(0, width), 'muted');
     return useSetupScreen(content, '', false, documentationPath);
 });

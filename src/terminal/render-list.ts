@@ -136,7 +136,7 @@ export default function renderList(config: ListOptions): string {
         hint += '  ↓ More below';
     }
     if (rows.length === 0) {
-        hint = config.emptyMessage || 'No entries.';
+        hint = config.emptyMessage ?? 'No entries.';
     }
     output += '  ' + style(hint.slice(0, width), 'muted') + '\n';
     if (actions.length) {

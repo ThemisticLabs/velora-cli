@@ -71,8 +71,8 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
                     message = 'Another installation holds the model lock. Wait for it to finish and try again.';
                 }
-                setSetupLayout('Could not complete this action.', '', FOOTER, '/velora/settings');
-                await select({ message, choices: [{ name: 'Go back', value: 'back' }] });
+                setSetupLayout('Could not complete this action.', '', 'Esc Back · Ctrl+C Quit', '/velora/settings');
+                await select({ back: true, message, choices: [] });
             }
         }
     } catch (error) {

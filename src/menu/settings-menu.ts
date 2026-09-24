@@ -13,13 +13,12 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
     var currentChoice = 'permissions';
     while (true) {
         setSetupLayout('Settings', '', FOOTER, '/velora/settings');
-        var choice = await select({ message: '', initialValue: currentChoice, choices: [
+        var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
             { name: 'Update permissions', value: 'permissions' },
             { name: 'Change license', value: 'license' },
             { name: 'Switch model', value: 'model' },
             { name: 'Delete model', value: 'delete' },
-            { name: 'Check for updates', value: 'updates' },
-            { name: 'Go back', value: 'back' }
+            { name: 'Check for updates', value: 'updates' }
         ] });
         currentChoice = choice;
         if (choice === 'back') {
@@ -55,8 +54,8 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
             if (!result.ok) {
                 message = result.message;
             }
-            setSetupLayout('License', '', FOOTER, '/licenses');
-            await select({ message, choices: [{ name: 'Go back', value: 'back' }] });
+            setSetupLayout('License', '', 'Esc Back · Ctrl+C Quit', '/licenses');
+            await select({ back: true, message, choices: [] });
             continue;
         }
         if (choice === 'updates') {

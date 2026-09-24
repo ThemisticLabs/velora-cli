@@ -24,10 +24,10 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
             });
         }
         if (choice === 'public') {
-            setSetupLayout('Public models will be available soon.', 'Veyra1 is coming. You can use a license in the meantime.', 'Enter Go back  ·  Ctrl+C Cancel');
-            await select({
-                message: 'Next step',
-                choices: [{ name: 'Go back', value: 'back' }]
+            setSetupLayout('Public models will be available soon.', 'Veyra1 is coming. You can use a license in the meantime.', 'Esc Back · Ctrl+C Quit');
+            await select({ back: true,
+                message: '',
+                choices: []
             });
             continue;
         }
@@ -40,9 +40,9 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                 if (error instanceof Error) {
                     message = error.message;
                 }
-                setSetupLayout('Saved license unavailable.', message, '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/licenses');
-                var storageAction = await select({ message: 'Next step', choices: [
-                    { name: 'Enter a license', value: 'enter' }, { name: 'Go back', value: 'back' }
+                setSetupLayout('Saved license unavailable.', message, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/licenses');
+                var storageAction = await select({ back: true, message: 'Next step', choices: [
+                    { name: 'Enter a license', value: 'enter' }
                 ] });
                 if (storageAction === 'back') {
                     break;
@@ -51,11 +51,10 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
             }
             var useSaved = false;
             if (savedLicense && !options.modelsOnly) {
-                setSetupLayout('Your saved license.', 'The key is stored in the system credential store.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/licenses');
-                var licenseChoice = await select({ message: 'How would you like to continue?', choices: [
+                setSetupLayout('Your saved license.', 'The key is stored in the system credential store.', '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/licenses');
+                var licenseChoice = await select({ back: true, message: 'How would you like to continue?', choices: [
                     { name: 'Use saved license', value: 'saved' },
-                    { name: 'Use a different license', value: 'change' },
-                    { name: 'Go back', value: 'back' }
+                    { name: 'Use a different license', value: 'change' }
                 ] });
                 if (licenseChoice === 'back') {
                     break;
@@ -81,9 +80,9 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                 return manageLicense({ operation: 'set', license }, signal);
             });
             if (!result.ok) {
-                setSetupLayout('License check unsuccessful.', result.message, '↑/↓ Move  ·  Enter Select  ·  Ctrl+C Cancel', '/licenses');
-                var action = await select({ message: 'Next step', choices: [
-                    { name: 'Try again', value: 'retry' }, { name: 'Go back', value: 'back' }
+                setSetupLayout('License check unsuccessful.', result.message, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/licenses');
+                var action = await select({ back: true, message: 'Next step', choices: [
+                    { name: 'Try again', value: 'retry' }
                 ] });
                 if (action === 'retry') {
                     continue;
@@ -104,8 +103,8 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                     }
                 }
                 if (result.models.length > 0 && availableModels.length === 0) {
-                    setSetupLayout('All your models are installed.', '', 'Enter Back · Esc Back · Ctrl+C Quit', '/velora/models');
-                    await select({ message: '', choices: [{ name: 'Go back', value: 'back' }] });
+                    setSetupLayout('All your models are installed.', '', 'Esc Back · Ctrl+C Quit', '/velora/models');
+                    await select({ back: true, message: '', choices: [] });
                     return true;
                 }
                 var next = await modelList(availableModels, 'Expires ' + expires + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices);
@@ -118,9 +117,9 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                     }
                     break;
                 }
-                setSetupLayout('Download ' + next.name + '?', 'This registers this device with your license.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/models/' + next.id);
-                var confirmation = await select({ message: 'Continue with installation?', choices: [
-                    { name: 'Download model', value: 'download' }, { name: 'Go back', value: 'back' }
+                setSetupLayout('Download ' + next.name + '?', 'This registers this device with your license.', 'Enter Download · Esc Back · Ctrl+C Quit', '/models/' + next.id);
+                var confirmation = await select({ back: true, message: 'Continue with installation?', choices: [
+                    { name: 'Download model', value: 'download' }
                 ] });
                 if (confirmation === 'back') {
                     continue;

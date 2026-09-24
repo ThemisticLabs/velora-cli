@@ -27,9 +27,8 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
         } else {
             title = 'Installed models / Delete model';
         }
-        actions.push({ name: 'Go back', value: 'back' });
         setSetupLayout(title, '', FOOTER, '/velora/models');
-        var selected = await select({ message: '', initialValue: currentChoice, choices, actions,
+        var selected = await select({ back: true, message: '', initialValue: currentChoice, choices, actions,
             columns: [{ title: 'Model' }, { title: 'Version', width: 12 }, { title: 'Engine', width: 12 }], emptyMessage: 'No models installed.' });
         currentChoice = selected;
         if (selected === 'back') {
@@ -51,8 +50,8 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
             }
         }
         setSetupLayout('Delete ' + name + '?', 'Deletes its local package and engine preferences. Your license stays saved.', FOOTER, '/velora/models');
-        var confirmation = await select({ message: 'This model will need to be downloaded again.', choices: [
-            { name: 'Go back', value: 'back' }, { name: 'Delete model', value: 'delete' }
+        var confirmation = await select({ back: true, message: 'This model will need to be downloaded again.', choices: [
+            { name: 'Delete model', value: 'delete' }
         ] });
         if (confirmation !== 'delete') {
             continue;

@@ -19,9 +19,9 @@ var lists = 0;
 var downloads = 0;
 var saved = false;
 mock.module('../../src/setup/select-option.js', function () {
-    return { default: async function (config: { choices: { value: string }[] }) {
+    return { default: async function (config: { back?: boolean; choices: { value: string }[] }) {
         var choice = choices.shift();
-        var found = false;
+        var found = choice === 'back' && config.back === true;
         for (var item of config.choices) {
             if (item.value === choice) {
                 found = true;
