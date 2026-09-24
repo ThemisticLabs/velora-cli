@@ -1,4 +1,6 @@
-import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
+import renderList from '../terminal/render-list.js';
+import useListNavigation from '../terminal/use-list-navigation.js';
+import { createPrompt, useEffect, useState } from '@inquirer/core';
 import packageInfo from '../../package.json' with { type: 'json' };
 import type { InstalledModel } from '../models/installed-models.js';
 import cliUpdate, { updateCheckStatus } from '../updates/cli-update.js';
@@ -12,7 +14,6 @@ import style from '../terminal/style.js';
 export default async function updateMenu(model?: InstalledModel): Promise<void> {
     var task: Promise<void> | undefined;
     var prompt = createPrompt<void, Record<string, never>>(function (_config, done) {
-        var [selected, setSelected] = useState('cli');
         var [checking, setChecking] = useState('');
         var [cliVersion, setCliVersion] = useState('-');
         var [modelVersion, setModelVersion] = useState('-');
@@ -77,59 +78,16 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                 controller.abort();
             };
         }, [checking]);
-        useKeypress(function (key) {
-            if (key.name === 'escape') {
-                done();
-                return;
-            }
-            if (checking || setupDimensions().tooSmall) {
-                return;
-            }
-            if (key.name === 'up') {
-                setSelected('cli');
-            }
-            if (key.name === 'down' && model) {
-                setSelected('model');
-            }
-            if (isEnterKey(key)) {
-                setChecking(selected);
-            }
-        });
-        var width = setupDimensions().contentWidth;
-        var VERSION_COLUMNS = Math.floor(width / 3);
-        var nameWidth = Math.max(1, width - VERSION_COLUMNS * 2);
-        var output = '  ' + ' '.repeat(nameWidth) + style('Installed'.padEnd(VERSION_COLUMNS) + 'Available', 'muted') + '\n';
-        var divider = '  ' + style('─'.repeat(width), 'divider') + '\n';
-        output += divider;
-        var rows = [{ name: 'velora', installed: packageInfo.version, available: cliVersion, group: 'cli' }];
+        var values = ['cli'];
+        var rows = [{ value: 'cli', cells: ['velora', packageInfo.version, cliVersion] }];
         if (model) {
-            rows.push({ name: model.name, installed: model.version, available: modelVersion, group: 'model' });
-            rows.push({ name: 'Engine', installed: model.engineVersion || 'Unknown', available: engineVersion, group: 'model' });
+            values.push('model');
+            rows.push({ value: 'model', cells: [model.name, model.version, modelVersion] });
+            rows.push({ value: 'model', cells: ['Engine', model.engineVersion || 'Unknown', engineVersion] });
         }
-        for (var index = 0; index < rows.length; index++) {
-            var row = rows[index]!;
-            var marker = '  ';
-            if (selected === row.group && row.name !== 'Engine') {
-                marker = '› ';
-            }
-            var name = marker + row.name.slice(0, Math.max(0, nameWidth - marker.length));
-            var installed = row.installed;
-            var available = row.available;
-            if (installed.length >= VERSION_COLUMNS) {
-                installed = installed.slice(0, VERSION_COLUMNS - 2) + '…';
-            }
-            if (available.length >= VERSION_COLUMNS) {
-                available = available.slice(0, VERSION_COLUMNS - 2) + '…';
-            }
-            var line = name.padEnd(nameWidth) + installed.padEnd(VERSION_COLUMNS) + available;
-            if (selected === row.group) {
-                line = style(line, 'accent');
-            }
-            output += '  ' + line + '\n';
-            if (index === 0 || index === rows.length - 1) {
-                output += divider;
-            }
-        }
+        var selected = useListNavigation({ values, disabled: Boolean(checking), onSelect: setChecking, onBack: done });
+        var width = setupDimensions().contentWidth;
+        var output = '';
         var status = cliStatus;
         var target = 'velora';
         if (selected === 'model' && model) {
@@ -149,6 +107,9 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
             status = status.slice(end).trimStart();
         }
         output += '  ' + style(status, 'muted');
+        var statusRows = output.split('\n').length;
+        output = renderList({ rows, columns: [{ title: '' }, { title: 'Installed' }, { title: 'Available' }],
+            selected, width, height: setupDimensions().contentRows - statusRows }) + output;
         setSetupLayout('Settings / Updates', '', '↑/↓ Select · Enter Check · Esc Back · Ctrl+C Quit', '/velora/updates');
         return useSetupScreen(output);
     });

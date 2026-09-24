@@ -37,8 +37,8 @@ test.skipIf(process.platform === 'win32').each(['cli', 'model', 'cancel', 'no-mo
             expect(output).toContain('2.0.0');
         }
         if (scenario === 'model') {
-            expect(output).toMatch(/Skira 7 Alpha\s+1\.0\s+1\.1/);
-            expect(output).toMatch(/Engine\s+0\.1\.1\s+0\.2\.0/);
+            expect(output).toMatch(/Skira 7 Alpha\s+│\s+1\.0\s+│\s+1\.1/);
+            expect(output).toMatch(/Engine\s+│\s+0\.1\.1\s+│\s+0\.2\.0/);
         }
         if (scenario === 'no-model') {
             expect(output).not.toContain('Engine');

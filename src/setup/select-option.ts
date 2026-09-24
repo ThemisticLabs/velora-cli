@@ -1,43 +1,34 @@
+import renderList, { type ListColumn } from '../terminal/render-list.js';
+import useListNavigation from '../terminal/use-list-navigation.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
-import { createPrompt, isEnterKey, useKeypress, useState } from '@inquirer/core';
+import { createPrompt } from '@inquirer/core';
 import useSetupScreen from '../terminal/use-setup-screen.js';
 import style from '../terminal/style.js';
 
 type Selection = {
     message: string;
     initialValue?: string;
-    choices: { name: string; value: string; description?: string }[];
+    columns?: ListColumn[];
+    emptyMessage?: string;
+    actions?: { name: string; value: string }[];
+    choices: { name: string; value: string; cells?: string[]; description?: string; documentationPath?: string }[];
 };
 
 export default createPrompt<string, Selection>(function (config, done) {
-    var initialIndex = 0;
-    for (var choiceIndex = 0; choiceIndex < config.choices.length; choiceIndex++) {
-        if (config.choices[choiceIndex]!.value === config.initialValue) {
-            initialIndex = choiceIndex;
-        }
+    var values: string[] = [];
+    var rows = [];
+    for (var choice of config.choices) {
+        values.push(choice.value);
+        rows.push({ value: choice.value, cells: choice.cells || [choice.name] });
     }
-    var [index, setIndex] = useState(initialIndex);
-    useKeypress(function (key) {
-        if (key.name === 'escape') {
-            for (var choice of config.choices) {
-                if (choice.value === 'back') {
-                    done('back');
-                    return;
-                }
+    for (var action of config.actions || []) {
+        values.push(action.value);
+    }
+    var selected = useListNavigation({ values, initialValue: config.initialValue, onSelect: done,
+        onBack: function () {
+            if (values.includes('back')) {
+                done('back');
             }
-        }
-        if (setupDimensions().tooSmall) {
-            return;
-        }
-        if (isEnterKey(key)) {
-            done(config.choices[index]!.value);
-            return;
-        }
-        if (key.name === 'down') {
-            setIndex(Math.min(config.choices.length - 1, index + 1));
-        }
-        if (key.name === 'up') {
-            setIndex(Math.max(0, index - 1));
         }
     });
     var width = setupDimensions().contentWidth;
@@ -56,28 +47,21 @@ export default createPrompt<string, Selection>(function (config, done) {
         }
         content += '\n';
     }
-    var MESSAGE_ROWS = content.split('\n').length - 1;
-    var DESCRIPTION_ROWS = 2;
-    var SCROLL_HINT_ROWS = 1;
-    var capacity = Math.max(1, setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS - SCROLL_HINT_ROWS);
-    var start = Math.max(0, index - capacity + 1);
-    var end = Math.min(config.choices.length, start + capacity);
-    for (var choiceIndex = start; choiceIndex < end; choiceIndex++) {
-        var name = config.choices[choiceIndex]!.name.slice(0, width - 2);
-        if (choiceIndex === index) {
-            content += '  ' + style('› ' + name, 'accent') + '\n';
-        } else {
-            content += '    ' + name + '\n';
+    var description = '';
+    var documentationPath: string | undefined;
+    for (var choice of config.choices) {
+        if (choice.value === selected) {
+            description = choice.description || '';
+            documentationPath = choice.documentationPath;
         }
     }
-    var hint = '';
-    if (start > 0) {
-        hint = '↑ More above';
+    var MESSAGE_ROWS = content.split('\n').length - 1;
+    var DESCRIPTION_ROWS = 0;
+    if (description) {
+        DESCRIPTION_ROWS = 1;
     }
-    if (end < config.choices.length) {
-        hint += '  ↓ More below';
-    }
-    content += '  ' + style(hint, 'muted') + '\n';
-    content += '\n  ' + style((config.choices[index]!.description || '').slice(0, width), 'muted');
-    return useSetupScreen(content);
+    content += renderList({ rows, columns: config.columns, actions: config.actions, selected,
+        width, height: setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS, emptyMessage: config.emptyMessage });
+    content += '  ' + style(description.slice(0, width), 'muted');
+    return useSetupScreen(content, '', false, documentationPath);
 });

@@ -34,7 +34,9 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | `src/terminal/set-setup-layout.ts` | Store the title, detail and footer for the current setup step. |
 | `src/terminal/setup-dimensions.ts` | Define terminal limits and derive available content space from the rendered header. |
 | `src/terminal/use-setup-screen.ts` | Render the shared frame and footer and subscribe to terminal resizing without restarting prompts. |
-| `src/setup/select-option.ts` | Handle setup choices with persistent selection and the shared responsive frame. |
+| `src/setup/select-option.ts` | Connect menu choices and model tables to the shared list and responsive frame. |
+| `src/terminal/render-list.ts` | Render list columns, grouped dividers, scroll indicators and separate actions for model lists, updates and permissions. |
+| `src/terminal/use-list-navigation.ts` | Handle shared selection, arrow keys, activation and Escape navigation. |
 | `src/license/license-access.ts` | Perform the bounded HTTPS access request, verify Ed25519 signatures and request binding, and validate the returned fields. |
 | `src/setup/model-list.ts` | Show a scrollable model list with dividers and overflow indicators, plus paged model details. |
 | `src/setup/license-input.ts` | Briefly reveal the last appended character, mask input, and reject an empty or whitespace-only key. |

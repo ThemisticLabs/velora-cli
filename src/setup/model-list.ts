@@ -1,3 +1,4 @@
+import select from './select-option.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import type { LicenseModel } from '../license/license-access.js';
@@ -5,109 +6,29 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 import style from '../terminal/style.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
 
-export default async function modelList(models: LicenseModel[], summary: string, signal?: AbortSignal) {
-    var selectedIndex = 0;
+export default async function modelList(models: LicenseModel[], summary: string, signal?: AbortSignal): Promise<LicenseModel | 'back' | 'finish'> {
+    var selectedValue = '';
+    var choices = [];
+    for (var model of models) {
+        choices.push({ name: model.name, value: 'model:' + model.id, cells: [model.name, model.description], documentationPath: '/models/' + encodeURIComponent(model.id) });
+    }
     while (true) {
         setSetupLayout('Your models.', summary, '↑/↓ Scroll · Enter Open · Esc Back · Ctrl+C Quit');
-        var choose = createPrompt<LicenseModel | 'back' | 'finish', Record<string, never>>(function (_config, done) {
-            var [activeIndex, setActiveIndex] = useState(selectedIndex);
-            useKeypress(function (key) {
-                if (key.name === 'escape') {
-                    done('back');
-                    return;
-                }
-                if (setupDimensions().tooSmall) {
-                    return;
-                }
-                if (isEnterKey(key)) {
-                    selectedIndex = activeIndex;
-                    if (activeIndex === models.length) {
-                        done('back');
-                        return;
-                    }
-                    if (activeIndex === models.length + 1) {
-                        done('finish');
-                        return;
-                    }
-                    done(models[activeIndex]!);
-                    return;
-                }
-                if (key.name === 'down') {
-                    setActiveIndex(Math.min(models.length + 1, activeIndex + 1));
-                }
-                if (key.name === 'up') {
-                    setActiveIndex(Math.max(0, activeIndex - 1));
-                }
-            });
-            var dimensions = setupDimensions();
-            var TABLE_HEADING_ROWS = 2;
-            var TABLE_ACTION_ROWS = 3;
-            var MODEL_ROWS = 2;
-            var MIN_VISIBLE_MODELS = 3;
-            var availableModelRows = dimensions.contentRows - TABLE_HEADING_ROWS - TABLE_ACTION_ROWS;
-            var visibleModels = Math.max(MIN_VISIBLE_MODELS, Math.floor(availableModelRows / MODEL_ROWS));
-            var modelIndex = Math.min(activeIndex, models.length - 1);
-            var start = Math.max(0, modelIndex - visibleModels + 1);
-            var end = Math.min(models.length, start + visibleModels);
-            var width = dimensions.contentWidth;
-            var NAME_WIDTH = 18;
-            var SELECTION_MARKER_COLUMNS = 2;
-            var COLUMN_DIVIDER_COLUMNS = 1;
-            var DESCRIPTION_PADDING_COLUMNS = 2;
-            var descriptionWidth = width - NAME_WIDTH - COLUMN_DIVIDER_COLUMNS - DESCRIPTION_PADDING_COLUMNS;
-            var separator = style('─'.repeat(NAME_WIDTH) + '┼' + '─'.repeat(descriptionWidth + DESCRIPTION_PADDING_COLUMNS), 'divider');
-            var output = '  ' + style('Model'.padEnd(NAME_WIDTH), 'muted') + style('│', 'divider') + style(' Description', 'muted') + '\n';
-            output += '  ' + separator + '\n';
-            for (var index = start; index < end; index++) {
-                var model = models[index]!;
-                var name = model.name.slice(0, NAME_WIDTH - SELECTION_MARKER_COLUMNS);
-                var marker = '  ';
-                if (index === activeIndex) {
-                    marker = '› ';
-                }
-                var nameCell = (marker + name).padEnd(NAME_WIDTH);
-                if (index === activeIndex) {
-                    nameCell = style(nameCell, 'accent');
-                }
-                var description = model.description;
-                if (description.length > descriptionWidth) {
-                    description = description.slice(0, descriptionWidth - 1) + '…';
-                }
-                output += '  ' + nameCell + style('│', 'divider') + ' ' + style(description, 'muted') + '\n';
-                output += '  ' + separator + '\n';
+        var value = await select({ message: '', choices, initialValue: selectedValue,
+            columns: [{ title: 'Model', width: 18 }, { title: 'Description' }],
+            actions: [{ name: 'Go back', value: 'back' }, { name: 'Finish', value: 'finish' }],
+            emptyMessage: 'No models included in this license.'
+        }, { signal });
+        if (value === 'back' || value === 'finish') {
+            return value;
+        }
+        selectedValue = value;
+        var selected = models[0]!;
+        for (var model of models) {
+            if ('model:' + model.id === value) {
+                selected = model;
+                break;
             }
-            var scrollHint = '  All models shown';
-            if (start > 0) {
-                scrollHint = '  ↑ More above';
-            }
-            if (end < models.length) {
-                scrollHint = '  ↓ More below';
-                if (start > 0) {
-                    scrollHint = '  ↑ More above    ↓ More below';
-                }
-            }
-            if (models.length === 0) {
-                scrollHint = '  No models included in this license.';
-            }
-            output += style(scrollHint, 'muted') + '\n\n';
-            var back = '  Go back';
-            var finish = '  Finish';
-            if (activeIndex === models.length) {
-                back = style('› Go back', 'accent');
-            }
-            if (activeIndex === models.length + 1) {
-                finish = style('› Finish', 'accent');
-            }
-            output += back + '    ' + finish;
-            var documentationPath = '/velora/setup';
-            if (activeIndex < models.length) {
-                documentationPath = '/models/' + encodeURIComponent(models[activeIndex]!.id);
-            }
-            return useSetupScreen(output, '', false, documentationPath);
-        });
-        var selected = await choose({}, { signal });
-        if (selected === 'back' || selected === 'finish') {
-            return selected;
         }
 
         var modelToInstall = selected;

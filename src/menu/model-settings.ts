@@ -18,17 +18,19 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
                     currentChoice = 'model:' + model.id;
                 }
             }
-            choices.push({ name, value: 'model:' + model.id });
+            choices.push({ name, value: 'model:' + model.id, cells: [name, model.version, model.engineVersion || 'Unknown'], documentationPath: '/models/' + encodeURIComponent(model.id) });
         }
-        var title = 'Settings / Switch model';
+        var actions = [];
+        var title = 'Installed models / Switch model';
         if (operation === 'switch') {
-            choices.push({ name: 'Install another model', value: 'install' });
+            actions.push({ name: 'Install another model', value: 'install' });
         } else {
-            title = 'Settings / Delete model';
+            title = 'Installed models / Delete model';
         }
-        choices.push({ name: 'Go back', value: 'back' });
+        actions.push({ name: 'Go back', value: 'back' });
         setSetupLayout(title, '', FOOTER, '/velora/models');
-        var selected = await select({ message: 'Installed models', initialValue: currentChoice, choices });
+        var selected = await select({ message: '', initialValue: currentChoice, choices, actions,
+            columns: [{ title: 'Model' }, { title: 'Version', width: 12 }, { title: 'Engine', width: 12 }], emptyMessage: 'No models installed.' });
         currentChoice = selected;
         if (selected === 'back') {
             return;

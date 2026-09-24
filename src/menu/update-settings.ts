@@ -1,6 +1,8 @@
+import renderList, { type ListRow } from '../terminal/render-list.js';
+import useListNavigation from '../terminal/use-list-navigation.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createPrompt, isEnterKey, useKeypress, useState } from '@inquirer/core';
+import { createPrompt, useState } from '@inquirer/core';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
@@ -44,59 +46,47 @@ export default async function updateSettings(model?: InstalledModel): Promise<vo
     while (true) {
         setSetupLayout('Settings / Update permissions', 'Save applies changes. Esc discards unsaved edits.', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit', '/velora/updates');
         var edit = createPrompt<CliUpdatePreferences[] | null, Record<string, never>>(function (_config, done) {
-            var [index, setIndex] = useState(selectedIndex);
             var [draft, setDraft] = useState(pending);
             var rows: { scopeIndex: number; field: keyof CliUpdatePreferences; label: string }[] = [];
             for (var scopeIndex = 0; scopeIndex < scopes.length; scopeIndex++) {
                 rows.push({ scopeIndex, field: 'checkAutomatically', label: 'Automatic checks' });
                 rows.push({ scopeIndex, field: 'installAutomatically', label: 'Automatic installation' });
             }
-            useKeypress(function (key) {
-                if (key.name === 'escape') {
-                    done(null);
-                    return;
-                }
-                if (setupDimensions().tooSmall) {
-                    return;
-                }
-                if (key.name === 'down') {
-                    setIndex(Math.min(rows.length, index + 1));
-                }
-                if (key.name === 'up') {
-                    setIndex(Math.max(0, index - 1));
-                }
-                if (!isEnterKey(key) && key.name !== 'space') {
-                    return;
-                }
-                if (index === rows.length) {
-                    if (isEnterKey(key)) {
+            var values: string[] = [];
+            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+                values.push(String(rowIndex));
+            }
+            values.push('save');
+            var selected = useListNavigation({ values, activateWithSpace: true, initialValue: values[selectedIndex],
+                onBack: function () { done(null); },
+                onSelect: function (value) {
+                    var index = values.indexOf(value);
+                    if (value === 'save') {
                         selectedIndex = index;
                         done(draft);
+                        return;
                     }
-                    return;
+                    var row = rows[index]!;
+                    if (!scopes[row.scopeIndex]!.readable || row.field === 'installAutomatically' && !draft[row.scopeIndex]!.checkAutomatically) {
+                        return;
+                    }
+                    var next = [...draft];
+                    var preference = { ...next[row.scopeIndex]! };
+                    preference[row.field] = !preference[row.field];
+                    if (!preference.checkAutomatically) {
+                        preference.installAutomatically = false;
+                    }
+                    next[row.scopeIndex] = preference;
+                    feedback = '';
+                    setDraft(next);
                 }
-                var row = rows[index]!;
-                if (!scopes[row.scopeIndex]!.readable || row.field === 'installAutomatically' && !draft[row.scopeIndex]!.checkAutomatically) {
-                    return;
-                }
-                var next = [...draft];
-                var preference = { ...next[row.scopeIndex]! };
-                preference[row.field] = !preference[row.field];
-                if (!preference.checkAutomatically) {
-                    preference.installAutomatically = false;
-                }
-                next[row.scopeIndex] = preference;
-                feedback = '';
-                setDraft(next);
             });
+            var index = values.indexOf(selected);
             var width = setupDimensions().contentWidth;
-            var output = '';
+            var listRows: ListRow[] = [];
             for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
                 var row = rows[rowIndex]!;
                 var scope = scopes[row.scopeIndex]!;
-                if (row.field === 'checkAutomatically') {
-                    output += '  ' + style(scope.name.slice(0, width), 'strong') + '\n';
-                }
                 var value = draft[row.scopeIndex]![row.field];
                 var state = 'Not set';
                 if (value === true) {
@@ -108,24 +98,15 @@ export default async function updateSettings(model?: InstalledModel): Promise<vo
                 if (!scope.readable) {
                     state = 'Unavailable';
                 }
-                var marker = '  ';
-                if (index === rowIndex) {
-                    marker = '› ';
+                var section: string | undefined;
+                if (row.field === 'checkAutomatically') {
+                    section = scope.name;
                 }
-                var line = marker + row.label.padEnd(width - state.length - marker.length) + state;
-                if (index === rowIndex) {
-                    line = style(line, 'accent');
-                }
-                output += '  ' + line + '\n';
-                if (row.field === 'installAutomatically') {
-                    output += '  ' + style('─'.repeat(width), 'divider') + '\n';
-                }
+                listRows.push({ value: String(rowIndex), cells: [row.label, state], group: String(row.scopeIndex), section });
             }
-            var save = '  Save changes';
-            if (index === rows.length) {
-                save = style('› Save changes', 'accent');
-            }
-            output += '  ' + save + '\n';
+            var output = renderList({ rows: listRows, columns: [{ title: '' }, { title: '', width: 12 }],
+                actions: [{ name: 'Save changes', value: 'save' }], selected, width,
+                height: setupDimensions().contentRows - 1 });
             var hint = feedback;
             if (index < rows.length) {
                 var row = rows[index]!;
