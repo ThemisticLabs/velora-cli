@@ -2,7 +2,7 @@ import style from './style.js';
 
 export type ListRow = { value: string; cells: string[]; group?: string; section?: string };
 export type ListColumn = { title: string; width?: number };
-export type ListAction = { value: string; name: string };
+type ListAction = { value: string; name: string };
 type ListOptions = {
     rows: ListRow[];
     columns?: ListColumn[];

@@ -43,20 +43,20 @@ export default async function updateSettings(model?: InstalledModel): Promise<vo
     for (var scope of scopes) {
         pending.push({ ...scope.saved });
     }
+    var rows: { scopeIndex: number; field: keyof CliUpdatePreferences; label: string }[] = [];
+    for (var scopeIndex = 0; scopeIndex < scopes.length; scopeIndex++) {
+        rows.push({ scopeIndex, field: 'checkAutomatically', label: 'Automatic checks' });
+        rows.push({ scopeIndex, field: 'installAutomatically', label: 'Automatic installation' });
+    }
+    var values: string[] = [];
+    for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        values.push(String(rowIndex));
+    }
+    values.push('save');
     while (true) {
         setSetupLayout('Settings / Update permissions', 'Save applies changes. Esc discards unsaved edits.', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit', '/velora/updates');
         var edit = createPrompt<CliUpdatePreferences[] | null, Record<string, never>>(function (_config, done) {
             var [draft, setDraft] = useState(pending);
-            var rows: { scopeIndex: number; field: keyof CliUpdatePreferences; label: string }[] = [];
-            for (var scopeIndex = 0; scopeIndex < scopes.length; scopeIndex++) {
-                rows.push({ scopeIndex, field: 'checkAutomatically', label: 'Automatic checks' });
-                rows.push({ scopeIndex, field: 'installAutomatically', label: 'Automatic installation' });
-            }
-            var values: string[] = [];
-            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-                values.push(String(rowIndex));
-            }
-            values.push('save');
             var selected = useListNavigation({ values, activateWithSpace: true, initialValue: values[selectedIndex],
                 onBack: function () { done(null); },
                 onSelect: function (value) {
@@ -98,11 +98,11 @@ export default async function updateSettings(model?: InstalledModel): Promise<vo
                 if (!scope.readable) {
                     state = 'Unavailable';
                 }
-                var section: string | undefined;
+                var listRow: ListRow = { value: String(rowIndex), cells: [row.label, state], group: String(row.scopeIndex) };
                 if (row.field === 'checkAutomatically') {
-                    section = scope.name;
+                    listRow.section = scope.name;
                 }
-                listRows.push({ value: String(rowIndex), cells: [row.label, state], group: String(row.scopeIndex), section });
+                listRows.push(listRow);
             }
             var output = renderList({ rows: listRows, columns: [{ title: '' }, { title: '', width: 12 }],
                 actions: [{ name: 'Save changes', value: 'save' }], selected, width,

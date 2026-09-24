@@ -33,11 +33,11 @@ export default async function modelList(models: LicenseModel[], summary: string,
             }
         }
 
-        var modelToInstall = selected;
-        setSetupLayout('Model details.', selected.name, '←/→ Pages · Enter Install · Esc Back · Ctrl+C Quit', '/models/' + encodeURIComponent(selected.id));
-        if (!selected.canDownload) {
-            setSetupLayout('Model details.', selected.name, '←/→ Pages · Esc Back · Ctrl+C Quit', '/models/' + encodeURIComponent(selected.id));
+        var footer = '←/→ Pages · Esc Back · Ctrl+C Quit';
+        if (selected.canDownload) {
+            footer = '←/→ Pages · Enter Install · Esc Back · Ctrl+C Quit';
         }
+        setSetupLayout('Model details.', selected.name, footer, '/models/' + encodeURIComponent(selected.id));
         var installationText = 'No downloadable release is available for this model.';
         if (selected.canDownload) {
             installationText = 'Select Install model to download. This registers this device with your license. The package is verified before installation.';
@@ -104,7 +104,7 @@ export default async function modelList(models: LicenseModel[], summary: string,
             });
             var actions = [];
             var values: string[] = [];
-            if (modelToInstall.canDownload) {
+            if (selected.canDownload) {
                 actions.push({ name: 'Install model', value: 'install' });
                 values.push('install');
             }
