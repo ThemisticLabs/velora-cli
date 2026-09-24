@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['navigation', 'complete', 'cancel-after-install'])('setup flow: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['navigation', 'complete', 'cancel-after-install', 'all-installed'])('setup flow: %s', async function (scenario) {
     var output = '';
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/setup-flow.ts', import.meta.url)), scenario], {
         terminal: { cols: 90, rows: 30, data: function (_terminal, data) { output += Buffer.from(data).toString('utf8'); } }

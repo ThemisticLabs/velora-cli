@@ -10,6 +10,10 @@ if (scenario === 'cancel-after-install') {
     choices = ['license', 'saved', 'download'];
 }
 var model = { id: 'skira7alpha', name: 'Skira 7 Alpha', description: '', strengths: '', limitations: '', canDownload: true, downloadReason: null };
+var installedModel = { ...model, id: 'other-model', name: 'Installed model' };
+if (scenario === 'all-installed') {
+    choices = ['license', 'saved', 'back'];
+}
 var checks = 0;
 var lists = 0;
 var downloads = 0;
@@ -36,11 +40,12 @@ mock.module('../../src/license/manage-license.js', function () {
         if (scenario === 'navigation' && checks === 1) {
             return { ok: false, message: 'Fixture unavailable.' };
         }
-        return { ok: true, license: 'FIXTURE-LICENSE', saved: false, expiresAt: '2026-10-18T00:00:00Z', registeredDevices: 1, maxDevices: 50, models: [model] };
+        return { ok: true, license: 'FIXTURE-LICENSE', saved: false, expiresAt: '2026-10-18T00:00:00Z', registeredDevices: 1, maxDevices: 50, models: [model, installedModel] };
     } };
 });
 mock.module('../../src/setup/model-list.js', function () {
-    return { default: async function () {
+    return { default: async function (models: typeof model[]) {
+        assert.deepEqual(models, [model]);
         lists++;
         if (scenario === 'navigation' && lists === 3) {
             return 'back';
@@ -71,7 +76,12 @@ mock.module('../../src/updates/engine-update-preferences.js', function () {
     } };
 });
 mock.module('../../src/models/installed-models.js', function () {
-    return { default: async function () { return []; } };
+    return { default: async function () {
+        if (scenario === 'all-installed') {
+            return [model, installedModel];
+        }
+        return [installedModel];
+    } };
 });
 var setup = (await import('../../src/setup/setup.js')).default;
 try {
@@ -82,7 +92,12 @@ try {
     assert.equal((error as Error).name, 'ExitPromptError');
 }
 assert.equal(choices.length, 0);
-assert.equal(downloads, 1);
+if (scenario === 'all-installed') {
+    assert.equal(downloads, 0);
+    assert.equal(lists, 0);
+} else {
+    assert.equal(downloads, 1);
+}
 assert.equal(saved, scenario === 'complete');
 if (scenario === 'navigation') {
     assert.equal(checks, 3);

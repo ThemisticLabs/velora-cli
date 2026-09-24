@@ -93,7 +93,22 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
             license = result.license;
             var expires = new Date(result.expiresAt).toISOString().slice(0, 10);
             while (true) {
-                var next = await modelList(result.models, 'Expires ' + expires + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices);
+                var installedIds = new Set<string>();
+                for (var installed of await installedModels({ operation: 'list' })) {
+                    installedIds.add(installed.id);
+                }
+                var availableModels = [];
+                for (var model of result.models) {
+                    if (!installedIds.has(model.id)) {
+                        availableModels.push(model);
+                    }
+                }
+                if (result.models.length > 0 && availableModels.length === 0) {
+                    setSetupLayout('All your models are installed.', '', 'Enter Back · Esc Back · Ctrl+C Quit', '/velora/models');
+                    await select({ message: '', choices: [{ name: 'Go back', value: 'back' }] });
+                    return true;
+                }
+                var next = await modelList(availableModels, 'Expires ' + expires + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices);
                 if (next === 'finish') {
                     return true;
                 }
