@@ -68,7 +68,7 @@ Commander owns argument parsing and suggestions. `package.json` is the version s
 1. Reject execution unless both input and output are interactive terminals with at least 60 columns and 20 rows.
 2. Enter the alternate screen, preserving the ordinary terminal view.
 3. Draw the access selection and let Inquirer handle keyboard navigation.
-4. For public access, show the availability notice and return on Go back.
+4. For public access, show the availability notice and return on Esc.
 5. For licensed access, read the key and run a cancellable access check. Failures offer retry or back; verified results show models and offer back or finish.
 6. Return to the main menu after setup. The menu owns the alternate screen and restores it once on exit.
 
@@ -80,7 +80,7 @@ Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive s
 
 `menu/main-menu.ts` owns the interactive session. It reads the system credential store once at startup and runs setup only when no key is saved or `velora setup` was requested. It does not perform a network license check just to open the menu. Existing startup update consent remains separate.
 
-`settings-menu.ts` dispatches actions. `model-settings.ts` handles selection and confirmed deletion; `update-settings.ts` edits permissions. Shared prompts keep navigation and the footer stable and scroll when choices do not fit. Esc activates Go back in menus and cancels license input before any verification or storage write. Settings and model lists retain their selection when returning. Ctrl+C closes the entire session. Content and footer share the same left inset; empty subtitles do not reserve a blank row. `terminal/run-terminal-task.ts` keeps asynchronous work cancellable and waits for pending native writes before restoring the terminal.
+`settings-menu.ts` dispatches actions. `model-settings.ts` handles selection and confirmed deletion; `update-settings.ts` edits permissions. Shared prompts keep navigation and the footer stable and scroll when choices do not fit. Esc returns to the previous menu and cancels license input before any verification or storage write. Settings and model lists retain their selection when returning. Ctrl+C closes the entire session. Content and footer share the same left inset; empty subtitles do not reserve a blank row. `terminal/run-terminal-task.ts` keeps asynchronous work cancellable and waits for pending native writes before restoring the terminal.
 
 `models/installed-models.ts` reads each model's `current.json` and checks its package directory. New downloads persist the verified model display name; older installations use their model ID. `selected-model.json` records the choice atomically. A single existing model is selected when there is no selection file. This is package selection, not engine startup or inference readiness.
 
@@ -90,15 +90,13 @@ CLI permission reads and writes are shared by startup and Settings through `cli-
 
 ## Terminal conventions
 
-Terminal control sequences have descriptive names at their point of use. The style function accepts only `accent`, `strong`, or `muted`; numeric style codes stay inside that module:
+Terminal control sequences have descriptive names at their point of use. The style function accepts `accent`, `strong`, `muted`, and `divider`; numeric style codes stay inside that module:
 
 | Sequence | Purpose |
 | --- | --- |
 | `ESC[?1049h` / `ESC[?1049l` | Enter / leave the alternate screen. |
 | `ESC[H` and `ESC[2J` | Move home and clear the screen. |
-| `ESC7` / `ESC8` | Save / restore the cursor around footer rendering. |
-| `ESC[row;1H` and `ESC[K` | Position the footer and clear the rest of its line. |
-| `ESC[?25h` | Make the cursor visible on exit. |
+| `ESC[?25l` / `ESC[?25h` | Hide the cursor in menus and restore it for input or exit. |
 | `ESC[1m`, `ESC[2m`, `ESC[0m` | Bold, dim, and reset text styling. |
 
 The `accent` style uses `#686BE7`, or `#2525CC` when `COLORFGBG` ends in background index 15. This is a limited theme hint. `NO_COLOR`, `TERM=dumb`, and `FORCE_COLOR=0` disable styling; otherwise a nonzero `FORCE_COLOR` can enable it without a TTY. These switches affect text styling, not the setup's cursor-control sequences.
@@ -123,11 +121,11 @@ Engines and model weights remain separate from this repository and executable. D
 - Resizing preserves prompt state. Detail text is rewrapped to the new width; on multi-page sections, the page index is retained and clamped to the available pages.
 - Menu failures use public messages after terminal cleanup. Do not include license input in error messages or diagnostic context.
 - Automated tests cover command behavior, color controls, version output, runtime independence, and non-interactive setup rejection.
-- Terminal checks also exercised the 60-by-20 layout, public access and Go back, empty license validation, long masked input, Ctrl+C, undersized terminals, and resize cleanup. These were PTY checks, not automated visual assertions or cross-platform verification.
+- Terminal checks also exercised the 60-by-20 layout, public access and Esc navigation, empty license validation, long masked input, Ctrl+C, undersized terminals, and resize cleanup. Automated PTY tests also check model-detail navigation and permission rows, including one heading per group. These do not replace visual inspection or cross-platform verification.
 
 ## Adding the next feature
 
-Keep command parsing in the entry point, setup decisions in the setup flow, and terminal rendering in the existing presentation modules. Add engine or license modules when the first real integration needs them. Do not put network calls inside prompt rendering callbacks. Validate external replies at the integration boundary, and only advance to a success state after the requested operation has actually completed.
+Keep command parsing in the entry point, setup decisions in the setup flow, and terminal rendering in the existing presentation modules. Reuse the existing license, download and model modules. Add engine runtime integration when implementing model execution. Do not put network calls inside prompt rendering callbacks. Validate external replies at the integration boundary, and only advance to a success state after the requested operation has actually completed.
 
 ## License access protocol
 
@@ -149,13 +147,13 @@ These routes are agreed placeholders until the documentation site is published:
 | License input, verification and errors | `https://docs.themistic.com/licenses` |
 | Highlighted model or its detail pages | `https://docs.themistic.com/models/<model-id>` |
 
-`src/system/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. “Sent to browser” confirms the opener completed, not that the page loaded. Browser launch arguments were verified using a test opener on macOS; the placeholder site and other platform handlers are not live-verified.
+`src/system/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. The opening status clears when the opener completes; this does not confirm that the page loaded. Browser launch arguments were verified using a test opener on macOS; the placeholder site and other platform handlers are not live-verified.
 
 ## Installation checks
 
 `src/commands/doctor.ts` implements `velora doctor`. It reports OS and architecture without claiming model support, looks for an executable in absolute PATH directories without running it, and probes the default data location with a temporary directory and file. The probe is removed afterward. Missing data directories are not created; their nearest existing parent is checked instead.
 
-Default data locations are `~/Library/Application Support/velora` on macOS, `%LOCALAPPDATA%/velora` on Windows (falling back to `~/AppData/Local/velora`), and `$XDG_DATA_HOME/velora` on Linux (falling back to `~/.local/share/velora`). Relative environment paths are ignored. These are proposed storage locations for future installation; no engine is installed by this command.
+Default data locations are `~/Library/Application Support/velora` on macOS, `%LOCALAPPDATA%/velora` on Windows (falling back to `~/AppData/Local/velora`), and `$XDG_DATA_HOME/velora` on Linux (falling back to `~/.local/share/velora`). Relative environment paths are ignored. These locations store model packages and preferences. Doctor only probes storage access; it does not install an engine.
 
 The server check makes a GET request to the public license-check endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. No license or device identity is sent. The injected transport lets tests simulate network failures without contacting production. An optional internal data-directory argument isolates storage tests in temporary directories; it is not exposed as a CLI option. Storage failures report the failed operation and filesystem error. Cleanup failures name the remaining probe directory, and do not hide an earlier write failure.
 
@@ -169,7 +167,7 @@ The report reuses `src/terminal/style.ts` and follows the Gallery's `STANDARD.md
 
 `device-fingerprint.ts` follows the engine client identity: SHA-256 of IOPlatformUUID on macOS, `/etc/machine-id` where available, otherwise the existing `~/.config/lizenz-client/geräte_id`. An existing fallback is read without creating temporary files or requiring write access. Only a missing file triggers creation; unreadable or empty identities are not replaced. A new fallback is published using an exclusive hard link, matching the engine's race-safe creation. License access remains read-only; catalog and file operations can register a device. Cancelling a transfer does not undo that server-side registration.
 
-`download-model.ts` installs under `<data directory>/models/<model-id>`. It takes `.update.lock`, downloads into its own temporary directory, verifies every file hash, the manifest signature, exact file membership, model and engine identities, and license configuration. It rechecks the catalog before publishing the package under `installed/<model-id>/<revision>` and replacing `current.json` by rename. The state preserves `engine_version`, model version, revision, sequence and `highest_sequences`, compatible with the engine updater's installation layout. Older releases without an engine version remain supported. Existing installations and package targets are refused; update checks, replacement and crash recovery are later work. A crash may leave a lock or unreferenced package that needs inspection.
+`download-model.ts` installs under `<data directory>/models/<model-id>`. It takes `.update.lock`, downloads into its own temporary directory, verifies every file hash, the manifest signature, exact file membership, model and engine identities, and license configuration. It rechecks the catalog before publishing the package under `installed/<model-id>/<revision>` and replacing `current.json` by rename. The state preserves `engine_version`, model version, revision, sequence and `highest_sequences`, compatible with the engine updater's installation layout. Older releases without an engine version remain supported. Existing installations and package targets are refused; package replacement and crash recovery are later work. Manual update checks are implemented separately in `updates/model-update.ts`. A crash may leave a lock or unreferenced package that needs inspection.
 
 `download-screen.ts` uses the existing setup prompt lifecycle and screen layout. The progress bar is based on received package bytes; verification has its own log state. Logs are bounded and wrapped. Pause stops between requests, cancellation aborts network requests and waits for filesystem cleanup, and resize preserves the download state. Once `current.json` is published, cleanup failures preserve the successful installation result. The UI reports the cleanup problem separately; every cleanup operation is attempted even if another fails. Before publication, cleanup does not replace the original installation error. No downloaded code is executed. API initialization, model inference and service installation remain separate future steps.
 

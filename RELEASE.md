@@ -42,7 +42,7 @@ These are raw executables. The pipeline does not install anything on a user's ma
 
 ## Updates
 
-The CLI checks GitHub's latest stable release only after user consent. The stable asset names and manifest provide the delivery format for automatic installation. The installer is not connected yet; this pipeline alone does not replace the running CLI. GitHub also exposes SHA-256 digests for uploaded release assets.
+Automatic startup checks require saved consent. Settings also provides an explicit manual check for GitHub's latest stable release. The stable asset names and manifest provide the delivery format for automatic installation. The installer is not connected yet; this pipeline alone does not replace the running CLI. GitHub also exposes SHA-256 digests for uploaded release assets.
 
 For release integrity beyond checksums, enable immutable releases in the repository settings before publication. This is a repository setting, not something the workflow enables. The draft-first upload sequence supports it.
 

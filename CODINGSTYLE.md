@@ -17,7 +17,7 @@ These conventions apply to new TypeScript and JavaScript in velora, including te
 ## Variables and values
 
 - Use `var`, not `const` or `let`. Write constant names in uppercase, such as `CLI_PATH`.
-- Declare a variable where its value is first assigned. Do not initialize it with `null` or an empty value just because the real assignment happens inside a later block. Remember that `var` is function-scoped.
+- Declare a variable where its value is first assigned. Do not initialize it with `null` or an empty value just because the real assignment happens inside a later block. Remember that `var` is function-scoped: declaring it again inside a loop does not reset its value. Assign each iteration's value explicitly, or create a fresh object for that iteration.
 - Use English names. Keep established domain terms in their original language when appropriate.
 - Calculate an intermediate result once and pass it on instead of rebuilding it.
 - Use TypeScript inference for obvious types. Type external boundaries and shared contracts explicitly when needed; do not hide uncertainty behind `any`.
