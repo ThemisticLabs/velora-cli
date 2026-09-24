@@ -5,10 +5,10 @@ import packageRequest from '../downloads/package-request.js';
 import packageRelease from '../downloads/package-release.js';
 
 export default async function modelUpdate(model: InstalledModel, signal: AbortSignal,
-    services = { store: licenseStore, identity: deviceFingerprint, request: packageRequest }): Promise<string> {
+    services = { store: licenseStore, identity: deviceFingerprint, request: packageRequest }): Promise<{ message: string; available?: { version: string; engineVersion: string } }> {
     var license = await services.store({ operation: 'read' });
     if (!license) {
-        return 'Save a license before checking model updates.';
+        return { message: 'Save a license before checking model updates.' };
     }
     var identity = await services.identity();
     signal.throwIfAborted();
@@ -24,15 +24,12 @@ export default async function modelUpdate(model: InstalledModel, signal: AbortSi
         }
     }
     if (matches.length !== 1) {
-        return 'No unique release is available for this model.';
+        return { message: 'No unique release is available for this model.' };
     }
     var release = matches[0]!;
     if (release.sequence <= model.sequence) {
-        return 'No newer model package is available.';
+        return { message: 'No newer model package is available.' };
     }
-    var message = 'Model ' + release.version + ' is available.';
-    if (release.engine_version) {
-        message += ' Engine ' + release.engine_version + '.';
-    }
-    return message + ' Updating installed packages is not available yet.';
+    return { message: 'Update available. Package installation is not available yet.',
+        available: { version: release.version, engineVersion: release.engine_version || 'Unknown' } };
 }

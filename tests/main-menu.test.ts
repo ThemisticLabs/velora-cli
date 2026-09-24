@@ -92,11 +92,11 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                 return;
             }
             if (scenario === 'offline' || scenario === 'current') {
-                if (phase === 2 && frame.includes('and its engine')) {
+                if (phase === 2 && frame.includes('Installed') && frame.includes('Available')) {
                     phase++;
                     terminal.write('\r');
                 }
-                if (phase === 3 && (frame.includes('Could not check for updates') || frame.includes('velora is up to date.'))) {
+                if (phase === 3 && (frame.includes('Could not check.') || frame.includes('velora is up to date.'))) {
                     phase++;
                     terminal.write('\u0003');
                 }

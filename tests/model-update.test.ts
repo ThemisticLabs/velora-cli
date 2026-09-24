@@ -41,10 +41,11 @@ test.each(['newer', 'current', 'older', 'missing', 'ambiguous', 'invalid', 'no l
         await expect(result).rejects.toThrow();
         return;
     }
-    var message = await result;
+    var report = await result;
+    var message = report.message;
     expect(message).not.toContain('FIXTURE-LICENSE');
     if (scenario === 'newer') {
-        expect(message).toContain('Engine 0.2.0');
+        expect(report.available).toEqual({ version: '2', engineVersion: '0.2.0' });
         expect(message).toContain('not available yet');
     }
     if (scenario === 'current' || scenario === 'older') {
