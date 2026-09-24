@@ -57,7 +57,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 if (selected) {
                     title = 'Selected model: ' + selected.name;
                 }
-                setSetupLayout(title, '', FOOTER, '/velora');
+                setSetupLayout(title, '', 'Enter Settings · Ctrl+C Quit', '/velora');
                 await select({ message: '', choices: [{ name: 'Settings', value: 'settings' }] });
                 await settingsMenu(selected);
             } catch (error) {

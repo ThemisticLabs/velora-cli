@@ -28,8 +28,11 @@ export default async function licenseCommand(operation: 'set' | 'status'): Promi
             var result = await task;
         } else {
             process.stdout.write('\u001b[?1049h');
-            setSetupLayout('Set your license.', 'A verified key replaces the saved license.', 'Enter Continue · Ctrl+C Cancel', '/licenses');
+            setSetupLayout('Set your license.', 'A verified key replaces the saved license.', 'Enter Continue · Esc Cancel · Ctrl+C Quit', '/licenses');
             var license = await licenseInput({}, { signal: controller.signal });
+            if (!license) {
+                return;
+            }
             setSetupLayout('Checking your license.', '', 'Ctrl+C Cancel', '/licenses');
             var check = createPrompt<Awaited<ReturnType<typeof manageLicense>>, Record<string, never>>(function (_config, done) {
                 useEffect(function () {

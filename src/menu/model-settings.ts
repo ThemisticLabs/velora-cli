@@ -5,7 +5,8 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 import installedModels from '../models/installed-models.js';
 
 export default async function modelSettings(operation: 'switch' | 'delete'): Promise<void> {
-    var FOOTER = '↑/↓ Move · Enter Select · Ctrl+C Close';
+    var FOOTER = '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit';
+    var currentChoice = '';
     while (true) {
         var models = await installedModels({ operation: 'list' });
         var choices = [];
@@ -13,18 +14,22 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
             var name = model.name;
             if (model.selected) {
                 name += ' (selected)';
+                if (!currentChoice) {
+                    currentChoice = 'model:' + model.id;
+                }
             }
             choices.push({ name, value: 'model:' + model.id });
         }
-        var title = 'Switch model';
+        var title = 'Settings / Switch model';
         if (operation === 'switch') {
             choices.push({ name: 'Install another model', value: 'install' });
         } else {
-            title = 'Delete model';
+            title = 'Settings / Delete model';
         }
         choices.push({ name: 'Go back', value: 'back' });
         setSetupLayout(title, '', FOOTER, '/velora/models');
-        var selected = await select({ message: 'Installed models', choices });
+        var selected = await select({ message: 'Installed models', initialValue: currentChoice, choices });
+        currentChoice = selected;
         if (selected === 'back') {
             return;
         }

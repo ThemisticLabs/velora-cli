@@ -29,7 +29,7 @@ The CLI and its models are distributed separately. Licensed models will use the 
 
 Run `velora` to open the menu. On first use, it guides you through license setup and model installation. A saved license takes you directly to the menu on later launches.
 
-The menu shows the selected model and **Settings**. Settings let you change your license, switch between installed models, install another model, delete a model after confirmation, edit update permissions, and check for velora or model package updates. Selection is saved locally. The engine is not running yet, so selection does not mean a model is loaded.
+The menu shows the selected model and **Settings**. Settings let you change your license, switch between installed models, install another model, delete a model after confirmation, edit update permissions, and check for velora or model package updates. Permissions are edited together with On/Off rows and an explicit Save changes action. Esc goes back and discards unsaved edits; Ctrl+C closes velora. Selection is saved locally. The engine is not running yet, so selection does not mean a model is loaded.
 
 Deleting a model removes its local package and engine preferences. Your saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic installation is not implemented yet.
 

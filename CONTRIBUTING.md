@@ -127,6 +127,6 @@ Run `bun run start setup` to test license access and model installation.
 
 ## Main menu checks
 
-Run `bun run start` in a terminal. A saved license opens the main menu; without one, setup runs first. Use Settings for model management, license changes and update permissions. Ctrl+C restores the terminal. Selection means a local package has been chosen, not that the engine is running.
+Run `bun run start` in a terminal. A saved license opens the main menu; without one, setup runs first. Use Settings for model management, license changes and update permissions. Esc returns one level in menus and cancels license entry without checking or saving a key. Permission edits remain a draft until Save changes. Ctrl+C restores the terminal. Selection means a local package has been chosen, not that the engine is running.
 
 Menu tests use isolated credential and network fixtures. Storage tests cover selection persistence, deletion scope, held installation locks, missing packages and symlinks. Keep tests away from real licenses and installed models.

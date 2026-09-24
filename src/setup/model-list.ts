@@ -8,10 +8,14 @@ import useSetupScreen from '../terminal/use-setup-screen.js';
 export default async function modelList(models: LicenseModel[], summary: string, signal?: AbortSignal) {
     var selectedIndex = 0;
     while (true) {
-        setSetupLayout('Your models.', summary, '↑/↓ Scroll · Enter Open · Ctrl+C Cancel');
+        setSetupLayout('Your models.', summary, '↑/↓ Scroll · Enter Open · Esc Back · Ctrl+C Quit');
         var choose = createPrompt<LicenseModel | 'back' | 'finish', Record<string, never>>(function (_config, done) {
             var [activeIndex, setActiveIndex] = useState(selectedIndex);
             useKeypress(function (key) {
+                if (key.name === 'escape') {
+                    done('back');
+                    return;
+                }
                 if (setupDimensions().tooSmall) {
                     return;
                 }
@@ -107,7 +111,7 @@ export default async function modelList(models: LicenseModel[], summary: string,
         }
 
         var modelToInstall = selected;
-        setSetupLayout('Model details.', selected.name, '←/→ Pages · I Install · Enter Back · Ctrl+C Cancel', '/models/' + encodeURIComponent(selected.id));
+        setSetupLayout('Model details.', selected.name, '←/→ Pages · I Install · Esc Back · Ctrl+C Quit', '/models/' + encodeURIComponent(selected.id));
         var installationText = 'No downloadable release is available for this model.';
         if (selected.canDownload) {
             installationText = 'Press I to download this model. This registers this device with your license. The package is verified before installation.';

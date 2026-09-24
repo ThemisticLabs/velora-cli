@@ -5,12 +5,27 @@ import style from '../terminal/style.js';
 
 type Selection = {
     message: string;
+    initialValue?: string;
     choices: { name: string; value: string; description?: string }[];
 };
 
 export default createPrompt<string, Selection>(function (config, done) {
-    var [index, setIndex] = useState(0);
+    var initialIndex = 0;
+    for (var choiceIndex = 0; choiceIndex < config.choices.length; choiceIndex++) {
+        if (config.choices[choiceIndex]!.value === config.initialValue) {
+            initialIndex = choiceIndex;
+        }
+    }
+    var [index, setIndex] = useState(initialIndex);
     useKeypress(function (key) {
+        if (key.name === 'escape') {
+            for (var choice of config.choices) {
+                if (choice.value === 'back') {
+                    done('back');
+                    return;
+                }
+            }
+        }
         if (setupDimensions().tooSmall) {
             return;
         }
@@ -34,10 +49,10 @@ export default createPrompt<string, Selection>(function (config, done) {
                 if (endOfLine < 1) {
                     endOfLine = width;
                 }
-                content += style(line.slice(0, endOfLine), 'strong') + '\n';
+                content += '  ' + style(line.slice(0, endOfLine), 'strong') + '\n';
                 line = line.slice(endOfLine).trimStart();
             }
-            content += style(line, 'strong') + '\n';
+            content += '  ' + style(line, 'strong') + '\n';
         }
         content += '\n';
     }
@@ -48,11 +63,11 @@ export default createPrompt<string, Selection>(function (config, done) {
     var start = Math.max(0, index - capacity + 1);
     var end = Math.min(config.choices.length, start + capacity);
     for (var choiceIndex = start; choiceIndex < end; choiceIndex++) {
-        var name = config.choices[choiceIndex]!.name.slice(0, width);
+        var name = config.choices[choiceIndex]!.name.slice(0, width - 2);
         if (choiceIndex === index) {
-            content += style('› ' + name, 'accent') + '\n';
+            content += '  ' + style('› ' + name, 'accent') + '\n';
         } else {
-            content += '  ' + name + '\n';
+            content += '    ' + name + '\n';
         }
     }
     var hint = '';
@@ -62,7 +77,7 @@ export default createPrompt<string, Selection>(function (config, done) {
     if (end < config.choices.length) {
         hint += '  ↓ More below';
     }
-    content += style(hint, 'muted') + '\n';
-    content += '\n' + style((config.choices[index]!.description || '').slice(0, width), 'muted');
+    content += '  ' + style(hint, 'muted') + '\n';
+    content += '\n  ' + style((config.choices[index]!.description || '').slice(0, width), 'muted');
     return useSetupScreen(content);
 });

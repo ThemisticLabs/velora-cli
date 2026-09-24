@@ -22,6 +22,10 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
     }, [value, revealedIndex]);
 
     useKeypress(function (key, terminal) {
+        if (key.name === 'escape') {
+            done('');
+            return;
+        }
         if (setupDimensions().tooSmall) {
             terminal.line = value;
             return;
@@ -30,7 +34,7 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
         if (isEnterKey(key)) {
             var license = value.trim();
             if (!license) {
-                setError('Enter a license key, or press Ctrl+C to cancel.');
+                setError('Enter a license key, or press Esc to go back.');
                 // Readline clears its buffer on Enter, including rejected input.
                 terminal.write(value);
                 return;
@@ -46,7 +50,7 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
         setError('');
     });
 
-    var availableColumns = Math.max(1, process.stdout.columns - '› License key: '.length - 1);
+    var availableColumns = Math.max(1, process.stdout.columns - '  › License key: '.length - 1);
     var visibleLength = Math.min(value.length, Math.floor((availableColumns + 1) / 2));
     var maskedValue = '';
     for (var index = 0; index < visibleLength; index++) {
@@ -59,6 +63,6 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
         }
         maskedValue += '*';
     }
-    var content = style('›', 'accent') + ' ' + style('License key:', 'strong') + ' ' + maskedValue;
+    var content = '  ' + style('›', 'accent') + ' ' + style('License key:', 'strong') + ' ' + maskedValue;
     return useSetupScreen(content, error, true);
 });

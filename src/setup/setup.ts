@@ -67,8 +67,11 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
             }
             var license = savedLicense || '';
             if (!useSaved) {
-                setSetupLayout('Enter your license.', 'The key is verified, then saved in the system credential store.', 'Enter Continue · Ctrl+C Cancel', '/licenses');
+                setSetupLayout('Enter your license.', 'The key is verified, then saved in the system credential store.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/licenses');
                 license = await licenseInput({});
+                if (!license) {
+                    break;
+                }
             }
             setSetupLayout('Checking your license.', 'Looking up your models.', 'Ctrl+C Cancel', '/licenses');
             var result = await runTerminalTask(function (signal) {

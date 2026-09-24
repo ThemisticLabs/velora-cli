@@ -56,7 +56,9 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     }
     screen = cursor + screen;
     screen += '  ' + style(setupLayout.title.slice(0, width), 'strong') + '\n';
-    screen += '  ' + style(setupLayout.detail.slice(0, width), 'muted') + '\n';
+    if (setupLayout.detail) {
+        screen += '  ' + style(setupLayout.detail.slice(0, width), 'muted') + '\n';
+    }
     screen += '  ' + style('─'.repeat(width), 'divider') + '\n\n';
     screen += content;
     var bottom = error;
@@ -67,8 +69,8 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     }
     var padding = Math.max(0, rows - contentRows - errorRows - FOOTER_ROWS - TERMINAL_BOTTOM_MARGIN_ROWS);
     bottom += '\n'.repeat(padding);
-    bottom += style(setupLayout.footer.slice(0, columns - 1), 'muted');
+    bottom += '  ' + style(setupLayout.footer.slice(0, width), 'muted');
     var documentationHint = documentationStatus || 'Press F1 to open documentation';
-    bottom += '\n' + style(documentationHint.slice(0, columns - 1), 'muted');
+    bottom += '\n  ' + style(documentationHint.slice(0, width), 'muted');
     return [screen, bottom];
 }

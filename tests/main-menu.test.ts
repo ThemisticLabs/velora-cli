@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch'])('main menu terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete'])('main menu terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/main-menu.ts', import.meta.url)), scenario], {
@@ -38,12 +38,34 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                 phase++;
                 if (scenario === 'switch') {
                     terminal.write('\u001b[B\u001b[B\r');
-                } else if (scenario === 'license') {
+                } else if (scenario === 'license' || scenario === 'escape-license') {
                     terminal.write('\u001b[B\r');
                 } else if (scenario === 'offline' || scenario === 'current') {
                     terminal.write('\u001b[B\u001b[B\u001b[B\u001b[B\r');
                 } else {
                     terminal.write('\u001b[B\u001b[B\u001b[B\r');
+                }
+                return;
+            }
+            if (phase === 3 && scenario === 'switch' && frame.includes('Change license')) {
+                terminal.write('\u001b');
+                return;
+            }
+            if (phase === 4 && scenario === 'delete' && frame.includes('Change license')) {
+                terminal.write('\u001b');
+                return;
+            }
+            if (scenario === 'escape-license') {
+                if (phase === 2 && frame.includes('License key:')) {
+                    phase++;
+                    terminal.write('partial-key');
+                    setTimeout(function () { terminal.write('\u001b'); }, 20);
+                } else if (phase === 3 && frame.includes('Change license')) {
+                    phase++;
+                    terminal.write('\u001b');
+                } else if (phase === 4 && frame.includes('Selected model:')) {
+                    phase++;
+                    terminal.write('\u0003');
                 }
                 return;
             }
@@ -87,12 +109,18 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
             }
             if (phase === 3 && frame.includes('This model will need')) {
                 phase++;
-                if (scenario === 'cancel-delete') {
+                if (scenario === 'escape-delete') {
+                    terminal.write('\u001b');
+                } else if (scenario === 'cancel-delete') {
                     terminal.write('\u0003');
                 } else {
                     terminal.write('\u001b[B\r');
                 }
                 return;
+            }
+            if (phase === 4 && scenario === 'escape-delete' && frame.includes('Installed models')) {
+                phase++;
+                terminal.write('\u0003');
             }
             if (phase === 4 && frame.includes('Selected model: None')) {
                 phase++;

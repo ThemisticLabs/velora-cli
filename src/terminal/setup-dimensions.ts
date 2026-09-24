@@ -1,3 +1,4 @@
+import { setupLayout } from './set-setup-layout.js';
 import header from './header.js';
 
 export var MIN_COLUMNS = 60;
@@ -8,7 +9,10 @@ export var TERMINAL_BOTTOM_MARGIN_ROWS = 1;
 
 export default function setupDimensions() {
     var FULL_HEADER_MIN_ROWS = 28;
-    var STEP_HEADING_ROWS = 4;
+    var STEP_HEADING_ROWS = 3;
+    if (setupLayout.detail) {
+        STEP_HEADING_ROWS++;
+    }
     var columns = process.stdout.columns;
     var rows = process.stdout.rows;
     var headerText = header(true);

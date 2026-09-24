@@ -3,7 +3,7 @@ import modelUpdate from '../updates/model-update.js';
 import select from '../setup/select-option.js';
 import licenseInput from '../setup/license-input.js';
 import manageLicense from '../license/manage-license.js';
-import type { InstalledModel } from '../models/installed-models.js';
+import installedModels, { type InstalledModel } from '../models/installed-models.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import cliUpdate, { updateCheckStatus } from '../updates/cli-update.js';
 import modelSettings from './model-settings.js';
@@ -11,10 +11,11 @@ import updateSettings from './update-settings.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 
 export default async function settingsMenu(selected?: InstalledModel): Promise<void> {
-    var FOOTER = '↑/↓ Move · Enter Select · Ctrl+C Close';
+    var FOOTER = '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit';
+    var currentChoice = 'permissions';
     while (true) {
         setSetupLayout('Settings', '', FOOTER, '/velora/settings');
-        var choice = await select({ message: '', choices: [
+        var choice = await select({ message: '', initialValue: currentChoice, choices: [
             { name: 'Update permissions', value: 'permissions' },
             { name: 'Change license', value: 'license' },
             { name: 'Switch model', value: 'model' },
@@ -22,23 +23,12 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
             { name: 'Check for updates', value: 'updates' },
             { name: 'Go back', value: 'back' }
         ] });
+        currentChoice = choice;
         if (choice === 'back') {
             break;
         }
         if (choice === 'permissions') {
-            setSetupLayout('Update permissions', '', FOOTER, '/velora/updates');
-            var permissions = [{ name: 'velora', value: 'cli' }];
-            if (selected) {
-                permissions.push({ name: 'Engine: ' + selected.name, value: 'engine' });
-            }
-            permissions.push({ name: 'Go back', value: 'back' });
-            var scope = await select({ message: '', choices: permissions });
-            if (scope === 'cli') {
-                await updateSettings();
-            }
-            if (scope === 'engine') {
-                await updateSettings(selected);
-            }
+            await updateSettings(selected);
             continue;
         }
         if (choice === 'model' || choice === 'delete') {
@@ -47,11 +37,20 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
                 operation = 'delete';
             }
             await modelSettings(operation);
-            break;
+            selected = undefined;
+            for (var model of await installedModels({ operation: 'list' })) {
+                if (model.selected) {
+                    selected = model;
+                }
+            }
+            continue;
         }
         if (choice === 'license') {
-            setSetupLayout('Change license', 'A verified key replaces the saved license.', 'Enter Continue · Ctrl+C Close', '/licenses');
+            setSetupLayout('Settings / License', 'A verified key replaces the saved license.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/licenses');
             var license = await licenseInput({});
+            if (!license) {
+                continue;
+            }
             setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/licenses');
             var result = await runTerminalTask(function (signal) { return manageLicense({ operation: 'set', license }, signal); });
             var message = 'License saved.';
@@ -63,7 +62,7 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
             continue;
         }
         if (choice === 'updates') {
-            setSetupLayout('Check for updates', '', FOOTER, '/velora/updates');
+            setSetupLayout('Settings / Updates', '', FOOTER, '/velora/updates');
             var targets = [{ name: 'velora', value: 'cli' }];
             if (selected) {
                 targets.push({ name: selected.name + ' and its engine', value: 'model' });
