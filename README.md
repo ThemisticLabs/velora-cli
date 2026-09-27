@@ -26,11 +26,11 @@ The CLI and its models are distributed separately. The shared engine downloads l
 
 ## Main menu
 
-Run `velora` to open the menu. On first use, it guides you through license setup and model installation. A saved license takes you directly to the menu on later launches.
+Run `velora` to open the menu. On first use, it guides you through license setup and model installation. On later launches, velora checks the saved license before opening the menu. Expired, revoked or missing keys offer Change license and Check again. If verification is unavailable, you can still open the menu to manage settings; this does not grant model access.
 
 The menu shows the selected model and **Settings**. Settings let you change your license, switch between installed models, install another model, delete a model after confirmation, edit update permissions, and check for velora or model package updates. Permissions are edited together with On/Off rows and an explicit Save changes action. Esc goes back and discards unsaved edits; Ctrl+C closes velora. Selection is saved locally. Installed-model lists show model and engine versions. Update checks show installed and available versions separately. The engine runs temporarily for license checks and installation. Selecting a model does not load it for inference.
 
-Deleting a model removes its local package and engine preferences. The shared engine, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic installation is not implemented yet.
+Deleting a model removes its local package. The shared engine, its update permissions, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic installation is not implemented yet.
 
 ## Setup
 
@@ -54,7 +54,7 @@ Checks that need attention include a next step. A completed report exits normall
 
 Storage uses Bun's native secrets API: Keychain on macOS, Credential Manager on Windows, and a running Secret Service on Linux. There is no plaintext fallback. macOS may request permission to access the Keychain, particularly when moving between development and compiled executables.
 
-After a successful model download, setup asks whether the engine may check for its own updates and, if allowed, whether it may install them automatically. These permissions are saved per model in `engine-updates.json`. The automatic engine updater is not connected yet; saving permission does not start a background task.
+After a successful model download, setup asks once whether velora may check for shared engine updates at startup and saves the choice in `<data>/engine-updates.json`. Settings can change this independently of the selected model. Earlier per-model preferences are not treated as consent for the shared engine. Automatic installation remains unavailable; its saved permission is for future use.
 
 The first interactive launch records a pending choice without contacting GitHub. On the second interactive launch, velora asks whether it may check GitHub for new versions on startup and, if allowed, whether it may install updates automatically when that feature becomes available. No is selected by default for both questions.
 
@@ -72,4 +72,4 @@ The current integration follows the [License API guide](https://docs.themistic.c
 
 Engine packages currently target Apple Silicon on macOS 14+, Windows x64, and Linux x64/ARM64 with glibc 2.38+. A platform supported by the CLI build is not necessarily supported by the engine. Model availability comes from your license, not a hard-coded model list.
 
-A verified cached engine is reused. Automatic engine replacement is not connected. Engine 0.4.2 progress requires that version to be published by the license server; locally built packages alone do not change production downloads.
+A verified cached engine is reused. Engine checks use `/license/engine` independently of model checks and show available versions in the header and Settings. Manual engine checks also work without an installed model. Automatic engine replacement is not connected. Engine 0.4.2 progress requires that version to be published by the license server; locally built packages alone do not change production downloads.
