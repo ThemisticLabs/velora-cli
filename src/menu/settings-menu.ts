@@ -60,6 +60,10 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
         }
         if (choice === 'updates') {
             await updateMenu(selected);
+            selected = undefined;
+            for (var model of await installedModels({ operation: 'list' })) {
+                if (model.selected) { selected = model; }
+            }
         }
     }
 }

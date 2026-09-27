@@ -61,7 +61,7 @@ mock.module('../../src/updates/engine-update-preferences.js', function () {
     return { default: async function () { return { checkAutomatically: true }; } };
 });
 mock.module('../../src/updates/engine-update.js', function () {
-    return { availableEngineVersion: null, default: async function () {
+    return { availableEngineVersion: null, lastEngineCheck: null, default: async function () {
         engineCalls++;
         return {};
     } };

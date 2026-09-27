@@ -1,7 +1,7 @@
 import { semver } from 'bun';
 import packageInfo from '../../package.json' with { type: 'json' };
 
-export var updateCheckStatus: 'unavailable' | 'current' | 'available' = 'unavailable';
+export var updateCheckStatus: 'not_checked' | 'unavailable' | 'current' | 'available' = 'not_checked';
 
 export var availableVersion: string | null = null;
 
