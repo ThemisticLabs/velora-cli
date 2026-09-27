@@ -1,7 +1,5 @@
 import renderList, { type ListRow } from '../terminal/render-list.js';
 import useListNavigation from '../terminal/use-list-navigation.js';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { createPrompt, useState } from '@inquirer/core';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
@@ -9,32 +7,23 @@ import setupDimensions from '../terminal/setup-dimensions.js';
 import style from '../terminal/style.js';
 import cliUpdatePreferences, { type CliUpdatePreferences } from '../updates/cli-update-preferences.js';
 import engineUpdatePreferences from '../updates/engine-update-preferences.js';
-import dataDirectory from '../system/data-directory.js';
-import type { InstalledModel } from '../models/installed-models.js';
 
-type Scope = { name: string; modelId?: string; saved: CliUpdatePreferences; readable: boolean };
+type Scope = { name: string; engine?: boolean; saved: CliUpdatePreferences; readable: boolean };
 
-export default async function updateSettings(model?: InstalledModel): Promise<void> {
-    var scopes: Scope[] = [{ name: 'velora', saved: { checkAutomatically: null, installAutomatically: null }, readable: true }];
-    if (model) {
-        scopes.push({ name: 'Engine · ' + model.name, modelId: model.id, saved: { checkAutomatically: false, installAutomatically: false }, readable: true });
-    }
+export default async function updateSettings(): Promise<void> {
+    var scopes: Scope[] = [
+        { name: 'velora', saved: { checkAutomatically: null, installAutomatically: null }, readable: true },
+        { name: 'Engine', engine: true, saved: { checkAutomatically: null, installAutomatically: null }, readable: true }
+    ];
     for (var scope of scopes) {
         try {
-            if (!scope.modelId) {
+            if (scope.engine) {
+                scope.saved = await engineUpdatePreferences() || scope.saved;
+            } else {
                 scope.saved = await cliUpdatePreferences() || scope.saved;
-                continue;
             }
-            var value: unknown = JSON.parse(await readFile(join(dataDirectory(), 'models', scope.modelId, 'engine-updates.json'), 'utf8'));
-            if (typeof value !== 'object' || value === null || !('checkAutomatically' in value) || typeof value.checkAutomatically !== 'boolean' ||
-                !('installAutomatically' in value) || typeof value.installAutomatically !== 'boolean' || value.installAutomatically && !value.checkAutomatically) {
-                throw new Error('Invalid engine preferences.');
-            }
-            scope.saved = { checkAutomatically: value.checkAutomatically, installAutomatically: value.installAutomatically };
-        } catch (error) {
-            if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
-                scope.readable = false;
-            }
+        } catch {
+            scope.readable = false;
         }
     }
     var feedback = '';
@@ -117,8 +106,10 @@ export default async function updateSettings(model?: InstalledModel): Promise<vo
                         hint = 'Enable automatic checks first.';
                     }
                 }
-                if (scopes[row.scopeIndex]!.modelId) {
-                    hint = 'Engine automation is not available yet.';
+                if (scopes[row.scopeIndex]!.engine) {
+                    if (row.field === 'checkAutomatically') {
+                        hint = 'Check the engine when velora starts.';
+                    }
                 }
                 if (!scopes[row.scopeIndex]!.readable) {
                     hint = 'Cannot read preferences. Check the settings file.';
@@ -140,8 +131,8 @@ export default async function updateSettings(model?: InstalledModel): Promise<vo
                 continue;
             }
             try {
-                if (scope.modelId) {
-                    await engineUpdatePreferences(scope.modelId, { checkAutomatically: next.checkAutomatically === true, installAutomatically: next.installAutomatically === true });
+                if (scope.engine) {
+                    await engineUpdatePreferences({ checkAutomatically: next.checkAutomatically === true, installAutomatically: next.installAutomatically === true });
                 } else {
                     await cliUpdatePreferences(next);
                 }

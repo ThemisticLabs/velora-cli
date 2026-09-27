@@ -115,7 +115,7 @@ export default async function engineSession(license: string, signal: AbortSignal
                     if (Object.hasOwn(messages, code)) {
                         message = messages[code]!;
                     }
-                    pending.reject(new DownloadError(message));
+                    pending.reject(new DownloadError(message, code));
                     pending = undefined;
                     return;
                 }

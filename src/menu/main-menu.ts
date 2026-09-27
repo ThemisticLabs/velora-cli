@@ -2,6 +2,9 @@ import runTerminalTask from '../terminal/run-terminal-task.js';
 import settingsMenu from './settings-menu.js';
 import setup from '../setup/setup.js';
 import select from '../setup/select-option.js';
+import startupLicense from '../license/startup-license.js';
+import engineUpdate from '../updates/engine-update.js';
+import engineUpdatePreferences from '../updates/engine-update-preferences.js';
 import licenseStore from '../license/license-store.js';
 import installedModels, { type InstalledModel } from '../models/installed-models.js';
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimensions.js';
@@ -43,6 +46,21 @@ export default async function mainMenu(startSetup = false): Promise<void> {
             if (!await setup()) {
                 return;
             }
+        }
+        if (!startSetup && savedLicense) {
+            await startupLicense(savedLicense);
+        }
+        try {
+            var enginePreferences = await engineUpdatePreferences();
+            if (enginePreferences?.checkAutomatically) {
+                setSetupLayout('Checking engine updates…', '', 'Ctrl+C Close', '/velora/updates');
+                await runTerminalTask(function (signal) { return engineUpdate(signal); });
+            }
+        } catch (error) {
+            if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
+                throw error;
+            }
+            // Update availability never prevents access to settings.
         }
         while (true) {
             try {

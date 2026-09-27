@@ -23,6 +23,11 @@ mock.module('../../src/updates/model-update.js', function () {
         return { message: 'Update available. Package installation is not available yet.', available: { version: '1.1', engineVersion: '0.2.0' } };
     } };
 });
+mock.module('../../src/updates/engine-update.js', function () {
+    return { availableEngineVersion: null, default: async function () {
+        return { installed: '0.4.1', available: '0.4.2', message: 'Update available.' };
+    } };
+});
 var showUpdates = (await import('../../src/menu/update-menu.js')).default;
 if (scenario === 'no-model') {
     await showUpdates();

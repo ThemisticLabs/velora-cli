@@ -1,13 +1,11 @@
-import { semver } from 'bun';
 import type { InstalledModel } from '../models/installed-models.js';
 import licenseStore from '../license/license-store.js';
 import engineSession from '../engine/engine-session.js';
 import packageRequest from '../downloads/package-request.js';
-import packageRelease from '../downloads/package-release.js';
 import DownloadError from '../downloads/download-error.js';
 
 export default async function modelUpdate(model: InstalledModel, signal: AbortSignal,
-    services = { store: licenseStore, connect: engineSession, request: packageRequest }): Promise<{ message: string; available?: { version: string; engineVersion: string } }> {
+    services = { store: licenseStore, connect: engineSession, request: packageRequest }): Promise<{ message: string; available?: { version: string } }> {
     var license = await services.store({ operation: 'read' });
     if (!license) {
         return { message: 'Save a license before checking model updates.' };
@@ -29,20 +27,10 @@ export default async function modelUpdate(model: InstalledModel, signal: AbortSi
             release.version.length > 256 || /[\x00-\x1f\x7f-\x9f]/.test(release.version)) {
             throw new DownloadError('The server returned an invalid model update plan.');
         }
-        var engine = packageRelease(plan.metadata.engine, device.runtime_target);
-        var modelVersion = '';
-        var engineVersion = '';
-        if (release.sequence > model.sequence) {
-            modelVersion = release.version;
+        if (release.sequence <= model.sequence) {
+            return { message: 'No newer model package is available.' };
         }
-        if (!model.engineVersion || semver.order(engine.version, model.engineVersion) === 1) {
-            engineVersion = engine.version;
-        }
-        if (!modelVersion && !engineVersion) {
-            return { message: 'No newer model or engine package is available.' };
-        }
-        return { message: 'Update available. Package replacement is not available yet.',
-            available: { version: modelVersion, engineVersion } };
+        return { message: 'Update available. Package replacement is not available yet.', available: { version: release.version } };
     } finally {
         await session.close();
     }

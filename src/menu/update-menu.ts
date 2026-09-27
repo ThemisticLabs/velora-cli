@@ -4,6 +4,7 @@ import { createPrompt, useEffect, useState } from '@inquirer/core';
 import packageInfo from '../../package.json' with { type: 'json' };
 import type { InstalledModel } from '../models/installed-models.js';
 import cliUpdate, { updateCheckStatus } from '../updates/cli-update.js';
+import engineUpdate from '../updates/engine-update.js';
 import modelUpdate from '../updates/model-update.js';
 import DownloadError from '../downloads/download-error.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
@@ -18,6 +19,8 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
         var [cliVersion, setCliVersion] = useState('-');
         var [modelVersion, setModelVersion] = useState('-');
         var [engineVersion, setEngineVersion] = useState('-');
+        var [installedEngine, setInstalledEngine] = useState('Not checked');
+        var [engineStatus, setEngineStatus] = useState('Not checked');
         var [cliStatus, setCliStatus] = useState('Not checked');
         var [modelStatus, setModelStatus] = useState('Not checked');
         useEffect(function () {
@@ -43,13 +46,21 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                         }
                         setCliStatus(message);
                     }
+                    if (checking === 'engine') {
+                        var engineReport = await engineUpdate(controller.signal);
+                        if (!active) {
+                            return;
+                        }
+                        setInstalledEngine(engineReport.installed || 'Not installed');
+                        setEngineVersion(engineReport.available || '-');
+                        setEngineStatus(engineReport.message);
+                    }
                     if (checking === 'model' && model) {
                         var report = await modelUpdate(model, controller.signal);
                         if (!active) {
                             return;
                         }
                         setModelVersion(report.available?.version || '-');
-                        setEngineVersion(report.available?.engineVersion || '-');
                         setModelStatus(report.message);
                     }
                 } catch (error) {
@@ -61,9 +72,11 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                         if (checking === 'cli') {
                             setCliVersion('-');
                             setCliStatus(message);
+                        } else if (checking === 'engine') {
+                            setEngineVersion('-');
+                            setEngineStatus(message);
                         } else {
                             setModelVersion('-');
-                            setEngineVersion('-');
                             setModelStatus(message);
                         }
                     }
@@ -78,21 +91,25 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                 controller.abort();
             };
         }, [checking]);
-        var values = ['cli'];
+        var values = ['cli', 'engine'];
         var rows = [{ value: 'cli', cells: ['velora', packageInfo.version, cliVersion] }];
+        rows.push({ value: 'engine', cells: ['Engine', installedEngine, engineVersion] });
         if (model) {
             values.push('model');
             rows.push({ value: 'model', cells: [model.name, model.version, modelVersion] });
-            rows.push({ value: 'model', cells: ['Engine', model.engineVersion || 'Unknown', engineVersion] });
         }
         var selected = useListNavigation({ values, disabled: Boolean(checking), onSelect: setChecking, onBack: done });
         var width = setupDimensions().contentWidth;
         var output = '';
         var status = cliStatus;
         var target = 'velora';
+        if (selected === 'engine') {
+            status = engineStatus;
+            target = 'Engine';
+        }
         if (selected === 'model' && model) {
             status = modelStatus;
-            target = model.name + ' and its engine';
+            target = model.name;
         }
         if (checking) {
             status = 'Checking…';

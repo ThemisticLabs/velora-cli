@@ -132,20 +132,23 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                     continue;
                 }
                 await installedModels({ operation: 'select', id: next.id });
-                setSetupLayout('Engine update checks.', 'Allow this model’s engine to look for its own updates.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
-                var checks = await select({ message: 'Allow the engine to check for updates itself?', choices: [
+                if (await engineUpdatePreferences()) {
+                    return true;
+                }
+                setSetupLayout('Engine update checks.', 'Check the shared engine when velora starts.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
+                var checks = await select({ message: 'Check for engine updates on startup?', choices: [
                     { name: 'No, do not check automatically', value: 'no' }, { name: 'Yes, allow automatic engine checks', value: 'yes' }
                 ] });
                 var installAutomatically = false;
                 if (checks === 'yes') {
-                    setSetupLayout('Engine update installation.', 'Allow the engine to install its own eligible updates.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
+                    setSetupLayout('Engine update installation.', 'Save your choice. Automatic installation is coming later.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
                     var installation = await select({ message: 'Allow the engine to install updates automatically?', choices: [
                         { name: 'No, install manually', value: 'no' }, { name: 'Yes, allow automatic engine installation', value: 'yes' }
                     ] });
                     installAutomatically = installation === 'yes';
                 }
                 try {
-                    await engineUpdatePreferences(next.id, { checkAutomatically: checks === 'yes', installAutomatically });
+                    await engineUpdatePreferences({ checkAutomatically: checks === 'yes', installAutomatically });
                 } catch {
                     setSetupLayout('Model installed. Preferences not saved.', 'Open Settings to save engine update permissions.', 'Enter Continue · Ctrl+C Close', '/velora/updates');
                     await select({ message: '', choices: [{ name: 'Continue', value: 'continue' }] });

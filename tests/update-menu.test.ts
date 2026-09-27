@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import packageInfo from '../package.json';
 
-test.skipIf(process.platform === 'win32').each(['cli', 'model', 'cancel', 'no-model'])('update versions terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cancel', 'no-model'])('update versions terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var decoder = new TextDecoder();
@@ -15,8 +15,9 @@ test.skipIf(process.platform === 'win32').each(['cli', 'model', 'cancel', 'no-mo
             if (phase === 0 && frame.includes('Not checked')) {
                 phase++;
                 if (scenario === 'model' || scenario === 'cancel') {
-                    terminal.write('\u001b[B');
+                    terminal.write('\u001b[B\u001b[B');
                 }
+                if (scenario === 'engine') { terminal.write('\u001b[B'); }
                 terminal.write('\r');
                 return;
             }
@@ -38,10 +39,13 @@ test.skipIf(process.platform === 'win32').each(['cli', 'model', 'cancel', 'no-mo
         }
         if (scenario === 'model') {
             expect(output).toMatch(/Skira 7 Alpha\s+│\s+1\.0\s+│\s+1\.1/);
-            expect(output).toMatch(/Engine\s+│\s+0\.1\.1\s+│\s+0\.2\.0/);
+            expect(output).not.toContain('0.2.0');
+        }
+        if (scenario === 'engine') {
+            expect(output).toMatch(/Engine\s+│\s+0\.4\.1\s+│\s+0\.4\.2/);
         }
         if (scenario === 'no-model') {
-            expect(output).not.toContain('Engine');
+            expect(output).toContain('Engine');
         }
     } finally {
         clearTimeout(timeout);

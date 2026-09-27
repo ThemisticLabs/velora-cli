@@ -4,8 +4,9 @@ import dataDirectory from '../system/data-directory.js';
 
 export type CliUpdatePreferences = { checkAutomatically: boolean | null; installAutomatically: boolean | null };
 
-export default async function cliUpdatePreferences(preferences?: CliUpdatePreferences, directory = dataDirectory(), signal?: AbortSignal): Promise<CliUpdatePreferences | null> {
-    var path = join(directory, 'cli-updates.json');
+export default async function cliUpdatePreferences(preferences?: CliUpdatePreferences, directory = dataDirectory(), signal?: AbortSignal, scope: 'cli' | 'engine' = 'cli'): Promise<CliUpdatePreferences | null> {
+    var filename = scope + '-updates.json';
+    var path = join(directory, filename);
     if (!preferences) {
         try {
             var stored: unknown = JSON.parse(await readFile(path, 'utf8'));
@@ -13,7 +14,7 @@ export default async function cliUpdatePreferences(preferences?: CliUpdatePrefer
             if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
                 return null;
             }
-            throw new Error('Could not read cli-updates.json. Check the file and try again.');
+            throw new Error('Could not read ' + filename + '. Check the file and try again.');
         }
     } else {
         stored = preferences;
@@ -40,7 +41,7 @@ export default async function cliUpdatePreferences(preferences?: CliUpdatePrefer
         }
         var temporary = await mkdtemp(join(directory, '.cli-preferences-'));
         try {
-            var temporaryPath = join(temporary, 'cli-updates.json');
+            var temporaryPath = join(temporary, filename);
             var file = await open(temporaryPath, 'wx', 0o600);
             try {
                 await file.writeFile(JSON.stringify({ checkAutomatically: allowed, installAutomatically }, null, 2) + '\n');

@@ -36,7 +36,7 @@ test.each(['newer', 'same', 'older', 'prerelease', 'draft', 'missing', 'invalid'
     var result = await cliUpdate(transport as typeof fetch, '0.1.0');
     if (scenario === 'newer') {
         expect(result).toBe('0.2.0');
-        expect(header(true)).toContain('Update available: 0.2.0');
+        expect(header(true)).toContain('Update: velora 0.2.0');
     } else {
         expect(result).toBeNull();
         expect(header(true)).not.toContain('Update available');

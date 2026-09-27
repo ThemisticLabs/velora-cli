@@ -41,8 +41,8 @@ test.each(['model', 'engine', 'current', 'invalid', 'no license'])('manual updat
         await expect(task).rejects.toThrow();
     } else {
         var result = await task;
-        if (scenario === 'model') { expect(result.available).toEqual({ version: '2', engineVersion: '' }); }
-        if (scenario === 'engine') { expect(result.available).toEqual({ version: '', engineVersion: '0.4.1' }); }
+        if (scenario === 'model') { expect(result.available).toEqual({ version: '2' }); }
+        if (scenario === 'engine') { expect(result.available).toBeUndefined(); }
         if (scenario === 'current') { expect(result.available).toBeUndefined(); }
     }
     if (scenario === 'no license') {

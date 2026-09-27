@@ -11,14 +11,14 @@ mock.module('../../src/system/data-directory.js', function () { return { default
 try {
     var original = JSON.stringify({ checkAutomatically: true, installAutomatically: false });
     var cliPath = join(directory, 'cli-updates.json');
-    var enginePath = join(directory, 'models', model.id, 'engine-updates.json');
+    var enginePath = join(directory, 'engine-updates.json');
     await mkdir(join(directory, 'models', model.id), { recursive: true });
     await writeFile(cliPath, original);
     await writeFile(enginePath, original);
     if (scenario === 'unreadable') {
         await writeFile(cliPath, '{broken');
     }
-    await (await import('../../src/menu/update-settings.js')).default(model);
+    await (await import('../../src/menu/update-settings.js')).default();
     var cli = await readFile(cliPath, 'utf8');
     var engine = await readFile(enginePath, 'utf8');
     if (scenario === 'unreadable') {

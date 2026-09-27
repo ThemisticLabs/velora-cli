@@ -50,6 +50,12 @@ mock.module('../../src/updates/cli-update.js', function () {
     }
     return { default: async function () { updateCalls++; return null; }, updateCheckStatus: status, availableVersion: null };
 });
+mock.module('../../src/license/license-access.js', function () {
+    return { default: async function () { return { ok: true }; } };
+});
+mock.module('../../src/updates/engine-update-preferences.js', function () {
+    return { default: async function () { return null; } };
+});
 await (await import('../../src/menu/main-menu.js')).default();
 assert.equal(setupCalls, Number(scenario === 'first'));
 if (scenario === 'delete') {

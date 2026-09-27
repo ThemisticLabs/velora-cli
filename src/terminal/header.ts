@@ -1,13 +1,22 @@
 import { availableVersion } from '../updates/cli-update.js';
+import { availableEngineVersion } from '../updates/engine-update.js';
 import mark from '../assets/mark.json' with { type: 'json' };
 import packageInfo from '../../package.json' with { type: 'json' };
 import style from './style.js';
 
 export default function header(compact = false): string {
+    var updates = '';
+    if (availableVersion) {
+        updates = 'velora ' + availableVersion;
+    }
+    if (availableEngineVersion) {
+        if (updates) { updates += ' · '; }
+        updates += 'Engine ' + availableEngineVersion;
+    }
     if (compact || (process.stdout.columns || 80) < 40 || (process.stdout.rows || 24) < 24) {
         var line = 'velora';
-        if (availableVersion) {
-            line += ' · Update available: ' + availableVersion;
+        if (updates) {
+            line += ' · Update: ' + updates;
         }
         return '  ' + style(line.slice(0, Math.max(1, (process.stdout.columns || 80) - 4)), 'accent') + '\n';
     }
@@ -21,8 +30,8 @@ export default function header(compact = false): string {
         if (index === 2) {
             output += '   ' + style(packageInfo.version, 'muted');
         }
-        if (index === 3 && availableVersion) {
-            var label = 'Update available: ' + availableVersion;
+        if (index === 3 && updates) {
+            var label = 'Update available: ' + updates;
             var labelWidth = Math.max(0, (process.stdout.columns || 80) - mark[index]!.length - 6);
             output += '   ' + style(label.slice(0, labelWidth), 'accent');
         }

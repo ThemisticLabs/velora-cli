@@ -1,5 +1,6 @@
 import engineSession from '../engine/engine-session.js';
 import type { EngineProgress } from '../engine/bootstrap-engine.js';
+import packageRequest from '../downloads/package-request.js';
 import DownloadError from '../downloads/download-error.js';
 
 export type LicenseModel = {
@@ -12,7 +13,7 @@ export type LicenseModel = {
     canDownload: boolean;
 };
 
-export default async function licenseAccess(license: string, signal: AbortSignal, connect = engineSession, onProgress?: (progress: EngineProgress) => void) {
+export default async function licenseAccess(license: string, signal: AbortSignal, connect = engineSession, onProgress?: (progress: EngineProgress) => void, request = packageRequest) {
     if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
         return { ok: false as const, message: 'Check the license key and try again.' };
     }
@@ -25,6 +26,9 @@ export default async function licenseAccess(license: string, signal: AbortSignal
             return { ok: false as const, message: 'The engine returned incomplete license details.' };
         }
         var expiresAt = access.expires_at;
+        if (typeof expiresAt === 'string' && Date.parse(expiresAt) <= Date.now()) {
+            return { ok: false as const, message: 'This license has expired.', reason: 'expired' };
+        }
         var maxDevices = access.max_devices;
         var registeredDevices = access.registered_devices;
         if (typeof expiresAt !== 'string' || !Number.isFinite(Date.parse(expiresAt))) {
@@ -83,8 +87,17 @@ export default async function licenseAccess(license: string, signal: AbortSignal
         if (signal.aborted) {
             throw signal.reason;
         }
+        // The local protocol omits denial reasons. Resolve only after a denial to get a signed reason.
+        if (error instanceof DownloadError && error.code === 'license_denied' && session) {
+            try {
+                await request({ operation: 'resolve', license_key: license, runtime_target: session.installation.target }, signal);
+            } catch (reason) {
+                signal.throwIfAborted();
+                error = reason;
+            }
+        }
         if (error instanceof DownloadError) {
-            return { ok: false as const, message: error.message };
+            return { ok: false as const, message: error.message, reason: error.code };
         }
         return { ok: false as const, message: 'Could not read your models from the engine. Try again.' };
     } finally {

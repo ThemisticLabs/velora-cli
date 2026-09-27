@@ -25,7 +25,7 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
             break;
         }
         if (choice === 'permissions') {
-            await updateSettings(selected);
+            await updateSettings();
             continue;
         }
         if (choice === 'model' || choice === 'delete') {

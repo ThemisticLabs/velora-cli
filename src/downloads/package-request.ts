@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import DownloadError from './download-error.js';
 import { createPublicKey, randomBytes, verify } from 'node:crypto';
 
@@ -23,12 +24,28 @@ export default async function packageRequest(binding: PackageBinding, signal: Ab
     var NONCE_BYTES = 24;
     var REQUEST_TIMEOUT_MS = 60000;
     var request = { ...binding, nonce: randomBytes(NONCE_BYTES).toString('base64url') };
-    var response = await transport('https://api.themistic.com/license/' + endpoint, {
-        method: 'POST', redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
-        headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
-        body: JSON.stringify(request)
-    });
+    var MAX_RATE_LIMIT_RETRIES = 2;
+    var MAX_RETRY_SECONDS = 60;
+    for (var attempt = 0; ; attempt++) {
+        var response = await transport('https://api.themistic.com/license/' + endpoint, {
+            method: 'POST', redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
+            headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
+            body: JSON.stringify(request)
+        });
+        if (response.status !== 429 || attempt >= MAX_RATE_LIMIT_RETRIES) {
+            break;
+        }
+        var waitSeconds = Number(response.headers.get('Retry-After') || '5');
+        if (!Number.isFinite(waitSeconds) || waitSeconds < 0 || waitSeconds > MAX_RETRY_SECONDS) {
+            break;
+        }
+        await response.body?.cancel();
+        await delay(waitSeconds * 1000, undefined, { signal });
+    }
     try {
+        if ((response.status === 429 || response.status === 503) && !response.headers.get('X-Signature')) {
+            throw new DownloadError('The license server is busy. Wait a moment and try again.', 'temporarily_unavailable');
+        }
         var binary = binding.operation === 'file' && response.status === 200;
         var limit = MAX_METADATA_BYTES;
         if (binary) {
@@ -101,7 +118,7 @@ export default async function packageRequest(binding: PackageBinding, signal: Ab
                 update_cutoff: 'This release is outside your license update period.'
             };
             if (typeof metadata.reason === 'string' && Object.hasOwn(reasons, metadata.reason)) {
-                throw new DownloadError(reasons[metadata.reason]!);
+                throw new DownloadError(reasons[metadata.reason]!, metadata.reason);
             }
             throw new DownloadError('Package access was denied. Check your license and model access.');
         }

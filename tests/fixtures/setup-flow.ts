@@ -69,8 +69,8 @@ mock.module('../../src/setup/download-screen.js', function () {
     } };
 });
 mock.module('../../src/updates/engine-update-preferences.js', function () {
-    return { default: async function (id: string, preferences: unknown) {
-        assert.equal(id, model.id);
+    return { default: async function (preferences?: unknown) {
+        if (!preferences) { return null; }
         assert.deepEqual(preferences, { checkAutomatically: true, installAutomatically: false });
         saved = true;
     } };

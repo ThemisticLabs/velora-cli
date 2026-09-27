@@ -44,11 +44,11 @@ test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'b
     try {
         expect(await child.exited, output).toBe(0);
         expect(output).toContain('Permissions verified.');
-        expect(initialFrame.match(/Engine · Skira 7 Alpha/g)?.length).toBe(1);
+        expect(initialFrame.match(/Engine/g)?.length).toBe(1);
         expect(initialFrame.match(/Automatic checks/g)?.length).toBe(2);
         expect(initialFrame.match(/Automatic installation/g)?.length).toBe(2);
         expect(initialFrame).not.toContain('More below');
-        expect(output).toContain('Engine · Skira 7 Alpha');
+        expect(output).toContain('Engine');
         expect(output).not.toContain('Edit permissions');
         expect(output).not.toContain('Allow automatic update checks?');
     } finally {
