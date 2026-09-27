@@ -32,7 +32,8 @@ velora-cli/
     models/         Installed model selection and deletion
     setup/          Guided setup and model selection
     license/        Verification and credential storage
-    downloads/      Package downloads and integrity checks
+    downloads/      Bootstrap transport and installation orchestration
+    engine/         Verified runtime and local process protocol
     updates/        CLI release checks and engine permissions
     terminal/       Shared terminal rendering
     system/         Platform integration
@@ -44,7 +45,7 @@ velora-cli/
   CODINGSTYLE.md    Full TypeScript and JavaScript style guide
 ```
 
-The build creates a standalone executable in `dist/velora`, with the Bun runtime and package version embedded. Model engines remain separate downloads. The release workflow builds and checks macOS, Linux and Windows binaries on native runners. Package-manager distribution remains separate work. See [RELEASE.md](RELEASE.md) for release preparation and verification limits.
+The build creates a standalone executable in `dist/velora`, with the Bun runtime and package version embedded. The shared Themistic Engine remains a separate verified download. The release workflow builds and checks macOS, Linux and Windows binaries on native runners. Package-manager distribution remains separate work. See [RELEASE.md](RELEASE.md) for release preparation and verification limits.
 
 Start with `src/cli.ts` for the command-line entry point. `tests/cli.test.mjs` checks the compiled CLI as a separate process. Add folders as features need them, rather than creating empty modules in advance. Generated build output belongs in `dist/` and is not committed.
 
@@ -110,6 +111,18 @@ The header uses the supplied Themistic TC mark and becomes compact below 28 rows
 
 ## Main menu checks
 
-Run `bun run start` in a terminal. A saved license opens the main menu; without one, setup runs first. Use Settings for model management, license changes and update permissions. Esc returns one level in menus and cancels license entry without checking or saving a key. Permission edits remain a draft until Save changes. Ctrl+C restores the terminal. Selection means a local package has been chosen, not that the engine is running.
+Run `bun run start` in a terminal. A saved license opens the main menu; without one, setup runs first. Use Settings for model management, license changes and update permissions. Esc returns one level in menus and cancels license entry without checking or saving a key. Permission edits remain a draft until Save changes. Ctrl+C restores the terminal. Selection means a local package has been chosen, not that a model is loaded for inference.
 
 Menu tests use isolated credential and network fixtures. Storage tests cover selection persistence, deletion scope, held installation locks, missing packages and symlinks. Keep tests away from real licenses and installed models.
+
+## Engine integration tests
+
+The regular tests use generated signing keys, synthetic packages and a compiled fixture process. They do not contact the production license server. Package extraction uses yauzl; yazl is only a test dependency for creating archives.
+
+To exercise a locally built macOS Engine 0.4.2 through the real velora bridge:
+
+```bash
+VELORA_TEST_ENGINE_BINARY=/absolute/path/to/themistic-engine bun test tests/native-engine.test.ts
+```
+
+This test installs synthetic model data through a signed loopback server in temporary storage. It checks real progress and completion, not inference. Never substitute a production license or production signing key. Windows and Linux runtime integration need their own native verification.

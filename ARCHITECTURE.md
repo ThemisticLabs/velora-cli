@@ -4,7 +4,7 @@ This document describes the current implementation. Read [CODINGSTYLE.md](CODING
 
 ## Current scope
 
-velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. After explicit confirmation it registers the engine-compatible device identity and downloads a verified model package. It does not run models, create API keys, or install a service.
+velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It does not run model inference, create API keys, or install a service.
 
 Setup sends the entered key over HTTPS for a signed read-only access check and displays expiry, occupied device slots, and entitled model IDs. It persists verified keys in the system credential store. Selecting a public model opens an availability notice with a way back to the access selection.
 
@@ -18,10 +18,11 @@ src/
   models/      Installed package inventory, selection and deletion
   setup/       Guided installation and model selection
   license/     Access verification and secure license storage
-  downloads/   Signed package transfer and verification
+  downloads/   Signed bootstrap transport and model installation orchestration
+  engine/      Runtime detection, verified extraction and local engine sessions
   updates/     CLI release checks and engine update permissions
   terminal/    Shared header, colors, layout and resizing
-  system/      Data paths, device identity and browser opening
+  system/      Data paths and browser opening
   assets/      Original logo, terminal mark and provenance
 ```
 
@@ -37,7 +38,7 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | `src/setup/select-option.ts` | Connect menu choices and model tables to the shared list and responsive frame. |
 | `src/terminal/render-list.ts` | Render list columns, grouped dividers, scroll indicators and separate actions for model lists, updates and permissions. |
 | `src/terminal/use-list-navigation.ts` | Handle shared selection, arrow keys, activation and Escape navigation. |
-| `src/license/license-access.ts` | Perform the bounded HTTPS access request, verify Ed25519 signatures and request binding, and validate the returned fields. |
+| `src/license/license-access.ts` | Ask the local engine for licensed models and validate the display fields. |
 | `src/setup/model-list.ts` | Show a scrollable model list with dividers and overflow indicators, plus paged model details. |
 | `src/setup/license-input.ts` | Briefly reveal the last appended character, mask input, and reject an empty or whitespace-only key. |
 | `src/terminal/header.ts` | Combine the product name, embedded version, and compact mark according to terminal size. |
@@ -47,7 +48,7 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | `src/assets/SOURCES.md` | Record asset provenance. |
 | `tests/cli.test.mjs` | Test the compiled CLI through child processes. |
 
-Each implementation module has one callable public entry point. The command entry file runs directly, without a `main()` wrapper. There is no separate service layer or engine adapter yet.
+Each implementation module has one callable public entry point. The command entry file runs directly, without a `main()` wrapper. The engine bridge lives in `src/engine/`; it opens a bounded JSON-Lines session for each operation and closes the child afterward.
 
 ## Command flow
 
@@ -82,9 +83,9 @@ Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive s
 
 `settings-menu.ts` dispatches actions. `model-settings.ts` handles selection and confirmed deletion; `update-settings.ts` edits permissions. Shared prompts keep navigation and the footer stable and scroll when choices do not fit. Esc returns to the previous menu and cancels license input before any verification or storage write. Settings and model lists retain their selection when returning. Ctrl+C closes the entire session. Content and footer share the same left inset; empty subtitles do not reserve a blank row. `terminal/run-terminal-task.ts` keeps asynchronous work cancellable and waits for pending native writes before restoring the terminal.
 
-`models/installed-models.ts` reads each model's `current.json` and checks its package directory. New downloads persist the verified model display name; older installations use their model ID. `selected-model.json` records the choice atomically. A single existing model is selected when there is no selection file. This is package selection, not engine startup or inference readiness.
+`models/installed-models.ts` reads each model's `current.json` and checks its package directory. Engine installations retain their engine-owned `current.json`. velora writes a separate `velora.json` only after a verified completion receipt. It adds display name, model version and engine revision without changing the engine state format. Unconfirmed engine installations stay hidden and can be retried. Older CLI installations remain readable. `selected-model.json` records the choice atomically. A single existing model is selected when there is no selection file. This is package selection, not engine startup or inference readiness.
 
-Selection and deletion honor the model's `.update.lock`. Deletion moves the model directory into a private `.delete-*` directory before removing it. Interrupted cleanup leaves that directory outside the model inventory and reports cleanup failure. License storage, device identity and other models are untouched. Linked storage and linked package directories are rejected.
+Selection and deletion honor the model’s `.update.lock` and the shared `.velora.lock` used by velora installations. Deletion moves the model directory into a private `.delete-*` directory before removing it. Interrupted cleanup leaves that directory outside the model inventory and reports cleanup failure. License storage, device identity and other models are untouched. Linked storage and linked package directories are rejected.
 
 CLI permission reads and writes are shared by startup and Settings through `cli-update-preferences.ts`. Settings show velora and engine permissions together as editable On/Off rows. Enter or Space toggles a row; Save changes persists the draft. Esc discards unsaved changes. Disabling checks also disables automatic installation. Unreadable preference files are marked unavailable and are not overwritten. Each successful scope save updates the baseline so a later failure can be retried without rewriting completed changes. Manual update checks do not change automatic-check consent. Model checks use the existing signed catalog protocol and compare release sequences. They do not download or install a package. CLI checks distinguish an unavailable check from a confirmed current version. `menu/update-menu.ts` keeps installed and available versions in one table, with velora separated from the model and engine package. Checking does not replace the view. Esc cancels a pending check and returns after the request settles; unavailable results never claim the installed version is current.
 
@@ -125,29 +126,33 @@ Engines and model weights remain separate from this repository and executable. D
 
 ## Adding the next feature
 
-Keep command parsing in the entry point, setup decisions in the setup flow, and terminal rendering in the existing presentation modules. Reuse the existing license, download and model modules. Add engine runtime integration when implementing model execution. Do not put network calls inside prompt rendering callbacks. Validate external replies at the integration boundary, and only advance to a success state after the requested operation has actually completed.
+Keep command parsing in the entry point, setup decisions in the setup flow, and terminal rendering in the existing presentation modules. Reuse the existing license, download and model modules. Keep model execution separate from the existing engine bootstrap and installation bridge. Do not put network calls inside prompt rendering callbacks. Validate external replies at the integration boundary, and only advance to a success state after the requested operation has actually completed.
 
-## License access protocol
+## Engine bootstrap and license access
 
-The fixed endpoint is `https://api.themistic.com/v1/license/check`, with `operation=access` and `model_id=null`. The CLI passes the engine-compatible device fingerprint. The response shows total device usage; this access check does not register a device. The public Ed25519 key comes from the existing Themistic engine SDK. Redirects are rejected, requests time out after 15 seconds, and response bodies are limited to 256 KiB. Signatures cover the raw response bytes. Nonce, operation, license key, model ID, and device identity must match before access is accepted. Signed 429/503 responses bind only the nonce under the server contract. No offline cache is used.
+The public contract is [docs.themistic.com/velora/license-api](https://docs.themistic.com/velora/license-api/). `bootstrap-engine.ts` detects the actual OS target, sends the license, fresh nonce and platform to `/license/engine`, and downloads the returned standalone package. No device identity or model ID is sent during this initial download. The Ed25519 key is pinned in `package-request.ts`. Raw response signatures and every sent binding are verified; files use bounded 1 MiB requests with exact size and range checks. Redirects are rejected and requests have a 60-second timeout.
 
-Tests use an injected transport and test signing key; production exposes no endpoint or trust-key command-line override.
+`engine-runtime.ts` verifies the manifest, package hashes and signed inventory. ZIP entries must match that inventory exactly: no traversal, duplicate names, links, special files, unexpected members or oversized output. Extraction is streamed through yauzl, limited to 20,000 files and 4 GiB, and restores signed executable permissions. Cached runtimes are rechecked before execution. These checks do not isolate files from another process with the same user privileges.
 
-Model descriptions are optional signed API fields. Older servers keep working with an explicit unavailable-description fallback. The CLI rejects control characters and oversized metadata before terminal rendering. License input normalizes letters to uppercase; the value submitted to the API uses the same normalized form.
+Bootstrap publishes `<data>/engine/<revision>/{package,runtime}` and `engine/bootstrap.json` under an exclusive bootstrap lock. Failed downloads do not publish the pointer. Existing cached engines are reused without an automatic replacement check. Source/build availability does not prove production publication.
+
+`engine-session.ts` starts the verified executable with `--stdio`, checks version and protocol, and keeps one request in flight. Secrets travel through stdin, never command arguments or diagnostic output. JSON response lines are bounded to 2 MiB and matched to request IDs. stderr is drained without displaying private diagnostics. The process closes after the operation; cancellation terminates it, escalating after one second if necessary. Ordinary requests time out after 30 seconds; installation has a 30-minute limit.
+
+`license-access.ts` asks the engine for `models`, validates display fields and device counts, and returns the existing UI shape. `manage-license.ts` stores a new key only after that succeeds. The engine keeps its own stable device identity. No second CLI fingerprint implementation remains. Device slots are not activated by bootstrap or model listing.
 
 ## Contextual documentation
 
 F1 opens documentation without changing the active input or selection. The footer displays the shortcut in every normal setup view. The shared screen hook handles the key; model selection overrides the destination with the highlighted model ID. No license key, device identity or input text is included in the URL.
 
-These routes are agreed placeholders until the documentation site is published:
+The license and model documentation routes are published:
 
 | Context | URL |
 | --- | --- |
 | Setup and navigation actions | `https://docs.themistic.com/velora/setup` |
-| License input, verification and errors | `https://docs.themistic.com/licenses` |
-| Highlighted model or its detail pages | `https://docs.themistic.com/models/<model-id>` |
+| License input, verification and errors | `https://docs.themistic.com/velora/license-api/` |
+| Highlighted model or its detail pages | `https://docs.themistic.com/velora/models/<model-id>/` |
 
-`src/system/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. The opening status clears when the opener completes; this does not confirm that the page loaded. Browser launch arguments were verified using a test opener on macOS; the placeholder site and other platform handlers are not live-verified.
+`src/system/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. The opening status clears when the opener completes; this does not confirm that the page loaded. Browser launch arguments were verified using a test opener on macOS; individual model availability and other platform handlers are not guaranteed by the opener.
 
 ## Installation checks
 
@@ -155,29 +160,29 @@ These routes are agreed placeholders until the documentation site is published:
 
 Default data locations are `~/Library/Application Support/velora` on macOS, `%LOCALAPPDATA%/velora` on Windows (falling back to `~/AppData/Local/velora`), and `$XDG_DATA_HOME/velora` on Linux (falling back to `~/.local/share/velora`). Relative environment paths are ignored. These locations store model packages and preferences. Doctor only probes storage access; it does not install an engine.
 
-The server check makes a GET request to the public license-check endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. No license or device identity is sent. The injected transport lets tests simulate network failures without contacting production. An optional internal data-directory argument isolates storage tests in temporary directories; it is not exposed as a CLI option. Storage failures report the failed operation and filesystem error. Cleanup failures name the remaining probe directory, and do not hide an earlier write failure.
+The server check makes a GET request to the public `/license/health` endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. No license or device identity is sent. The injected transport lets tests simulate network failures without contacting production. An optional internal data-directory argument isolates storage tests in temporary directories; it is not exposed as a CLI option. Storage failures report the failed operation and filesystem error. Cleanup failures name the remaining probe directory, and do not hide an earlier write failure.
 
 Interactive output updates in the alternate screen, then restores the terminal and prints the final report once. Piped output receives only the final report. Ctrl+C cancels the request and restores the terminal. Completed checks exit normally even when they report action items, so script runners do not add an error to the diagnostic report. Exit code 0 does not imply that all checks passed. Cancellation also exits normally; unexpected unhandled errors still fail the command.
 
 The report reuses `src/terminal/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. No new icons, colours or web components are introduced.
 
-## Verified model downloads
+## Engine-managed model installation
 
-`package-request.ts` sends bounded, signed catalog and file requests to the existing `/v1/license/check` endpoint. It checks the Ed25519 signature and every request binding, including the fresh nonce and file range. File chunks are limited to 1 MiB. `package-release.ts` validates catalog identities, file names, sizes, hashes and optional engine versions.
+`download-model.ts` opens the engine, sends `models` with the key, then `install` with the chosen ID, `<data>/models` root, verified bootstrap package and `progress: true`. The engine performs resolve, package verification, extraction and completion acknowledgement. Its shared runtime lives under `models/engine`; individual packages remain under `models/<id>/installed/<id>/<revision>`. The shared engine is excluded from model lists and retained when a model is deleted.
 
-`device-fingerprint.ts` follows the engine client identity: SHA-256 of IOPlatformUUID on macOS, `/etc/machine-id` where available, otherwise the existing `~/.config/lizenz-client/geräte_id`. An existing fallback is read without creating temporary files or requiring write access. Only a missing file triggers creation; unreadable or empty identities are not replaced. A new fallback is published using an exclusive hard link, matching the engine's race-safe creation. License access remains read-only; catalog and file operations can register a device. Cancelling a transfer does not undo that server-side registration.
+A successful `ok` reply alone is insufficient: velora checks the model identity, expected local path, `files_verified`, authorized receipt, matching revisions and the engine-owned current record. Only then does it atomically publish `velora.json`. Cleanup errors after publication do not turn a completed installation into an unsuccessful one. Failures before receipt publication leave the model hidden and eligible for retry. An abruptly terminated engine can leave its own update locks or partial packages; velora does not remove engine-owned locks automatically.
 
-`download-model.ts` installs under `<data directory>/models/<model-id>`. It takes `.update.lock`, downloads into its own temporary directory, verifies every file hash, the manifest signature, exact file membership, model and engine identities, and license configuration. It rechecks the catalog before publishing the package under `installed/<model-id>/<revision>` and replacing `current.json` by rename. The state preserves `engine_version`, model version, revision, sequence and `highest_sequences`, compatible with the engine updater's installation layout. Older releases without an engine version remain supported. Existing installations and package targets are refused; package replacement and crash recovery are later work. Manual update checks are implemented separately in `updates/model-update.ts`. A crash may leave a lock or unreferenced package that needs inspection.
+The shared `render-progress.ts` renders measured bytes or an indeterminate animation. The download screen retains bounded status messages below it and redraws on resize. Engine 0.4.2 progress events are opt-in and matched to the install request. Byte counts must be nonnegative, monotonic and bounded by a stable total. `verify`, `extract` and `confirm` are indeterminate phases. The terminal accepts combined or fragmented JSON lines. Engine 0.4.1 finishes through the same protocol but provides no byte events. No simulated percentages or unsupported pause control is shown.
 
-`download-screen.ts` uses the existing setup prompt lifecycle and screen layout. The progress bar is based on received package bytes; verification has its own log state. Logs are bounded and wrapped. Pause stops between requests, cancellation aborts network requests and waits for filesystem cleanup, and resize preserves the download state. Once `current.json` is published, cleanup failures preserve the successful installation result. The UI reports the cleanup problem separately; every cleanup operation is attempted even if another fails. Before publication, cleanup does not replace the original installation error. No downloaded code is executed. API initialization, model inference and service installation remain separate future steps.
+Manual update checks obtain the device identity from the engine and use signed `/license/check` resolve requests. They show available model and engine versions independently without activating a device. Package replacement and automatic updates remain unimplemented.
 
-The isolated download tests use freshly generated signing keys, synthetic encrypted-file bytes and an injected transport. No customer license or production device is used. The terminal layout adapts the Gallery upload-progress concept to existing CLI styles.
+Tests use synthetic signed packages and local fixture processes. An optional `VELORA_TEST_ENGINE_BINARY` points to a native macOS Engine 0.4.2 for an end-to-end test against a signed loopback server. This exercises velora’s real session, progress, model receipt, inventory and deletion without production credentials. It does not test production downloads or inference.
 
 ## License persistence and update permissions
 
 `license-store.ts` wraps Bun 1.3.14's native secrets API, using service `com.themistic.velora` and account `license`. Access is not marked unrestricted. No keys are passed through process arguments or environment variables. Native errors are replaced with safe messages. `@types/bun` supplies the runtime types; the build still produces a standalone executable.
 
-`manage-license.ts` owns the order: normalize input, resolve the existing engine device identity, verify access, then replace the stored key. Status reads never write. The old key is not deleted before replacement, and rejected checks never reach the credential write. Native credential operations are not cancellable once started, so the terminal waits for completion and reports a successful write accurately even if Ctrl+C arrived during it. No command releases a server-side device slot. Setup and `license-command.ts` share this flow.
+`manage-license.ts` owns the order: normalize input, bootstrap the engine if needed, list license access through the engine, then replace the stored key. Status reads never replace the saved key; the first check can bootstrap the engine. The old key is not deleted before replacement, and rejected checks never reach the credential write. Native credential operations are not cancellable once started, so the terminal waits for completion and reports a successful write accurately even if Ctrl+C arrived during it. No command releases a server-side device slot. Setup and `license-command.ts` share this flow.
 
 `engine-update-preferences.ts` persists `checkAutomatically` and `installAutomatically` to `<data directory>/models/<model-id>/engine-updates.json` using a flushed temporary file and rename. Automatic installation requires automatic checks. These values are permissions for the engine itself, not for velora updates or switching to another model. No engine scheduler or preference consumer has been wired yet; absence of settings grants no permission. A future engine bridge must read and apply them before automatic operations.
 
@@ -189,7 +194,7 @@ Verification includes synthetic license rejection and cancellation tests, an iso
 
 Only explicit `DownloadError` messages are displayed verbatim. Transport, parser and filesystem diagnostics cannot leak arbitrary text through the download UI. Known disk-space and permission failures have fixed actionable messages. Storage paths are checked at each managed model-directory level before writing; symbolic links there are rejected. This is not a sandbox against another process running with the same account and filesystem privileges.
 
-Cancellation waits for the in-flight operation. If publication already completed, setup reports that the model is installed instead of implying that cancellation undid it. Cancelling the subsequent preferences questions leaves the installation intact. A failed preferences write preserves existing settings and reports that they were not changed. Pause is honored before the first catalog request, so a paused transfer does not begin device registration.
+Cancellation waits for the in-flight operation. If publication already completed, setup reports that the model is installed instead of implying that cancellation undid it. Cancelling the subsequent preferences questions leaves the installation intact. A failed preferences write preserves existing settings and reports that they were not changed. The current local engine protocol has no pause/resume commands. Cancellation stops its process and does not release an activated server-side device slot.
 
 PTY regression tests run actual prompts with isolated fixture modules and temporary storage through Bun's terminal API. They cover unexpected error redaction, disk-full messages, cancellation before installation, cancellation during publication and cancellation after completion. These PTY tests are skipped on Windows. Sudden power loss, native Windows/Linux credential stores, production model inference and automatic engine updates remain outside the verified scope.
 
