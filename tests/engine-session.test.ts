@@ -16,7 +16,7 @@ beforeAll(async function () {
 });
 afterAll(async function () { await rm(directory, { recursive: true, force: true }); });
 
-test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed', 'wrong id', 'old version'])('local engine protocol: %s', async function (scenario) {
+test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed', 'wrong id', 'old version', 'no capability'])('local engine protocol: %s', async function (scenario) {
     var previous = process.env.VELORA_TEST_ENGINE_SCENARIO;
     process.env.VELORA_TEST_ENGINE_SCENARIO = scenario;
     var controller = new AbortController();
@@ -29,15 +29,18 @@ test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed
     try {
         if (scenario === 'hang') { timer = setTimeout(function () { controller.abort(); }, 100); }
         var task = engineSession('FIXTURE-LICENSE', controller.signal, function (value) { progress.push(value.downloaded); }, bootstrap);
-        if (!['valid', 'progress', 'error'].includes(scenario)) {
+        if (!['valid', 'progress', 'error', 'no capability'].includes(scenario)) {
             await expect(task).rejects.toBeInstanceOf(Error);
             return;
         }
         session = await task;
-        if (scenario === 'error') {
+        if (scenario === 'no capability') {
+            await expect(session.request('install_model', { model_id: 'model-a' })).rejects.toThrow('does not support model-only');
+            expect(await session.request('models', { license_key: 'FIXTURE-LICENSE' })).toEqual({ status: 'ok', models: [] });
+        } else if (scenario === 'error') {
             await expect(session.request('models', { license_key: 'FIXTURE-LICENSE' })).rejects.toThrow('verified installation');
         } else if (scenario === 'progress') {
-            await session.request('install', { model_id: 'model-a' });
+            await session.request('install_model', { model_id: 'model-a' });
             expect(progress).toEqual([1, 0]);
         } else {
             expect(await session.request('models', { license_key: 'FIXTURE-LICENSE' })).toEqual({ status: 'ok', models: [] });

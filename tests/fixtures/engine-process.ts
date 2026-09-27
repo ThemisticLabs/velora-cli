@@ -12,7 +12,8 @@ for await (var line of createInterface({ input: process.stdin })) {
     if (scenario === 'malformed') { process.stdout.write('not-json\n'); continue; }
     var result: Record<string, unknown> = {};
     if (request.operation === 'version') {
-        result = { version: '0.4.1', engine_api: 1, protocol: 'json-lines-v1' };
+        result = { version: '0.4.1', engine_api: 1, protocol: 'json-lines-v1', capabilities: ['install_model'] };
+        if (scenario === 'no capability') { delete result.capabilities; }
         if (scenario === 'old version') { result.version = '0.4.0'; }
     }
     if (request.operation === 'models') {
@@ -25,7 +26,7 @@ for await (var line of createInterface({ input: process.stdin })) {
         continue;
     }
     var output = '';
-    if (scenario === 'progress' && request.operation === 'install') {
+    if (scenario === 'progress' && request.operation === 'install_model') {
         output += JSON.stringify({ id: request.id, event: 'progress', phase: 'download', downloaded_bytes: 1, total_bytes: 2 }) + '\n';
         output += JSON.stringify({ id: request.id, event: 'progress', phase: 'verify' }) + '\n';
     }

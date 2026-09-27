@@ -16,14 +16,14 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
     try {
         var connect = async function () {
             return {
-                installation: { packagePath: join(directory, 'engine-package'), release: { version: '0.4.1' } },
+                installation: { packagePath: join(directory, 'engine-package'), runtimePath: join(directory, 'engine-runtime'), release: { version: '0.4.1', revision: 'engine-r1' } },
                 request: async function (operation: string, fields: Record<string, unknown>) {
                     operations.push(operation);
                     if (operation === 'models') {
                         expect(fields).toEqual({ license_key: 'FIXTURE-LICENSE' });
                         return {};
                     }
-                    expect(fields).toEqual({ model_id: 'model-a', root: join(directory, 'models'), engine_package: join(directory, 'engine-package'), progress: true });
+                    expect(fields).toEqual({ model_id: 'model-a', root: join(directory, 'models'), engine_package: join(directory, 'engine-package'), engine_runtime: join(directory, 'engine-runtime'), progress: true });
                     await mkdir(path, { recursive: true });
                     await writeFile(join(root, 'current.json'), JSON.stringify({ model_id: 'model-a', revision: 'r1', sequence: 1, highest_sequences: { 'model-a': 1 } }));
                     if (scenario === 'cancel') {
@@ -33,7 +33,7 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
                     var receipt = { model_id: 'model-a', model_revision: 'r1', engine_revision: 'engine-r1', license_authorized: true, reported_hashes_match: true };
                     if (scenario === 'unconfirmed') { receipt.license_authorized = false; }
                     if (scenario === 'wrong revision') { receipt.model_revision = 'r2'; }
-                    var result = { model_id: 'model-a', model_version: '1.0', engine_version: '0.4.1', path, files_verified: true, receipt };
+                    var result = { engine_changed: false, model_id: 'model-a', model_version: '1.0', engine_version: '0.4.1', path, files_verified: true, receipt };
                     if (scenario === 'wrong path') { result.path = '/outside'; }
                     if (scenario === 'wrong model') { result.model_id = 'other-model'; }
                     return result;
@@ -57,7 +57,7 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
             await expect(task).rejects.toBeInstanceOf(Error);
             expect(await installedModels({ operation: 'list' }, directory)).toEqual([]);
         }
-        expect(operations).toEqual(['models', 'install']);
+        expect(operations).toEqual(['models', 'install_model']);
         expect(closed).toBe(true);
         expect(await readdir(join(directory, 'models'))).not.toContain('.velora.lock');
     } finally {

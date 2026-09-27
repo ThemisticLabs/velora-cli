@@ -65,7 +65,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
             var packagePath = join(installation, 'package');
             onProgress({ downloaded: 0, total: 0, message: 'Verifying the installed engine.', engineVersion: release.version });
             var executable = await engineRuntime(packagePath, join(installation, 'runtime'), release, signal, publicKey);
-            return { executable, packagePath, release, target };
+            return { executable, packagePath, runtimePath: join(installation, 'runtime'), release, target };
         }
         onProgress({ downloaded: 0, total: 0, message: 'Preparing the engine download.' });
         var binding = { operation: 'resolve' as const, license_key: license, runtime_target: target };
@@ -143,7 +143,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
         if (release.runtime_target === 'standalone-windows-x64') {
             executable += '.exe';
         }
-        return { executable, packagePath: join(installation, 'package'), release, target };
+        return { executable, packagePath: join(installation, 'package'), runtimePath: join(installation, 'runtime'), release, target };
     } finally {
         try {
             if (temporary) {

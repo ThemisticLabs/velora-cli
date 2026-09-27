@@ -60,12 +60,13 @@ export default async function downloadModel(options: DownloadOptions) {
         session = await connect(license, signal, onProgress);
         await session.request('models', { license_key: license });
         onProgress({ downloaded: 0, total: 0, message: 'The engine is downloading and verifying your model.', engineVersion: session.installation.release.version });
-        var result = await session.request('install', { model_id: modelId, root: modelsRoot, engine_package: session.installation.packagePath, progress: true });
+        var result = await session.request('install_model', { model_id: modelId, root: modelsRoot, engine_package: session.installation.packagePath, engine_runtime: session.installation.runtimePath, progress: true });
         var receipt = result.receipt;
-        if (result.model_id !== modelId || result.files_verified !== true || typeof result.model_version !== 'string' ||
+        if (result.engine_changed !== false || result.engine_version !== session.installation.release.version ||
+            result.model_id !== modelId || result.files_verified !== true || typeof result.model_version !== 'string' ||
             !result.model_version || result.model_version.length > 256 || /[\x00-\x1f\x7f-\x9f]/.test(result.model_version) ||
             typeof result.engine_version !== 'string' || !/^\d+\.\d+\.\d+$/.test(result.engine_version) ||
-            !isRecord(receipt) || receipt.model_id !== modelId || receipt.license_authorized !== true || receipt.reported_hashes_match !== true) {
+            !isRecord(receipt) || receipt.engine_revision !== session.installation.release.revision || receipt.model_id !== modelId || receipt.license_authorized !== true || receipt.reported_hashes_match !== true) {
             throw new DownloadError('The engine did not confirm a verified installation. Retry the installation.');
         }
         for (var revision of [receipt.model_revision, receipt.engine_revision]) {

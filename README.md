@@ -73,3 +73,17 @@ The current integration follows the [License API guide](https://docs.themistic.c
 Engine packages currently target Apple Silicon on macOS 14+, Windows x64, and Linux x64/ARM64 with glibc 2.38+. A platform supported by the CLI build is not necessarily supported by the engine. Model availability comes from your license, not a hard-coded model list.
 
 A verified cached engine is reused. Engine checks use `/license/engine` and show available versions in the header and Settings. Manual engine checks also work without an installed model. Startup check results are reused in Settings. Select the Engine row to confirm an available update and view download progress. Engine replacement keeps installed models. Automatic installation is not connected. Engine 0.4.2 progress requires that version to be published by the license server; locally built packages alone do not change production downloads.
+
+## Model-only installation protocol
+
+velora owns one shared Engine under `engine/`. Model installation uses
+`install_model` only after the running Engine advertises that capability.
+The request provides the verified package and extracted runtime paths.
+Model downloads never install or update an Engine; an incompatible Engine
+requires a separate, explicitly confirmed update. Engine 0.4.3 and earlier
+can still check licenses, but cannot install models through this new CLI flow.
+
+The Engine confirms the model with the server before atomically activating it.
+Interrupted or unconfirmed packages can be verified and retried. Existing
+`models/engine` directories are ignored and preserved for a separately reviewed
+cleanup. No migration deletes models, receipts, licenses or device identity.
