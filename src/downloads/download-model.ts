@@ -13,7 +13,6 @@ export type DownloadOptions = {
     signal: AbortSignal;
     onProgress: (progress: DownloadProgress) => void;
     connect?: typeof engineSession;
-    update?: { version: string; revision: string; sequence: number };
 };
 
 export default async function downloadModel(options: DownloadOptions) {
@@ -44,33 +43,17 @@ export default async function downloadModel(options: DownloadOptions) {
     var session: Awaited<ReturnType<typeof engineSession>> | undefined;
     var temporary: string | undefined;
     var cleanupRequired = false;
-    var previousState: string | undefined;
-    var published = false;
     try {
-        if (options.update) {
-            if (!(await lstat(join(root, 'current.json'))).isFile() || !(await lstat(join(root, 'velora.json'))).isFile()) {
-                throw new DownloadError('The installed model record is missing or linked.');
-            }
-            previousState = await readFile(join(root, 'current.json'), 'utf8');
-            var previous: unknown = JSON.parse(previousState);
-            var saved: unknown = JSON.parse(await readFile(join(root, 'velora.json'), 'utf8'));
-            if (!isRecord(previous) || previous.model_id !== modelId || typeof previous.sequence !== 'number' ||
-                !isRecord(saved) || saved.revision !== previous.revision ||
-                options.update.sequence <= previous.sequence || options.update.revision === previous.revision) {
-                throw new DownloadError('The installed model changed. Check for updates again.');
-            }
-        } else {
-            try {
-                var existing: unknown = JSON.parse(await readFile(join(root, 'current.json'), 'utf8'));
-                if (typeof existing === 'object' && existing !== null && 'version' in existing) {
-                    throw new DownloadError('This model is already installed.');
-                }
-                await lstat(join(root, 'velora.json'));
+        try {
+            var existing: unknown = JSON.parse(await readFile(join(root, 'current.json'), 'utf8'));
+            if (typeof existing === 'object' && existing !== null && 'version' in existing) {
                 throw new DownloadError('This model is already installed.');
-            } catch (error) {
-                if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
-                    throw error;
-                }
+            }
+            await lstat(join(root, 'velora.json'));
+            throw new DownloadError('This model is already installed.');
+        } catch (error) {
+            if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+                throw error;
             }
         }
         var connect = options.connect || engineSession;
@@ -108,10 +91,6 @@ export default async function downloadModel(options: DownloadOptions) {
             typeof state.sequence !== 'number' || !Number.isSafeInteger(state.sequence) || state.sequence < 1) {
             throw new DownloadError('The model installation record does not match the engine receipt.');
         }
-        if (options.update && (result.model_version !== options.update.version || state.revision !== options.update.revision ||
-            state.sequence !== options.update.sequence)) {
-            throw new DownloadError('The available model changed. Check for updates again.');
-        }
         var record = { model_id: modelId, model_name: options.modelName, revision: receipt.model_revision,
             version: result.model_version, engine_version: result.engine_version, engine_revision: receipt.engine_revision, receipt };
         temporary = await mkdtemp(join(root, '.receipt-'));
@@ -123,7 +102,6 @@ export default async function downloadModel(options: DownloadOptions) {
             await file.close();
         }
         await rename(join(temporary, 'velora.json'), join(root, 'velora.json'));
-        published = true;
         onProgress({ downloaded: 0, total: 0, message: 'Model installed and confirmed.', engineVersion: result.engine_version });
     } finally {
         try {
@@ -132,55 +110,21 @@ export default async function downloadModel(options: DownloadOptions) {
             cleanupRequired = true;
         }
         try {
-            if (previousState && !published) {
-                // Stop the writer before restoring the last confirmed model.
-                var restored = JSON.parse(previousState) as Record<string, unknown>;
-                var attempted: unknown = JSON.parse(await readFile(join(root, 'current.json'), 'utf8'));
-                if (isRecord(attempted) && isRecord(attempted.highest_sequences)) {
-                    var highest = restored.highest_sequences;
-                    if (!isRecord(highest)) { highest = {}; }
-                    var sequences = highest as Record<string, unknown>;
-                    for (var [id, value] of Object.entries(attempted.highest_sequences)) {
-                        var priorSequence = sequences[id];
-                        if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0 &&
-                            (typeof priorSequence !== 'number' || value > priorSequence)) {
-                            sequences[id] = value;
-                        }
-                    }
-                    restored.highest_sequences = sequences;
-                }
-                var rollback = await mkdtemp(join(root, '.rollback-'));
-                try {
-                    var rollbackFile = await open(join(rollback, 'current.json'), 'wx', 0o600);
-                    try {
-                        await rollbackFile.writeFile(JSON.stringify(restored) + '\n');
-                        await rollbackFile.sync();
-                    } finally {
-                        await rollbackFile.close();
-                    }
-                    await rename(join(rollback, 'current.json'), join(root, 'current.json'));
-                } finally {
-                    await rm(rollback, { recursive: true, force: true });
-                }
+            if (temporary) {
+                await rm(temporary, { recursive: true, force: true });
             }
-        } finally {
-            try {
-                if (temporary) {
-                    await rm(temporary, { recursive: true, force: true });
-                }
-            } catch {
-                cleanupRequired = true;
-            }
-            try {
-                await lock.close();
-            } catch {
-                cleanupRequired = true;
-            }
-            try {
-                await rm(lockPath, { force: true });
-            } catch {
-                cleanupRequired = true;
-            }
+        } catch {
+            cleanupRequired = true;
+        }
+        try {
+            await lock.close();
+        } catch {
+            cleanupRequired = true;
+        }
+        try {
+            await rm(lockPath, { force: true });
+        } catch {
+            cleanupRequired = true;
         }
     }
     return { path, cleanupRequired };

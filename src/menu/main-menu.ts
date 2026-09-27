@@ -78,7 +78,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 }
                 setSetupLayout(title, '', 'Enter Settings · Ctrl+C Quit', '/velora');
                 await select({ message: '', choices: [{ name: 'Settings', value: 'settings' }] });
-                await settingsMenu(selected);
+                await settingsMenu();
             } catch (error) {
                 if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
                     throw error;

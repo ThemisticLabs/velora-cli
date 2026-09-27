@@ -18,7 +18,7 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
                     currentChoice = 'model:' + model.id;
                 }
             }
-            choices.push({ name, value: 'model:' + model.id, cells: [name, model.version, model.engineVersion || 'Unknown'], documentationPath: '/velora/models/' + encodeURIComponent(model.id) });
+            choices.push({ name, value: 'model:' + model.id, cells: [name, model.version], documentationPath: '/velora/models/' + encodeURIComponent(model.id) });
         }
         var actions = [];
         var title = 'Installed models / Switch model';
@@ -29,7 +29,7 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
         }
         setSetupLayout(title, '', FOOTER, '/velora/models');
         var selected = await select({ back: true, message: '', initialValue: currentChoice, choices, actions,
-            columns: [{ title: 'Model' }, { title: 'Version', width: 12 }, { title: 'Engine', width: 12 }], emptyMessage: 'No models installed.' });
+            columns: [{ title: 'Model' }, { title: 'Version' }], emptyMessage: 'No models installed.' });
         currentChoice = selected;
         if (selected === 'back') {
             return;

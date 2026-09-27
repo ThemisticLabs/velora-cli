@@ -2,13 +2,12 @@ import updateMenu from './update-menu.js';
 import select from '../setup/select-option.js';
 import licenseInput from '../setup/license-input.js';
 import manageLicense from '../license/manage-license.js';
-import installedModels, { type InstalledModel } from '../models/installed-models.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import modelSettings from './model-settings.js';
 import updateSettings from './update-settings.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 
-export default async function settingsMenu(selected?: InstalledModel): Promise<void> {
+export default async function settingsMenu(): Promise<void> {
     var FOOTER = '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit';
     var currentChoice = 'permissions';
     while (true) {
@@ -34,12 +33,6 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
                 operation = 'delete';
             }
             await modelSettings(operation);
-            selected = undefined;
-            for (var model of await installedModels({ operation: 'list' })) {
-                if (model.selected) {
-                    selected = model;
-                }
-            }
             continue;
         }
         if (choice === 'license') {
@@ -59,11 +52,8 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
             continue;
         }
         if (choice === 'updates') {
-            await updateMenu(selected);
-            selected = undefined;
-            for (var model of await installedModels({ operation: 'list' })) {
-                if (model.selected) { selected = model; }
-            }
+            await updateMenu();
+
         }
     }
 }

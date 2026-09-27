@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import packageInfo from '../package.json';
 
-test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cancel', 'no-model', 'current-cli', 'current-model', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine', 'install-model'])('update versions terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-model', 'current-cli', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine'])('update versions terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var decoder = new TextDecoder();
@@ -12,23 +12,11 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cance
         terminal: { cols: 60, rows: 20, data: function (terminal, bytes) {
             var frame = stripVTControlCharacters(decoder.decode(bytes, { stream: true }));
             output += frame;
-            if (scenario === 'install-model') {
-                if (phase === 0 && frame.includes('Not checked')) {
-                    phase++; terminal.write('\u001b[B\u001b[B\r');
-                } else if (phase === 1 && frame.includes('Install model update')) {
-                    phase++; terminal.write('\u001b[B\r');
-                } else if (phase === 2 && frame.includes('Update Skira')) {
-                    phase++; terminal.write('\r');
-                } else if (phase === 3 && frame.includes('Up to date')) {
-                    phase++; terminal.write('\u001b');
-                }
-                return;
-            }
             if (scenario === 'cached' || scenario === 'install-engine') {
                 if (phase === 0 && frame.includes('0.4.3')) {
                     phase++;
                     if (scenario === 'cached') { terminal.write('\u001b'); }
-                    else { terminal.write('\u001b[B\u001b[B\u001b[B\r'); }
+                    else { terminal.write('\u001b[B\r'); }
                 } else if (phase === 1 && frame.includes('Update engine to')) {
                     phase++;
                     terminal.write('\r');
@@ -40,10 +28,7 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cance
             }
             if (phase === 0 && frame.includes('Not checked')) {
                 phase++;
-                if (scenario === 'model' || scenario === 'cancel' || scenario === 'current-model') {
-                    terminal.write('\u001b[B\u001b[B');
-                }
-                if (scenario === 'engine' || scenario === 'current-engine' || scenario === 'broken-engine') { terminal.write('\u001b[B'); }
+                if (scenario === 'cancel' || scenario === 'engine' || scenario === 'current-engine' || scenario === 'broken-engine') { terminal.write('\u001b[B'); }
                 terminal.write('\r');
                 return;
             }
@@ -57,6 +42,8 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cance
     try {
         expect(await child.exited, output).toBe(0);
         expect(output).toContain('Updates verified.');
+        expect(output).not.toContain('Install model update');
+        expect(output).not.toContain('Skira');
         if (scenario === 'cached') { expect(output).toContain('0.4.3'); expect(output).toContain('2.0.0'); }
         if (scenario.startsWith('current-')) { expect(output).toContain('Up to date'); }
         if (scenario === 'offline-cli' || scenario === 'broken-engine') {
@@ -68,10 +55,6 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cance
         expect(output).toContain(packageInfo.version);
         if (scenario === 'cli' || scenario === 'no-model') {
             expect(output).toContain('2.0.0');
-        }
-        if (scenario === 'model') {
-            expect(output).toMatch(/Skira 7 Alpha\s+│\s+1\.0\s+│\s+1\.1/);
-            expect(output).not.toContain('0.2.0');
         }
         if (scenario === 'engine') {
             expect(output).toMatch(/Engine\s+│\s+0\.4\.1\s+│\s+0\.4\.2/);

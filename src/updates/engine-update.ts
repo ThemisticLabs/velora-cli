@@ -68,7 +68,7 @@ export default async function engineUpdate(signal: AbortSignal, services = {
     }
     if (semver.order(available.version, installed) === 1) {
         availableEngineVersion = available.version;
-        return lastEngineCheck = { installed, available: available.version, message: 'Update available. Select Install engine update to continue.' };
+        return lastEngineCheck = { installed, available: available.version, message: 'Update available. Press Enter to install.' };
     }
     return lastEngineCheck = { installed, current: true, message: 'The engine is up to date.' };
 }
