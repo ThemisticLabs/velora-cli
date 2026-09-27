@@ -114,7 +114,7 @@ Commander handles commands. `@inquirer/core` provides the prompt state and keybo
 
 The license prompt holds input in process memory. The last appended printable ASCII character is shown for 600 ms, then masked. Further input masks the previous character immediately. Deletion and navigation hide the revealed character. The prompt effect clears its timer on changes and exit. Masking limits terminal visibility, not memory access. After successful verification, the key is persisted through the operating system credential store. It also remains in process memory during access checks and confirmed downloads. velora never writes it to a plaintext file. JavaScript strings cannot be reliably erased from memory by assigning another value.
 
-Engines and model weights remain separate from this repository and executable. Downloads implement the existing signed package protocol; engine startup remains unimplemented. The local API and optional anonymization mapping are planned behavior, not implemented contracts.
+Engines and model weights remain separate from this repository and executable. Downloads implement the signed package protocol. velora starts temporary engine processes for license checks and installation; persistent inference and service startup are not implemented yet. The local API and optional anonymization mapping are planned behavior, not implemented contracts.
 
 ## Current limits and verification
 

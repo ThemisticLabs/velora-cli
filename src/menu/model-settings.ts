@@ -49,7 +49,7 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
                 name = model.name;
             }
         }
-        setSetupLayout('Delete ' + name + '?', 'Deletes its local package and engine preferences. Your license stays saved.', FOOTER, '/velora/models');
+        setSetupLayout('Delete ' + name + '?', 'Deletes its local package. Your license and shared engine settings stay saved.', FOOTER, '/velora/models');
         var confirmation = await select({ back: true, message: 'This model will need to be downloaded again.', choices: [
             { name: 'Delete model', value: 'delete' }
         ] });
