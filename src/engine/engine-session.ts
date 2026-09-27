@@ -104,7 +104,7 @@ export default async function engineSession(license: string, signal: AbortSignal
                 if (response.ok === false) {
                     var messages: Record<string, string> = {
                         license_denied: 'The engine could not authorize this license. Check the key and device allowance.',
-                        engine_update_required: 'This model requires a different Engine release. Update the shared Engine explicitly, then retry.',
+                        engine_update_required: 'Update the engine in Settings, then try installing this model again.',
                         download_or_verification_failed: 'The engine could not finish the verified installation. Check your connection and license, then retry.',
                         invalid_request_or_package: 'The engine rejected the request or package. Check for an engine update.',
                         engine_failure: 'The engine could not complete this operation. Try again.'
@@ -142,7 +142,7 @@ export default async function engineSession(license: string, signal: AbortSignal
             throw new DownloadError('Wait for the current engine operation to finish.');
         }
         if (operation === 'install_model' && (!Array.isArray(capabilities) || !capabilities.includes('install_model'))) {
-            throw new DownloadError('Update the shared Engine before installing models. This Engine does not support model-only installation.');
+            throw new DownloadError('Update the engine in Settings before installing a model.');
         }
         var id = ++nextId;
         var timeout = REQUEST_TIMEOUT_MS;
@@ -179,7 +179,7 @@ export default async function engineSession(license: string, signal: AbortSignal
         if (version.version !== installation.release.version || version.engine_api !== 1 || version.protocol !== 'json-lines-v1' ||
             typeof version.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version.version) ||
             semver.order(version.version, MIN_ENGINE_VERSION) < 0) {
-            throw new DownloadError('This setup needs Engine 0.4.1 or later with the local installation protocol.');
+            throw new DownloadError('This engine is not compatible with velora. Check for an engine update in Settings.');
         }
         return { request, close, installation };
     } catch (error) {

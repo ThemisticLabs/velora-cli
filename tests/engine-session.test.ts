@@ -35,7 +35,7 @@ test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed
         }
         session = await task;
         if (scenario === 'no capability') {
-            await expect(session.request('install_model', { model_id: 'model-a' })).rejects.toThrow('does not support model-only');
+            await expect(session.request('install_model', { model_id: 'model-a' })).rejects.toThrow('Update the engine in Settings');
             expect(await session.request('models', { license_key: 'FIXTURE-LICENSE' })).toEqual({ status: 'ok', models: [] });
         } else if (scenario === 'error') {
             await expect(session.request('models', { license_key: 'FIXTURE-LICENSE' })).rejects.toThrow('verified installation');

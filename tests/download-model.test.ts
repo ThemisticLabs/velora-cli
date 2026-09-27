@@ -6,7 +6,7 @@ import downloadModel from '../src/downloads/download-model.js';
 import installedModels from '../src/models/installed-models.js';
 import type engineSession from '../src/engine/engine-session.js';
 
-test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision', 'cancel', 'retry'])('engine model installation: %s', async function (scenario) {
+test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision', 'changed engine', 'wrong engine version', 'wrong engine revision', 'cancel', 'retry'])('engine model installation: %s', async function (scenario) {
     var directory = await mkdtemp(join(tmpdir(), 'velora-install-'));
     var root = join(directory, 'models', 'model-a');
     var path = join(root, 'installed', 'model-a', 'r1');
@@ -34,6 +34,9 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
                     if (scenario === 'unconfirmed') { receipt.license_authorized = false; }
                     if (scenario === 'wrong revision') { receipt.model_revision = 'r2'; }
                     var result = { engine_changed: false, model_id: 'model-a', model_version: '1.0', engine_version: '0.4.1', path, files_verified: true, receipt };
+                    if (scenario === 'changed engine') { result.engine_changed = true; }
+                    if (scenario === 'wrong engine version') { result.engine_version = '0.4.4'; }
+                    if (scenario === 'wrong engine revision') { receipt.engine_revision = 'engine-r2'; }
                     if (scenario === 'wrong path') { result.path = '/outside'; }
                     if (scenario === 'wrong model') { result.model_id = 'other-model'; }
                     return result;

@@ -38,7 +38,7 @@ Run `velora setup` in an interactive terminal to choose license access or a publ
 
 Failed checks offer Try again; press Esc to return. Enter opens a model. Use the left/right arrows to read its details, then select Install model with Enter. Esc returns to the model list. Installed models are excluded from the installation list.
 
-After confirmation, the engine downloads and verifies the model and obtains the installation receipt. Model downloads can register this device with the license. Engine 0.4.2 or later supplies real byte progress, shown above the status messages. Verification, extraction and confirmation use an animated status. Engine 0.4.1 remains supported with an animated installation status. Ctrl+C stops the engine process; partially installed files and engine locks may remain and need inspection before retrying. Pause and resume are not supported by the engine protocol. Only confirmed installations appear in the model menu. Existing installations are not replaced. Public Veyra1 installation is not available yet.
+After confirmation, the engine downloads and verifies the model and obtains the installation receipt. Model downloads can register this device with the license. Model installation requires engine 0.4.4 or later with support for separate model installation. Download progress appears above the status messages. Verification and confirmation use an animated status. Ctrl+C stops the engine process; partially installed files and engine locks may remain and need inspection before retrying. Pause and resume are not supported by the engine protocol. Only confirmed installations appear in the model menu. Existing installations are not replaced. Public Veyra1 installation is not available yet.
 
 Press F1 for documentation for the current step or selected model. Model and license links use the published documentation; see [ARCHITECTURE.md](ARCHITECTURE.md#contextual-documentation).
 
@@ -72,18 +72,12 @@ The current integration follows the [License API guide](https://docs.themistic.c
 
 Engine packages currently target Apple Silicon on macOS 14+, Windows x64, and Linux x64/ARM64 with glibc 2.38+. A platform supported by the CLI build is not necessarily supported by the engine. Model availability comes from your license, not a hard-coded model list.
 
-A verified cached engine is reused. Engine checks use `/license/engine` and show available versions in the header and Settings. Manual engine checks also work without an installed model. Startup check results are reused in Settings. Select the Engine row to confirm an available update and view download progress. Engine replacement keeps installed models. Automatic installation is not connected. Engine 0.4.2 progress requires that version to be published by the license server; locally built packages alone do not change production downloads.
+A verified cached engine is reused. Engine checks use `/license/engine` and show available versions in the header and Settings. Manual engine checks also work without an installed model. Startup check results are reused in Settings. Select the Engine row to confirm an available update and view download progress. Engine replacement keeps installed models. Automatic installation is not connected.
 
-## Model-only installation protocol
+## One engine for your models
 
-velora owns one shared Engine under `engine/`. Model installation uses
-`install_model` only after the running Engine advertises that capability.
-The request provides the verified package and extracted runtime paths.
-Model downloads never install or update an Engine; an incompatible Engine
-requires a separate, explicitly confirmed update. Engine 0.4.3 and earlier
-can still check licenses, but cannot install models through this new CLI flow.
+velora uses one engine for all installed models. Installing or switching a model does not install another engine. If a model needs a newer engine, update it in Settings, then try again.
 
-The Engine confirms the model with the server before atomically activating it.
-Interrupted or unconfirmed packages can be verified and retried. Existing
-`models/engine` directories are ignored and preserved for a separately reviewed
-cleanup. No migration deletes models, receipts, licenses or device identity.
+New model versions are separate choices under **Settings → Switch model**. Installed models are not updated in place. Switching saves your selection; it does not yet start local processing.
+
+Older installations may still contain an unused second engine directory. It is left in place until a separate cleanup is reviewed. See [ARCHITECTURE.md](ARCHITECTURE.md) for storage and protocol details.
