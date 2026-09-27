@@ -126,7 +126,7 @@ function runDoctor(directory, scenario, commandPath = '') {
         });
         var { default: doctor } = await import(${JSON.stringify(DOCTOR_PATH)});
         await doctor(async function (url, options) {
-            if (url !== 'https://api.themistic.com/v1/license/check' || options.method !== 'GET' || options.body || options.headers || options.redirect !== 'error') {
+            if (url !== 'https://api.themistic.com/license/health' || options.method !== 'GET' || options.body || options.headers || options.redirect !== 'error') {
                 throw new Error('Unexpected request');
             }
             if (scenario === 'unavailable') {

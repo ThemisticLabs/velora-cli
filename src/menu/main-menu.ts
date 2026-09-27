@@ -30,7 +30,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
             if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
                 throw error;
             }
-            setSetupLayout('Saved license unavailable.', 'Unlock your system credential store and try again.', FOOTER, '/licenses');
+            setSetupLayout('Saved license unavailable.', 'Unlock your system credential store and try again.', FOOTER, '/velora/license-api/');
             var recovery = await select({ message: 'Next step', choices: [
                 { name: 'Enter a license', value: 'enter' }, { name: 'Close', value: 'close' }
             ] });

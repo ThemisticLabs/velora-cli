@@ -1,5 +1,6 @@
-import { createPublicKey, randomBytes, verify } from 'node:crypto';
-import { PACKAGE_PUBLIC_KEY } from '../downloads/package-request.js';
+import engineSession from '../engine/engine-session.js';
+import type { EngineProgress } from '../engine/bootstrap-engine.js';
+import DownloadError from '../downloads/download-error.js';
 
 export type LicenseModel = {
     id: string;
@@ -11,86 +12,17 @@ export type LicenseModel = {
     canDownload: boolean;
 };
 
-export default async function licenseAccess(license: string, signal: AbortSignal, deviceHw: string, transport = fetch,
-    publicKey = PACKAGE_PUBLIC_KEY) {
+export default async function licenseAccess(license: string, signal: AbortSignal, connect = engineSession, onProgress?: (progress: EngineProgress) => void) {
     if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
         return { ok: false as const, message: 'Check the license key and try again.' };
     }
-
-    if (!/^[a-f0-9]{16,64}$/.test(deviceHw)) {
-        return { ok: false as const, message: 'The device identity is invalid.' };
-    }
-    var NONCE_BYTES = 24;
+    var session: Awaited<ReturnType<typeof engineSession>> | undefined;
     var MAX_MODEL_TEXT_LENGTH = 2000;
-    var request = {
-        operation: 'access', license_key: license, model_id: null,
-        hw: deviceHw, nonce: randomBytes(NONCE_BYTES).toString('base64url')
-    };
-    var MAX_RESPONSE_BYTES = 262144;
-    var REQUEST_TIMEOUT_MS = 15000;
-    var requestSignal = AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]);
     try {
-        var response = await transport('https://api.themistic.com/v1/license/check', {
-            method: 'POST', redirect: 'error', signal: requestSignal,
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify(request)
-        });
-        if (!response.body) {
-            return { ok: false as const, message: 'The license server returned an empty response.' };
-        }
-        var reader = response.body.getReader();
-        var chunks: Uint8Array[] = [];
-        var size = 0;
-        try {
-            while (true) {
-                var chunk = await reader.read();
-                if (chunk.done) {
-                    break;
-                }
-                size += chunk.value.length;
-                if (size > MAX_RESPONSE_BYTES) {
-                    await reader.cancel();
-                    return { ok: false as const, message: 'The license server response is too large.' };
-                }
-                chunks.push(chunk.value);
-            }
-        } finally {
-            reader.releaseLock();
-        }
-        var raw = Buffer.concat(chunks);
-        var signature = response.headers.get('X-Signature') || '';
-        var ED25519_SPKI_PREFIX = '302a300506032b6570032100';
-        var key = createPublicKey({ key: Buffer.concat([
-            Buffer.from(ED25519_SPKI_PREFIX, 'hex'), Buffer.from(publicKey, 'hex')
-        ]), format: 'der', type: 'spki' });
-        if (!verify(null, raw, key, Buffer.from(signature, 'base64'))) {
-            return { ok: false as const, message: 'The server response could not be verified.' };
-        }
-        var data: unknown = JSON.parse(raw.toString('utf8'));
-        if (!isRecord(data) || data.nonce !== request.nonce) {
-            return { ok: false as const, message: 'The server response does not match this request.' };
-        }
-        // Busy responses bind only the nonce, as defined by the server contract.
-        if (response.status === 429 || response.status === 503) {
-            return { ok: false as const, message: 'The license server is busy. Try again shortly.' };
-        }
-        if (data.license_key !== license || data.hw !== request.hw || data.model_id !== null || data.operation !== 'access') {
-            return { ok: false as const, message: 'The server response does not match this request.' };
-        }
-        if (data.valid === false) {
-            var reasons: Record<string, string> = {
-                unknown_key: 'This license key was not found.', expired: 'This license has expired.',
-                revoked: 'This license has been revoked.', not_yet_valid: 'This license is not valid yet.'
-            };
-            var message = 'This license could not be verified.';
-            if (typeof data.reason === 'string' && Object.hasOwn(reasons, data.reason)) {
-                message = reasons[data.reason]!;
-            }
-            return { ok: false as const, message };
-        }
-        var access = data.access;
-        if (!response.ok || data.valid !== true || !isRecord(access) || access.status !== 'ok') {
-            return { ok: false as const, message: 'The server returned incomplete license details.' };
+        session = await connect(license, signal, onProgress);
+        var access = await session.request('models', { license_key: license });
+        if (access.status !== 'ok') {
+            return { ok: false as const, message: 'The engine returned incomplete license details.' };
         }
         var expiresAt = access.expires_at;
         var maxDevices = access.max_devices;
@@ -147,14 +79,16 @@ export default async function licenseAccess(license: string, signal: AbortSignal
             models.push(licenseModel);
         }
         return { ok: true as const, expiresAt, maxDevices, registeredDevices, models };
-    } catch {
+    } catch (error) {
         if (signal.aborted) {
             throw signal.reason;
         }
-        if (requestSignal.aborted) {
-            return { ok: false as const, message: 'The license server took too long to respond.' };
+        if (error instanceof DownloadError) {
+            return { ok: false as const, message: error.message };
         }
-        return { ok: false as const, message: 'Could not read a verified server response. Try again.' };
+        return { ok: false as const, message: 'Could not read your models from the engine. Try again.' };
+    } finally {
+        await session?.close();
     }
 }
 

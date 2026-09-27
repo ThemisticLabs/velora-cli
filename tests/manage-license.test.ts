@@ -11,7 +11,7 @@ test.each(['set', 'status', 'invalid', 'rejected', 'offline', 'cancel', 'missing
     }
     var writes = 0;
     var checks = 0;
-    var identities = 0;
+
     var controller = new AbortController();
     var services: NonNullable<Parameters<typeof manageLicense>[2]> = {
         store: async function (request) {
@@ -30,13 +30,8 @@ test.each(['set', 'status', 'invalid', 'rejected', 'offline', 'cancel', 'missing
             saved = request.license;
             return null;
         },
-        identity: async function () {
-            identities++;
-            return { hw: 'a'.repeat(64) };
-        },
-        check: async function (license, _signal, hw) {
+        check: async function (license) {
             checks++;
-            expect(hw).toBe('a'.repeat(64));
             if (scenario === 'status') {
                 expect(license).toBe('OLD-LICENSE-KEY');
             } else {
@@ -83,7 +78,6 @@ test.each(['set', 'status', 'invalid', 'rejected', 'offline', 'cancel', 'missing
         expect(saved).toBe('OLD-LICENSE-KEY');
     }
     if (scenario === 'missing' || scenario === 'invalid') {
-        expect(identities).toBe(0);
         expect(checks).toBe(0);
     }
     if (!['set', 'storage failure', 'cancel during write'].includes(scenario)) {

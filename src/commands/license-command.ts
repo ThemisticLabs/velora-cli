@@ -1,9 +1,8 @@
-import { createPrompt, useEffect } from '@inquirer/core';
+import runTerminalTask from '../terminal/run-terminal-task.js';
 import manageLicense from '../license/manage-license.js';
 import licenseInput from '../setup/license-input.js';
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimensions.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
-import useSetupScreen from '../terminal/use-setup-screen.js';
 import header from '../terminal/header.js';
 
 export default async function licenseCommand(operation: 'set' | 'status'): Promise<void> {
@@ -28,33 +27,16 @@ export default async function licenseCommand(operation: 'set' | 'status'): Promi
             var result = await task;
         } else {
             process.stdout.write('\u001b[?1049h');
-            setSetupLayout('Set your license.', 'A verified key replaces the saved license.', 'Enter Continue · Esc Cancel · Ctrl+C Quit', '/licenses');
+            setSetupLayout('Set your license.', 'A verified key replaces the saved license.', 'Enter Continue · Esc Cancel · Ctrl+C Quit', '/velora/license-api/');
             var license = await licenseInput({}, { signal: controller.signal });
             if (!license) {
                 return;
             }
-            setSetupLayout('Checking your license.', '', 'Ctrl+C Cancel', '/licenses');
-            var check = createPrompt<Awaited<ReturnType<typeof manageLicense>>, Record<string, never>>(function (_config, done) {
-                useEffect(function () {
-                    var active = true;
-                    task = manageLicense({ operation: 'set', license }, controller.signal);
-                    void task.then(function (value) {
-                        if (active) {
-                            done(value);
-                        }
-                    }).catch(function () {
-                        if (active) {
-                            done({ ok: false, message: 'License check cancelled.' });
-                        }
-                    });
-                    return function () {
-                        active = false;
-                        controller.abort();
-                    };
-                }, []);
-                return useSetupScreen('');
+            setSetupLayout('Checking your license.', '', 'Ctrl+C Cancel', '/velora/license-api/');
+            var result = await runTerminalTask(function (signal, progress) {
+                task = manageLicense({ operation: 'set', license }, AbortSignal.any([signal, controller.signal]), undefined, progress);
+                return task;
             });
-            var result = await check({}, { signal: controller.signal });
         }
         if (!result.ok) {
             summary = result.message;

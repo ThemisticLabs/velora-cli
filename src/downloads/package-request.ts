@@ -4,10 +4,13 @@ import { createPublicKey, randomBytes, verify } from 'node:crypto';
 export var PACKAGE_PUBLIC_KEY = '8e0879487aca58247073518a7aa2b215eec0779b0bb3274f1a67bf70c519b153';
 export var MAX_METADATA_BYTES = 2 * 1024 * 1024;
 export type PackageBinding = {
-    operation: 'catalog' | 'file';
+    operation: 'resolve' | 'file';
     license_key: string;
-    hw: string;
-    model_id: string | null;
+    hw?: string;
+    model_id?: string;
+    runtime_target: string;
+    artifact_kind?: 'engine';
+    installed_engine_revision?: string;
     revision?: string;
     name?: string;
     sha256?: string;
@@ -16,11 +19,11 @@ export type PackageBinding = {
 };
 
 export default async function packageRequest(binding: PackageBinding, signal: AbortSignal,
-    transport = fetch, publicKey = PACKAGE_PUBLIC_KEY, fileSize?: number) {
+    transport = fetch, publicKey = PACKAGE_PUBLIC_KEY, fileSize?: number, endpoint: 'engine' | 'check' = 'engine') {
     var NONCE_BYTES = 24;
     var REQUEST_TIMEOUT_MS = 60000;
     var request = { ...binding, nonce: randomBytes(NONCE_BYTES).toString('base64url') };
-    var response = await transport('https://api.themistic.com/v1/license/check', {
+    var response = await transport('https://api.themistic.com/license/' + endpoint, {
         method: 'POST', redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
         headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
         body: JSON.stringify(request)
@@ -90,6 +93,15 @@ export default async function packageRequest(binding: PackageBinding, signal: Ab
         if (metadata.valid !== true || !response.ok) {
             if (metadata.reason === 'too_many_devices' || metadata.reason === 'device_limit_reached') {
                 throw new DownloadError('No device slot is available. Manage your devices in the Themistic console.');
+            }
+            var reasons: Record<string, string> = {
+                expired: 'This license has expired.', revoked: 'This license has been revoked.',
+                unknown_key: 'This license key was not found.',
+                engine_unavailable_for_runtime: 'No engine is available for this operating system. Check the supported platforms in the documentation.',
+                update_cutoff: 'This release is outside your license update period.'
+            };
+            if (typeof metadata.reason === 'string' && Object.hasOwn(reasons, metadata.reason)) {
+                throw new DownloadError(reasons[metadata.reason]!);
             }
             throw new DownloadError('Package access was denied. Check your license and model access.');
         }

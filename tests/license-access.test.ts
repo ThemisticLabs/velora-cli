@@ -1,128 +1,47 @@
 import { test, expect } from 'bun:test';
-import { generateKeyPairSync, sign } from 'node:crypto';
 import licenseAccess from '../src/license/license-access.js';
+import type engineSession from '../src/engine/engine-session.js';
 
-var keys = generateKeyPairSync('ed25519');
-var publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
-
-test.each(['valid', 'invalid signature', 'wrong nonce', 'wrong device', 'expired', 'busy', 'invalid schema'])('license access: %s', async function (scenario) {
-    var transport = async function (_url: unknown, options: RequestInit | undefined) {
-        var request = JSON.parse(options?.body as string);
-        expect(request.operation).toBe('access');
-        expect(request.model_id).toBeNull();
-        expect(options?.redirect).toBe('error');
-        var data = { ...request, valid: true, reason: 'ok', access: {
-            status: 'ok', expires_at: '2026-10-18T10:00:00Z', max_devices: 50, registered_devices: 0,
-            models: [{ model_id: 'skira7alpha', entitled: true }]
-        } };
-        var status = 200;
-        if (scenario === 'wrong nonce') {
-            data.nonce = 'another-request';
-        }
-        if (scenario === 'wrong device') {
-            data.hw = 'another-device';
-        }
-        if (scenario === 'expired') {
-            data.valid = false;
-            data.reason = 'expired';
-            status = 403;
-        }
-        if (scenario === 'busy') {
-            status = 503;
-        }
-        if (scenario === 'invalid schema') {
-            data.access.max_devices = -1;
-        }
-        var raw = Buffer.from(JSON.stringify(data));
-        var signature = sign(null, raw, keys.privateKey).toString('base64');
-        if (scenario === 'invalid signature') {
-            raw = Buffer.from(JSON.stringify({ ...data, reason: 'tampered' }));
-        }
-        return new Response(raw, { status, headers: { 'X-Signature': signature } });
-    };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
-    expect(result.ok).toBe(scenario === 'valid');
-    if (result.ok) {
-        expect(result.models[0]?.id).toBe('skira7alpha');
-        expect(result.models[0]?.description).toBe('No description published yet.');
-        expect(result.maxDevices).toBe(50);
-    }
-});
-
-test('invalid key never reaches the network', async function () {
-    var result = await licenseAccess('bad', new AbortController().signal, 'a'.repeat(64), function () {
-        throw new Error('Unexpected request');
-    } as typeof fetch);
-    expect(result).toEqual({ ok: false, message: 'Check the license key and try again.' });
-});
-
-test.each([false, true])('signed model descriptions reject terminal controls: %s', async function (unsafe) {
-    var transport = async function (_url: unknown, options: RequestInit | undefined) {
-        var request = JSON.parse(options?.body as string);
-        var description = 'Typed anonymization with time and ID rules.';
-        if (unsafe) {
-            description += '\u001b[2J';
-        }
-        var raw = Buffer.from(JSON.stringify({ ...request, valid: true, access: {
-            status: 'ok', expires_at: '2026-10-18T10:00:00Z', max_devices: 50, registered_devices: 0,
-            models: [{ model_id: 'skira7alpha', entitled: true, display_name: 'Skira 7 Alpha', description,
-                strengths: 'Shared placeholder IDs.', limitations: 'Weekdays may be missed.', download_reason: null }]
-        } }));
-        return new Response(raw, { headers: { 'X-Signature': sign(null, raw, keys.privateKey).toString('base64') } });
-    };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
-    expect(result.ok).toBe(!unsafe);
-    if (result.ok) {
-        expect(result.models[0]?.name).toBe('Skira 7 Alpha');
-        expect(result.models[0]?.strengths).toBe('Shared placeholder IDs.');
-        expect(result.models[0]?.limitations).toBe('Weekdays may be missed.');
-    }
-});
-
-test.each([
-    { field: 'expires_at', value: 123, message: 'The server returned an invalid license expiry.' },
-    { field: 'max_devices', value: '50', message: 'The server returned an invalid device limit.' },
-    { field: 'registered_devices', value: -1, message: 'The server returned an invalid device count.' },
-    { field: 'models', value: {}, message: 'The server returned an invalid model list.' },
-    { field: 'models', value: [null], message: 'The server returned invalid model details.' },
-    { field: 'models', value: [{ model_id: 'skira7alpha', entitled: true, description: 123 }], message: 'The server returned invalid model details.' }
-])('signed response validates $field before using it', async function (scenario) {
-    var transport = async function (_url: unknown, options: RequestInit | undefined) {
-        var request = JSON.parse(options?.body as string);
-        var access: Record<string, unknown> = {
-            status: 'ok',
-            expires_at: '2026-10-18T10:00:00Z',
-            max_devices: 50,
-            registered_devices: 0,
-            models: []
+test.each(['valid', 'invalid expiry', 'invalid device limit', 'invalid model', 'unsafe description', 'cancel'])('engine model listing: %s', async function (scenario) {
+    var access = { status: 'ok', expires_at: '2026-10-18T10:00:00Z', max_devices: 50, registered_devices: 0,
+        models: [{ model_id: 'skira7alpha', entitled: true, can_download: true, description: 'Local text processing.' }] };
+    if (scenario === 'invalid expiry') { access.expires_at = 'invalid'; }
+    if (scenario === 'invalid device limit') { access.max_devices = -1; }
+    if (scenario === 'invalid model') { access.models[0]!.model_id = '../outside'; }
+    if (scenario === 'unsafe description') { access.models[0]!.description = '\u001b[2J'; }
+    var closed = false;
+    var controller = new AbortController();
+    var connect = async function () {
+        return {
+            request: async function (operation: string, fields: Record<string, unknown>) {
+                expect(operation).toBe('models');
+                expect(fields).toEqual({ license_key: 'FIXTURE-LICENSE' });
+                if (scenario === 'cancel') {
+                    controller.abort();
+                    throw controller.signal.reason;
+                }
+                return access;
+            },
+            close: async function () { closed = true; }
         };
-        access[scenario.field] = scenario.value;
-        var raw = Buffer.from(JSON.stringify({ ...request, valid: true, access }));
-        var signature = sign(null, raw, keys.privateKey).toString('base64');
-        return new Response(raw, { headers: { 'X-Signature': signature } });
-    };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
-    expect(result).toEqual({ ok: false, message: scenario.message });
+    } as unknown as typeof engineSession;
+    var task = licenseAccess('FIXTURE-LICENSE', controller.signal, connect);
+    if (scenario === 'cancel') {
+        await expect(task).rejects.toBeInstanceOf(Error);
+    } else {
+        var result = await task;
+        expect(result.ok).toBe(scenario === 'valid');
+        if (result.ok) {
+            expect(result.models[0]?.canDownload).toBe(true);
+            expect(result.registeredDevices).toBe(0);
+        }
+    }
+    expect(closed).toBe(true);
 });
 
-test('unknown rejection reasons cannot resolve to inherited object properties', async function () {
-    var transport = async function (_url: unknown, options: RequestInit | undefined) {
-        var request = JSON.parse(options?.body as string);
-        var raw = Buffer.from(JSON.stringify({ ...request, valid: false, reason: 'constructor' }));
-        var signature = sign(null, raw, keys.privateKey).toString('base64');
-        return new Response(raw, { status: 403, headers: { 'X-Signature': signature } });
-    };
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, 'a'.repeat(64), transport as typeof fetch, publicKey);
-    expect(result).toEqual({ ok: false, message: 'This license could not be verified.' });
-});
-
-test.each(['', '../device', 'g'.repeat(64)])('invalid device identity does not reach the server: %s', async function (hw) {
-    var calls = 0;
-    var transport = Object.assign(async function () {
-        calls++;
-        return new Response();
-    }, { preconnect: function () {} });
-    var result = await licenseAccess('TEST-ONLY-KEY', new AbortController().signal, hw, transport);
-    expect(result.ok).toBe(false);
-    expect(calls).toBe(0);
+test('invalid license never downloads or starts an engine', async function () {
+    var result = await licenseAccess('bad', new AbortController().signal, async function () {
+        throw new Error('Must not run');
+    });
+    expect(result).toEqual({ ok: false, message: 'Check the license key and try again.' });
 });

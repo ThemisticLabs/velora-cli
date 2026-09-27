@@ -9,9 +9,6 @@ var source = fileURLToPath(new URL('../../src/', import.meta.url));
 mock.module(source + 'system/data-directory.ts', function () {
     return { default: function () { return root; } };
 });
-mock.module(source + 'system/device-fingerprint.ts', function () {
-    return { default: async function () { return { hw: 'a'.repeat(64) }; } };
-});
 mock.module(source + 'downloads/download-model.ts', function () {
     return { default: async function (options: DownloadOptions) {
         if (scenario === 'disk full') {

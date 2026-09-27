@@ -1,16 +1,15 @@
+import type { EngineProgress } from '../engine/bootstrap-engine.js';
 import licenseStore from './license-store.js';
 import licenseAccess from './license-access.js';
-import deviceFingerprint from '../system/device-fingerprint.js';
 
 export type LicenseRequest = { operation: 'status' } | { operation: 'set'; license: string };
 type LicenseServices = {
     store: typeof licenseStore;
     check: typeof licenseAccess;
-    identity: typeof deviceFingerprint;
 };
 
 export default async function manageLicense(request: LicenseRequest, signal: AbortSignal,
-    services: LicenseServices = { store: licenseStore, check: licenseAccess, identity: deviceFingerprint }) {
+    services: LicenseServices = { store: licenseStore, check: licenseAccess }, onProgress?: (progress: EngineProgress) => void) {
     signal.throwIfAborted();
     try {
         var license: string | null;
@@ -26,9 +25,7 @@ export default async function manageLicense(request: LicenseRequest, signal: Abo
             return { ok: false as const, message: 'Check the license key and try again.' };
         }
         signal.throwIfAborted();
-        var identity = await services.identity();
-        signal.throwIfAborted();
-        var result = await services.check(license, signal, identity.hw);
+        var result = await services.check(license, signal, undefined, onProgress);
         signal.throwIfAborted();
         if (!result.ok) {
             return result;

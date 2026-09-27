@@ -22,7 +22,7 @@ test.skipIf(process.platform === 'win32').each(['error', 'disk full', 'cleanup f
                     sent = true;
                     terminal.write('\r');
                 }
-                if (scenario === 'cancel-after-install' && output.includes('Download complete.') ||
+                if (scenario === 'cancel-after-install' && output.includes('Installation complete.') ||
                     scenario === 'cancel-during-finalize' && output.includes('Finishing fixture installation.') ||
                     scenario === 'cancel-before-install' && output.includes('Waiting for fixture transfer.')) {
                     sent = true;

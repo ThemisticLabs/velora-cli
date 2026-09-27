@@ -18,7 +18,7 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
                     currentChoice = 'model:' + model.id;
                 }
             }
-            choices.push({ name, value: 'model:' + model.id, cells: [name, model.version, model.engineVersion || 'Unknown'], documentationPath: '/models/' + encodeURIComponent(model.id) });
+            choices.push({ name, value: 'model:' + model.id, cells: [name, model.version, model.engineVersion || 'Unknown'], documentationPath: '/velora/models/' + encodeURIComponent(model.id) });
         }
         var actions = [];
         var title = 'Installed models / Switch model';

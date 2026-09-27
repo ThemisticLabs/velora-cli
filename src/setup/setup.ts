@@ -40,7 +40,7 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                 if (error instanceof Error) {
                     message = error.message;
                 }
-                setSetupLayout('Saved license unavailable.', message, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/licenses');
+                setSetupLayout('Saved license unavailable.', message, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/license-api/');
                 var storageAction = await select({ back: true, message: 'Next step', choices: [
                     { name: 'Enter a license', value: 'enter' }
                 ] });
@@ -51,7 +51,7 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
             }
             var useSaved = false;
             if (savedLicense && !options.modelsOnly) {
-                setSetupLayout('Your saved license.', 'The key is stored in the system credential store.', '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/licenses');
+                setSetupLayout('Your saved license.', 'The key is stored in the system credential store.', '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/license-api/');
                 var licenseChoice = await select({ back: true, message: 'How would you like to continue?', choices: [
                     { name: 'Use saved license', value: 'saved' },
                     { name: 'Use a different license', value: 'change' }
@@ -66,21 +66,21 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
             }
             var license = savedLicense || '';
             if (!useSaved) {
-                setSetupLayout('Enter your license.', 'The key is verified, then saved in the system credential store.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/licenses');
+                setSetupLayout('Enter your license.', 'The key is verified, then saved in the system credential store.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/velora/license-api/');
                 license = await licenseInput({});
                 if (!license) {
                     break;
                 }
             }
-            setSetupLayout('Checking your license.', 'Looking up your models.', 'Ctrl+C Cancel', '/licenses');
-            var result = await runTerminalTask(function (signal) {
+            setSetupLayout('Checking your license.', 'Preparing the engine and looking up your models.', 'Ctrl+C Cancel', '/velora/license-api/');
+            var result = await runTerminalTask(function (signal, progress) {
                 if (useSaved) {
-                    return manageLicense({ operation: 'status' }, signal);
+                    return manageLicense({ operation: 'status' }, signal, undefined, progress);
                 }
-                return manageLicense({ operation: 'set', license }, signal);
+                return manageLicense({ operation: 'set', license }, signal, undefined, progress);
             });
             if (!result.ok) {
-                setSetupLayout('License check unsuccessful.', result.message, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/licenses');
+                setSetupLayout('License check unsuccessful.', result.message, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/license-api/');
                 var action = await select({ back: true, message: 'Next step', choices: [
                     { name: 'Try again', value: 'retry' }
                 ] });
@@ -117,7 +117,7 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                     }
                     break;
                 }
-                setSetupLayout('Download ' + next.name + '?', 'This registers this device with your license.', 'Enter Download · Esc Back · Ctrl+C Quit', '/models/' + next.id);
+                setSetupLayout('Download ' + next.name + '?', 'This registers this device with your license.', 'Enter Download · Esc Back · Ctrl+C Quit', '/velora/models/' + next.id);
                 var confirmation = await select({ back: true, message: 'Continue with installation?', choices: [
                     { name: 'Download model', value: 'download' }
                 ] });

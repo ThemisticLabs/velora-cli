@@ -148,7 +148,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
         serverCheck.detail = 'Connecting to api.themistic.com.';
         render(checks, 'progress');
         try {
-            var response = await transport('https://api.themistic.com/v1/license/check', {
+            var response = await transport('https://api.themistic.com/license/health', {
                 method: 'GET',
                 redirect: 'error',
                 signal: AbortSignal.any([controller.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])

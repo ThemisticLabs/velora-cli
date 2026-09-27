@@ -2,7 +2,7 @@ import { lstat, mkdtemp, open, readdir, readFile, rename, rm } from 'node:fs/pro
 import { join } from 'node:path';
 import dataDirectory from '../system/data-directory.js';
 
-export type InstalledModel = { id: string; name: string; version: string; revision: string; sequence: number; engineVersion: string; selected: boolean };
+export type InstalledModel = { id: string; name: string; version: string; revision: string; sequence: number; engineVersion: string; selected: boolean; engineRevision?: string };
 type ModelAction = { operation: 'list' } | { operation: 'select' | 'delete'; id: string };
 
 export default async function installedModels(action: ModelAction, directory = dataDirectory()): Promise<InstalledModel[]> {
@@ -37,7 +37,7 @@ export default async function installedModels(action: ModelAction, directory = d
         var entries = await readdir(modelsPath, { withFileTypes: true });
         entries.sort(function (left, right) { return left.name.localeCompare(right.name); });
         for (var entry of entries) {
-            if (!entry.isDirectory() || !/^[a-z0-9_-]{2,64}$/.test(entry.name)) {
+            if (!entry.isDirectory() || entry.name === 'engine' || !/^[a-z0-9_-]{2,64}$/.test(entry.name)) {
                 continue;
             }
             try {
@@ -51,7 +51,32 @@ export default async function installedModels(action: ModelAction, directory = d
                 }
                 throw new ModelStorageError('Could not read the installed model ' + entry.name + '. Check its current.json.');
             }
-            if (typeof state !== 'object' || state === null || !('model_id' in state) || state.model_id !== entry.name ||
+            var engineRevision: string | undefined = undefined;
+            if (typeof state === 'object' && state !== null && !('version' in state)) {
+                try {
+                    var receiptPath = join(modelsPath, entry.name, 'velora.json');
+                    var receiptInfo = await lstat(receiptPath);
+                    var MAX_RECEIPT_BYTES = 2 * 1024 ** 2;
+                    if (!receiptInfo.isFile() || receiptInfo.size > MAX_RECEIPT_BYTES) {
+                        throw new ModelStorageError('The model receipt is linked.');
+                    }
+                    var record: unknown = JSON.parse(await readFile(receiptPath, 'utf8'));
+                    if (!isRecord(record) || record.model_id !== entry.name || !('revision' in state) || record.revision !== state.revision ||
+                        !isRecord(record.receipt) || record.receipt.license_authorized !== true || record.receipt.reported_hashes_match !== true ||
+                        record.receipt.model_revision !== record.revision || record.receipt.engine_revision !== record.engine_revision ||
+                        typeof record.engine_revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$/.test(record.engine_revision)) {
+                        throw new ModelStorageError('The model receipt does not match its installation.');
+                    }
+                    engineRevision = record.engine_revision;
+                    state = { ...state, version: record.version, model_name: record.model_name, engine_version: record.engine_version };
+                } catch (error) {
+                    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+                        continue;
+                    }
+                    throw error;
+                }
+            }
+            if (!isRecord(state) || !('model_id' in state) || state.model_id !== entry.name ||
                 !('revision' in state) || typeof state.revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$/.test(state.revision) ||
                 !('sequence' in state) || typeof state.sequence !== 'number' || !Number.isSafeInteger(state.sequence) || state.sequence < 1 ||
                 !('version' in state) || typeof state.version !== 'string' || /[\x00-\x1f\x7f-\x9f]/.test(state.version)) {
@@ -72,7 +97,7 @@ export default async function installedModels(action: ModelAction, directory = d
             if ('engine_version' in state && typeof state.engine_version === 'string' && /^\d+\.\d+\.\d+$/.test(state.engine_version)) {
                 engineVersion = state.engine_version;
             }
-            models.push({ id: entry.name, name, version: state.version, revision: state.revision, sequence: state.sequence, engineVersion, selected: entry.name === selectedId });
+            models.push({ id: entry.name, name, version: state.version, revision: state.revision, sequence: state.sequence, engineVersion, engineRevision, selected: entry.name === selectedId });
         }
         if (selectedId === null && models.length === 1) {
             models[0]!.selected = true;
@@ -95,8 +120,16 @@ export default async function installedModels(action: ModelAction, directory = d
     if (!(await lstat(root)).isDirectory()) {
         throw new ModelStorageError('The model directory is missing or linked.');
     }
+    var operationLockPath = join(modelsPath, '.velora.lock');
+    var operationLock = await open(operationLockPath, 'wx', 0o600);
     var lockPath = join(root, '.update.lock');
-    var lock = await open(lockPath, 'wx', 0o600);
+    try {
+        var lock = await open(lockPath, 'wx', 0o600);
+    } catch (error) {
+        await operationLock.close();
+        await rm(operationLockPath, { force: true });
+        throw error;
+    }
     var moved = false;
     try {
         if (!(await lstat(join(root, 'current.json'))).isFile()) {
@@ -136,10 +169,19 @@ export default async function installedModels(action: ModelAction, directory = d
         return [];
     } finally {
         await lock.close();
-        if (!moved) {
-            await rm(lockPath, { force: true });
+        try {
+            if (!moved) {
+                await rm(lockPath, { force: true });
+            }
+        } finally {
+            await operationLock.close();
+            await rm(operationLockPath, { force: true });
         }
     }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 class ModelStorageError extends Error {

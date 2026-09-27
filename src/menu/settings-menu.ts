@@ -43,18 +43,18 @@ export default async function settingsMenu(selected?: InstalledModel): Promise<v
             continue;
         }
         if (choice === 'license') {
-            setSetupLayout('Settings / License', 'A verified key replaces the saved license.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/licenses');
+            setSetupLayout('Settings / License', 'A verified key replaces the saved license.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/velora/license-api/');
             var license = await licenseInput({});
             if (!license) {
                 continue;
             }
-            setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/licenses');
-            var result = await runTerminalTask(function (signal) { return manageLicense({ operation: 'set', license }, signal); });
+            setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/velora/license-api/');
+            var result = await runTerminalTask(function (signal, progress) { return manageLicense({ operation: 'set', license }, signal, undefined, progress); });
             var message = 'License saved.';
             if (!result.ok) {
                 message = result.message;
             }
-            setSetupLayout('License', '', 'Esc Back · Ctrl+C Quit', '/licenses');
+            setSetupLayout('License', '', 'Esc Back · Ctrl+C Quit', '/velora/license-api/');
             await select({ back: true, message, choices: [] });
             continue;
         }

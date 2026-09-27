@@ -1,16 +1,15 @@
-import { createPrompt, isEnterKey, useEffect, useKeypress, useRef, useState } from '@inquirer/core';
-import { setTimeout as delay } from 'node:timers/promises';
+import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import { mkdir, lstat } from 'node:fs/promises';
 import DownloadError from '../downloads/download-error.js';
 import { join } from 'node:path';
 import dataDirectory from '../system/data-directory.js';
 import downloadModel, { type DownloadProgress } from '../downloads/download-model.js';
-import deviceFingerprint from '../system/device-fingerprint.js';
 import type { LicenseModel } from '../license/license-access.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import style from '../terminal/style.js';
+import renderProgress from '../terminal/render-progress.js';
 
 export default async function downloadScreen(license: string, model: LicenseModel): Promise<'complete' | 'failed' | 'cancelled-after-install'> {
     var controller = new AbortController();
@@ -20,13 +19,16 @@ export default async function downloadScreen(license: string, model: LicenseMode
         var [progress, setProgress] = useState<DownloadProgress>({ downloaded: 0, total: 0, message: '' });
         var [logs, setLogs] = useState<string[]>([]);
         var [status, setStatus] = useState('running');
-        var [paused, setPaused] = useState(false);
-        var pause = useRef(false);
+        var [frame, setFrame] = useState(0);
+        useEffect(function () {
+            var FRAME_INTERVAL_MS = 100;
+            var timer = setInterval(function () { setFrame(function (value) { return value + 1; }); }, FRAME_INTERVAL_MS);
+            return function () { clearInterval(timer); };
+        }, []);
         useEffect(function () {
             var active = true;
             task = (async function () {
                 try {
-                    var identity = await deviceFingerprint();
                     controller.signal.throwIfAborted();
                     var directory = dataDirectory();
                     for (var parent of [directory, join(directory, 'models')]) {
@@ -35,14 +37,8 @@ export default async function downloadScreen(license: string, model: LicenseMode
                             throw new DownloadError('Model storage directories must not be symbolic links.');
                         }
                     }
-                    var installation = await downloadModel({ license, hw: identity.hw, modelId: model.id, modelName: model.name,
+                    var installation = await downloadModel({ license, modelId: model.id, modelName: model.name,
                         root: join(directory, 'models', model.id), signal: controller.signal,
-                        waitForResume: async function () {
-                            var PAUSE_POLL_MS = 100;
-                            while (pause.current) {
-                                await delay(PAUSE_POLL_MS, undefined, { signal: controller.signal });
-                            }
-                        },
                         onProgress: function (update) {
                             if (!active) {
                                 return;
@@ -51,6 +47,7 @@ export default async function downloadScreen(license: string, model: LicenseMode
                             if (update.message) {
                                 var MAX_LOG_LINES = 100;
                                 setLogs(function (previous) {
+                                    if (previous[previous.length - 1] === update.message) { return previous; }
                                     return [...previous.slice(-(MAX_LOG_LINES - 1)), update.message];
                                 });
                             }
@@ -94,34 +91,19 @@ export default async function downloadScreen(license: string, model: LicenseMode
                 done(status === 'complete');
                 return;
             }
-            if (key.name === 'space' && status === 'running') {
-                pause.current = !pause.current;
-                setPaused(pause.current);
-            }
         });
         var dimensions = setupDimensions();
-        var PERCENT_LABEL_WIDTH = 6;
         var MEBIBYTE = 1024 * 1024;
-        var width = Math.max(1, dimensions.contentWidth - PERCENT_LABEL_WIDTH);
         var output = '\n';
-        if (status === 'running') {
-            output = '  ' + style('Reading model catalog…', 'muted') + '\n';
-        }
-        if (progress.total > 0) {
-            var fraction = progress.downloaded / progress.total;
-            var filled = Math.floor(fraction * width);
-            output = '  ' + style('█'.repeat(filled), 'accent') + style('░'.repeat(width - filled), 'divider');
-            output += '  ' + String(Math.floor(fraction * 100)).padStart(3) + '%\n';
+        if (status === 'running' || progress.total > 0) {
+            output = renderProgress(progress.downloaded, progress.total, dimensions.contentWidth, frame) + '\n';
         }
         var label = '';
         if (progress.total > 0) {
             label = (progress.downloaded / MEBIBYTE).toFixed(1) + ' / ' + (progress.total / MEBIBYTE).toFixed(1) + ' MiB';
         }
-        if (paused) {
-            label = 'Paused after current request';
-        }
         if (status === 'complete') {
-            label = 'Download complete.';
+            label = 'Installation complete.';
         }
         output += '  ' + style(label.slice(0, dimensions.contentWidth), 'muted') + '\n';
         var version = '';
@@ -142,11 +124,11 @@ export default async function downloadScreen(license: string, model: LicenseMode
         for (var index = Math.max(0, logLines.length - capacity); index < logLines.length; index++) {
             output += '  ' + logLines[index] + '\n';
         }
-        var footer = 'Space Pause / resume · Ctrl+C Cancel';
+        var footer = 'Ctrl+C Cancel';
         if (status !== 'running') {
             footer = 'Enter Continue · Ctrl+C Cancel';
         }
-        setSetupLayout('Download ' + model.name, '', footer, '/models/' + model.id);
+        setSetupLayout('Download ' + model.name, '', footer, '/velora/models/' + model.id);
         return useSetupScreen(output);
     });
     try {
