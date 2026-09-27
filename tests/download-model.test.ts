@@ -64,3 +64,59 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+test.each(['valid', 'unconfirmed', 'cancel', 'changed release'])('model replacement preserves confirmed selection: %s', async function (scenario) {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-replace-'));
+    var root = join(directory, 'models', 'model-a');
+    var controller = new AbortController();
+    var revision = 'r1';
+    var sequence = 1;
+    var closed = false;
+    var connect = async function () {
+        return {
+            installation: { packagePath: join(directory, 'engine-package'), release: { version: '0.4.3' } },
+            request: async function (operation: string) {
+                if (operation === 'models') { return {}; }
+                var path = join(root, 'installed', 'model-a', revision);
+                await mkdir(path, { recursive: true });
+                await writeFile(join(root, 'current.json'), JSON.stringify({ model_id: 'model-a', revision, sequence, highest_sequences: { 'model-a': sequence } }));
+                if (sequence === 2 && scenario === 'cancel') {
+                    controller.abort();
+                    throw controller.signal.reason;
+                }
+                var authorized = true;
+                if (sequence === 2 && scenario === 'unconfirmed') { authorized = false; }
+                return { model_id: 'model-a', model_version: String(sequence), engine_version: '0.4.3', path, files_verified: true,
+                    receipt: { model_id: 'model-a', model_revision: revision, engine_revision: 'engine-r1', license_authorized: authorized, reported_hashes_match: true } };
+            },
+            close: async function () { closed = true; }
+        };
+    } as unknown as typeof engineSession;
+    try {
+        var options = { license: 'FIXTURE-LICENSE', modelId: 'model-a', root, signal: controller.signal, onProgress: function () {}, connect };
+        await downloadModel(options);
+        await installedModels({ operation: 'select', id: 'model-a' }, directory);
+        revision = 'r2';
+        sequence = 2;
+        closed = false;
+        var expectedRevision = 'r2';
+        if (scenario === 'changed release') { expectedRevision = 'r3'; }
+        var task = downloadModel({ ...options, update: { version: '2', revision: expectedRevision, sequence: 2 } });
+        var expectedVersion = '1';
+        if (scenario === 'valid') {
+            await task;
+            expectedVersion = '2';
+        } else {
+            await expect(task).rejects.toBeInstanceOf(Error);
+        }
+        var models = await installedModels({ operation: 'list' }, directory);
+        expect(models[0]?.version).toBe(expectedVersion);
+        expect(models[0]?.selected).toBe(true);
+        expect(closed).toBe(true);
+        expect(JSON.parse(await readFile(join(root, 'current.json'), 'utf8')).highest_sequences['model-a']).toBe(2);
+        expect(await readdir(join(root, 'installed', 'model-a'))).toContain('r1');
+        expect(await readdir(join(directory, 'models'))).not.toContain('.velora.lock');
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

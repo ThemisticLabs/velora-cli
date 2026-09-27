@@ -1,7 +1,7 @@
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { ZipFile } from 'yazl';
 
-export default async function enginePackage(scenario = 'valid', engineVersion = '0.4.1') {
+export default async function enginePackage(scenario = 'valid', engineVersion = '0.4.1', revision = 'engine-r1', sequence = 1) {
     var keys = generateKeyPairSync('ed25519');
     var publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
     var content = Buffer.from('synthetic engine, never executed');
@@ -40,7 +40,7 @@ export default async function enginePackage(scenario = 'valid', engineVersion = 
     for (var [name, raw] of Object.entries(files)) {
         hashes[name] = createHash('sha256').update(raw).digest('hex');
     }
-    var manifest = { model_id: 'themistic-engine', version: engineVersion, engine_version: engineVersion, package_revision: 'engine-r1',
+    var manifest = { model_id: 'themistic-engine', version: engineVersion, engine_version: engineVersion, package_revision: revision,
         artifact_kind: 'engine', engine_api: 1, distribution: 'standalone-v1', runtime_target: inventory.runtime_target, files: hashes };
     if (scenario === 'wrong manifest') {
         manifest.runtime_target = 'standalone-windows-x64';
@@ -55,7 +55,7 @@ export default async function enginePackage(scenario = 'valid', engineVersion = 
     for (var [name, raw] of Object.entries(files)) {
         descriptors[name] = { size: raw.length, sha256: createHash('sha256').update(raw).digest('hex') };
     }
-    var release = { ...manifest, runtime_target: inventory.runtime_target, revision: 'engine-r1', sequence: 1, enabled: true, notes: 'Isolated fixture', released_at: '2026-09-27T00:00:00Z', files: descriptors };
+    var release = { ...manifest, runtime_target: inventory.runtime_target, revision, sequence, enabled: true, notes: 'Isolated fixture', released_at: '2026-09-27T00:00:00Z', files: descriptors };
     var requests: Record<string, unknown>[] = [];
     var transport = async function (url: unknown, options?: RequestInit) {
         if (url !== 'https://api.themistic.com/license/engine') {

@@ -1,3 +1,4 @@
+import { semver } from 'bun';
 import { mkdir, lstat, mkdtemp, open, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
@@ -12,7 +13,7 @@ export type EngineProgress = { downloaded: number; total: number; message: strin
 
 export default async function bootstrapEngine(license: string, signal: AbortSignal,
     onProgress: (progress: EngineProgress) => void = function () {},
-    options: { directory?: string; transport?: typeof fetch; publicKey?: string; target?: string } = {}) {
+    options: { directory?: string; transport?: typeof fetch; publicKey?: string; target?: string; update?: boolean; expectedVersion?: string } = {}) {
     if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
         throw new DownloadError('Check the license key and try again.');
     }
@@ -52,7 +53,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
                 throw error;
             }
         }
-        if (saved !== undefined) {
+        if (saved !== undefined && !options.update) {
             var release = packageRelease(saved, target);
             var installation = join(root, release.revision);
             if (!(await lstat(installation)).isDirectory()) {
@@ -70,6 +71,15 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
         var binding = { operation: 'resolve' as const, license_key: license, runtime_target: target };
         var plan = await packageRequest(binding, signal, transport, publicKey);
         var release = packageRelease(plan.metadata.engine, target);
+        if (options.expectedVersion && release.version !== options.expectedVersion) {
+            throw new DownloadError('The available engine version changed. Check for updates again.');
+        }
+        if (saved !== undefined) {
+            var previous = packageRelease(saved, target);
+            if (semver.order(release.version, previous.version) !== 1 || release.sequence <= previous.sequence || release.revision === previous.revision) {
+                throw new DownloadError('No newer engine release is available. Check for updates again.');
+            }
+        }
         var total = 0;
         for (var file of Object.values(release.files)) {
             total += file.size;

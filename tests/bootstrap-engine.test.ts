@@ -44,3 +44,32 @@ test('cancelled bootstrap publishes nothing and releases its lock', async functi
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+test.each(['valid', 'bad manifest signature', 'withdrawn', 'cancel', 'downgrade', 'changed version'])('engine replacement preserves the previous installation: %s', async function (scenario) {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-replace-'));
+    try {
+        var initial = await enginePackage();
+        var old = await bootstrapEngine('FIXTURE-LICENSE', new AbortController().signal, undefined, {
+            directory, transport: initial.transport, publicKey: initial.publicKey, target: 'macosx-14.0-arm64'
+        });
+        var fixtureScenario = 'valid';
+        if (scenario === 'bad manifest signature' || scenario === 'withdrawn') { fixtureScenario = scenario; }
+        var version = '0.4.2';
+        if (scenario === 'downgrade') { version = '0.4.0'; }
+        var next = await enginePackage(fixtureScenario, version, 'engine-r2', 2);
+        var controller = new AbortController();
+        var expectedVersion = version;
+        if (scenario === 'changed version') { expectedVersion = '0.4.3'; }
+        var task = bootstrapEngine('FIXTURE-LICENSE', controller.signal, function (progress) {
+            if (scenario === 'cancel' && progress.downloaded) { controller.abort(); }
+        }, { directory, transport: next.transport, publicKey: next.publicKey, target: 'macosx-14.0-arm64', update: true, expectedVersion });
+        if (scenario === 'valid') { expect((await task).release.version).toBe('0.4.2'); }
+        else { await expect(task).rejects.toBeInstanceOf(Error); }
+        var saved = JSON.parse(await readFile(join(directory, 'engine', 'bootstrap.json'), 'utf8'));
+        var expected = '0.4.1';
+        if (scenario === 'valid') { expected = '0.4.2'; }
+        expect(saved.version).toBe(expected);
+        expect(await readFile(old.executable, 'utf8')).toContain('synthetic engine');
+        expect(await readdir(join(directory, 'engine'))).not.toContain('.bootstrap.lock');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+});
