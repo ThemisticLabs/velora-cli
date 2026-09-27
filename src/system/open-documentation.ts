@@ -1,3 +1,4 @@
+import documentationPath from './documentation-path.js';
 import { execFile } from 'node:child_process';
 
 export default async function openDocumentation(url: string): Promise<boolean> {
@@ -10,6 +11,9 @@ export default async function openDocumentation(url: string): Promise<boolean> {
     if (target.origin !== 'https://docs.themistic.com' || target.username || target.password) {
         return false;
     }
+    target.pathname = documentationPath(target.pathname);
+    target.search = '';
+    target.hash = '';
     var command = 'xdg-open';
     var args = [target.href];
     if (process.platform === 'darwin') {

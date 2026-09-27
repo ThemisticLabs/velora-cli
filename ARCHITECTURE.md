@@ -79,7 +79,7 @@ Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive s
 
 ## Main menu and settings
 
-`menu/main-menu.ts` owns the interactive session. It reads the system credential store once at startup and runs setup only when no key is saved or `velora setup` was requested. For a returning user, `startup-license.ts` verifies the saved key before opening the menu. Invalid keys offer replacement, retry or menu access for recovery. Offline or unverifiable responses never mean the license is expired. The key is replaced only after verification succeeds. Existing startup update consent remains separate.
+`menu/main-menu.ts` owns the interactive session. It reads the system credential store once at startup and runs setup only when no key is saved or `velora setup` was requested. For a returning user, `startup-license.ts` verifies the saved key before opening the menu. Invalid keys offer replacement, retry or menu access for recovery. Offline or unverifiable responses never mean the license is expired. The key is replaced only after verification succeeds. Esc in replacement input returns to the existing recovery screen without another check. Continuing without verification skips the automatic engine update request for that launch. Existing startup update consent remains separate.
 
 `settings-menu.ts` dispatches actions. `model-settings.ts` handles selection and confirmed deletion; `update-settings.ts` edits permissions. Shared prompts keep navigation and the footer stable and scroll when choices do not fit. Esc returns to the previous menu and cancels license input before any verification or storage write. Settings and model lists retain their selection when returning. Ctrl+C closes the entire session. Content and footer share the same left inset; empty subtitles do not reserve a blank row. `terminal/run-terminal-task.ts` keeps asynchronous work cancellable and waits for pending native writes before restoring the terminal.
 
@@ -144,15 +144,15 @@ Bootstrap publishes `<data>/engine/<revision>/{package,runtime}` and `engine/boo
 
 F1 opens documentation without changing the active input or selection. The footer displays the shortcut in every normal setup view. The shared screen hook handles the key; model selection overrides the destination with the highlighted model ID. No license key, device identity or input text is included in the URL.
 
-The license and model documentation routes are published:
+The opener uses the published routes recorded in `src/system/documentation-path.ts`. Add a model route there once its page is published. Unknown model IDs open the model overview; unfinished setup, settings and update routes open the velora overview. No availability request is made when pressing F1.
 
 | Context | URL |
 | --- | --- |
-| Setup and navigation actions | `https://docs.themistic.com/velora/setup` |
+| Setup and navigation actions | `https://docs.themistic.com/velora/` |
 | License input, verification and errors | `https://docs.themistic.com/velora/license-api/` |
 | Highlighted model or its detail pages | `https://docs.themistic.com/velora/models/<model-id>/` |
 
-`src/system/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. The opening status clears when the opener completes; this does not confirm that the page loaded. Browser launch arguments were verified using a test opener on macOS; individual model availability and other platform handlers are not guaranteed by the opener.
+`src/system/open-documentation.ts` restricts destinations to the HTTPS documentation origin and invokes the browser without a shell. macOS uses Safari; Windows and Linux use their system URL handlers. The opening status clears when the opener completes; this does not confirm that the page loaded. Browser launch arguments were verified using a test opener on macOS; the Nivora, Skira 7 Alpha 4, Skira 6.1 and license routes were checked against the public documentation. Other platform handlers are not guaranteed by the opener.
 
 ## Installation checks
 
@@ -174,7 +174,7 @@ A successful `ok` reply alone is insufficient: velora checks the model identity,
 
 The shared `render-progress.ts` renders measured bytes or an indeterminate animation. The download screen retains bounded status messages below it and redraws on resize. Engine 0.4.2 progress events are opt-in and matched to the install request. Byte counts must be nonnegative, monotonic and bounded by a stable total. `verify`, `extract` and `confirm` are indeterminate phases. The terminal accepts combined or fragmented JSON lines. Engine 0.4.1 finishes through the same protocol but provides no byte events. No simulated percentages or unsupported pause control is shown.
 
-Model update checks obtain the device identity from the engine and use signed `/license/check` resolve requests. Independent engine checks use `/license/engine` without a model or device ID and compare the advertised version with `engine/bootstrap.json`, never the version recorded on a model. Neither check activates a device. The update menu has separate velora, Engine and model rows. Engine checks run at startup only with explicit shared-engine consent; available versions appear in the header. Package replacement and automatic installation remain unimplemented.
+Model update checks obtain the device identity from the engine and use signed `/license/check` resolve requests. Independent engine checks use `/license/engine` without a model or device ID and compare the advertised version with `engine/bootstrap.json`, never the version recorded on a model. The referenced package and runtime must pass the existing signature, inventory and file checks before their version is reported as installed. A metadata file alone cannot produce an up-to-date result. Neither check activates a device. The update menu has separate velora, Engine and model rows. Engine checks run at startup only with explicit shared-engine consent; available versions appear in the header. Package replacement and automatic installation remain unimplemented.
 
 Tests use synthetic signed packages and local fixture processes. An optional `VELORA_TEST_ENGINE_BINARY` points to a native macOS Engine 0.4.2 for an end-to-end test against a signed loopback server. This exercises velora’s real session, progress, model receipt, inventory and deletion without production credentials. It does not test production downloads or inference.
 
@@ -194,7 +194,7 @@ Verification includes synthetic license rejection and cancellation tests, an iso
 
 Only explicit `DownloadError` messages are displayed verbatim. Transport, parser and filesystem diagnostics cannot leak arbitrary text through the download UI. Known disk-space and permission failures have fixed actionable messages. Storage paths are checked at each managed model-directory level before writing; symbolic links there are rejected. This is not a sandbox against another process running with the same account and filesystem privileges.
 
-Cancellation waits for the in-flight operation. If publication already completed, setup reports that the model is installed instead of implying that cancellation undid it. Cancelling the subsequent preferences questions leaves the installation intact. A failed preferences write preserves existing settings and reports that they were not changed. The current local engine protocol has no pause/resume commands. Cancellation stops its process and does not release an activated server-side device slot.
+Cancellation waits for the in-flight operation. If publication already completed, setup reports that the model is installed instead of implying that cancellation undid it. Cancelling the subsequent preferences questions leaves the installation intact. A failed preferences read or write preserves existing settings and the completed installation, and reports the settings problem. The current local engine protocol has no pause/resume commands. Cancellation stops its process and does not release an activated server-side device slot.
 
 PTY regression tests run actual prompts with isolated fixture modules and temporary storage through Bun's terminal API. They cover unexpected error redaction, disk-full messages, cancellation before installation, cancellation during publication and cancellation after completion. These PTY tests are skipped on Windows. Sudden power loss, native Windows/Linux credential stores, production model inference and automatic engine updates remain outside the verified scope.
 
