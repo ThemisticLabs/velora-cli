@@ -132,7 +132,13 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                     continue;
                 }
                 await installedModels({ operation: 'select', id: next.id });
-                if (await engineUpdatePreferences()) {
+                try {
+                    if (await engineUpdatePreferences()) {
+                        return true;
+                    }
+                } catch {
+                    setSetupLayout('Model installed. Update settings unavailable.', 'Check engine-updates.json before changing engine permissions.', 'Enter Continue · Ctrl+C Close', '/velora/updates');
+                    await select({ message: '', choices: [{ name: 'Continue', value: 'continue' }] });
                     return true;
                 }
                 setSetupLayout('Engine update checks.', 'Check the shared engine when velora starts.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');

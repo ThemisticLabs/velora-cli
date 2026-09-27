@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import packageInfo from '../package.json';
 
-test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cancel', 'no-model'])('update versions terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cancel', 'no-model', 'current-cli', 'current-model', 'current-engine', 'offline-cli', 'broken-engine'])('update versions terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var decoder = new TextDecoder();
@@ -14,14 +14,14 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cance
             output += frame;
             if (phase === 0 && frame.includes('Not checked')) {
                 phase++;
-                if (scenario === 'model' || scenario === 'cancel') {
+                if (scenario === 'model' || scenario === 'cancel' || scenario === 'current-model') {
                     terminal.write('\u001b[B\u001b[B');
                 }
-                if (scenario === 'engine') { terminal.write('\u001b[B'); }
+                if (scenario === 'engine' || scenario === 'current-engine' || scenario === 'broken-engine') { terminal.write('\u001b[B'); }
                 terminal.write('\r');
                 return;
             }
-            if (phase === 1 && (frame.includes('Update available') || scenario === 'cancel' && frame.includes('Checking…'))) {
+            if (phase === 1 && (frame.includes('Update available') || frame.includes('Up to date') || frame.includes('Unavailable') || scenario === 'cancel' && frame.includes('Checking…'))) {
                 phase++;
                 terminal.write('\u001b');
             }
@@ -31,6 +31,11 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'model', 'cance
     try {
         expect(await child.exited, output).toBe(0);
         expect(output).toContain('Updates verified.');
+        if (scenario.startsWith('current-')) { expect(output).toContain('Up to date'); }
+        if (scenario === 'offline-cli' || scenario === 'broken-engine') {
+            expect(output).toContain('Unavailable');
+            expect(output).not.toContain('Up to date');
+        }
         expect(output).toContain('Installed');
         expect(output).toContain('Available');
         expect(output).toContain(packageInfo.version);

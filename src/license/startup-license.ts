@@ -5,12 +5,12 @@ import select from '../setup/select-option.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 
-export default async function startupLicense(license: string): Promise<void> {
+export default async function startupLicense(license: string): Promise<boolean> {
+    setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/velora/license-api/');
+    var result = await runTerminalTask(function (signal, progress) { return licenseAccess(license, signal, undefined, progress); });
     while (true) {
-        setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/velora/license-api/');
-        var result = await runTerminalTask(function (signal, progress) { return licenseAccess(license, signal, undefined, progress); });
         if (result.ok) {
-            return;
+            return true;
         }
         var title = 'License could not be checked.';
         if ('reason' in result && ['expired', 'revoked', 'unknown_key'].includes(result.reason || '')) {
@@ -27,9 +27,11 @@ export default async function startupLicense(license: string): Promise<void> {
             { name: 'Continue to menu', value: 'continue' }
         ] });
         if (choice === 'continue') {
-            return;
+            return false;
         }
         if (choice === 'retry') {
+            setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/velora/license-api/');
+            result = await runTerminalTask(function (signal, progress) { return licenseAccess(license, signal, undefined, progress); });
             continue;
         }
         setSetupLayout('Change license', '', 'Enter Continue · Esc Back · Ctrl+C Quit', '/velora/license-api/');
@@ -42,7 +44,7 @@ export default async function startupLicense(license: string): Promise<void> {
             return manageLicense({ operation: 'set', license: replacement }, signal, undefined, progress);
         });
         if (saved.ok) {
-            return;
+            return true;
         }
         setSetupLayout('License not saved.', saved.message, 'Esc Back · Ctrl+C Quit', '/velora/license-api/');
         await select({ back: true, message: '', choices: [] });

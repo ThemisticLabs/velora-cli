@@ -5,6 +5,7 @@ var scenario = process.argv[2];
 var setupCalls = 0;
 var licenseCalls = 0;
 var updateCalls = 0;
+var engineCalls = 0;
 var models = [{ id: 'skira7alpha', name: 'Skira 7 Alpha', version: '1', revision: 'r1', sequence: 1, engineVersion: '0.1.1', selected: true }];
 if (scenario === 'switch') {
     for (var index = 1; index <= 12; index++) {
@@ -51,13 +52,23 @@ mock.module('../../src/updates/cli-update.js', function () {
     return { default: async function () { updateCalls++; return null; }, updateCheckStatus: status, availableVersion: null };
 });
 mock.module('../../src/license/license-access.js', function () {
-    return { default: async function () { return { ok: true }; } };
+    return { default: async function () {
+        if (scenario === 'skip-license') { return { ok: false, message: 'Offline' }; }
+        return { ok: true };
+    } };
 });
 mock.module('../../src/updates/engine-update-preferences.js', function () {
-    return { default: async function () { return null; } };
+    return { default: async function () { return { checkAutomatically: true }; } };
+});
+mock.module('../../src/updates/engine-update.js', function () {
+    return { availableEngineVersion: null, default: async function () {
+        engineCalls++;
+        return {};
+    } };
 });
 await (await import('../../src/menu/main-menu.js')).default();
 assert.equal(setupCalls, Number(scenario === 'first'));
+assert.equal(engineCalls, Number(scenario !== 'skip-license'));
 if (scenario === 'delete') {
     assert.equal(models.length, 0);
 } else if (scenario === 'switch') {

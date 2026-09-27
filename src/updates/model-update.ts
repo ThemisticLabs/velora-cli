@@ -5,7 +5,7 @@ import packageRequest from '../downloads/package-request.js';
 import DownloadError from '../downloads/download-error.js';
 
 export default async function modelUpdate(model: InstalledModel, signal: AbortSignal,
-    services = { store: licenseStore, connect: engineSession, request: packageRequest }): Promise<{ message: string; available?: { version: string } }> {
+    services = { store: licenseStore, connect: engineSession, request: packageRequest }): Promise<{ message: string; current?: boolean; available?: { version: string } }> {
     var license = await services.store({ operation: 'read' });
     if (!license) {
         return { message: 'Save a license before checking model updates.' };
@@ -28,7 +28,7 @@ export default async function modelUpdate(model: InstalledModel, signal: AbortSi
             throw new DownloadError('The server returned an invalid model update plan.');
         }
         if (release.sequence <= model.sequence) {
-            return { message: 'No newer model package is available.' };
+            return { current: true, message: 'No newer model package is available.' };
         }
         return { message: 'Update available. Package replacement is not available yet.', available: { version: release.version } };
     } finally {

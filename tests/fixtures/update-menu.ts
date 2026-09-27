@@ -7,14 +7,19 @@ var modelCalls = 0;
 var cancelled = false;
 var model = { id: 'skira7alpha', name: 'Skira 7 Alpha', version: '1.0', revision: 'r1', sequence: 1, engineVersion: '0.1.1', selected: true };
 mock.module('../../src/updates/cli-update.js', function () {
-    return { availableVersion: null, updateCheckStatus: 'available', default: async function () {
+    var status = 'available';
+    if (scenario === 'current-cli') { status = 'current'; }
+    if (scenario === 'offline-cli') { status = 'unavailable'; }
+    return { availableVersion: null, updateCheckStatus: status, default: async function () {
         cliCalls++;
+        if (scenario === 'current-cli' || scenario === 'offline-cli') { return null; }
         return '2.0.0';
     } };
 });
 mock.module('../../src/updates/model-update.js', function () {
     return { default: async function (_model: unknown, signal: AbortSignal) {
         modelCalls++;
+        if (scenario === 'current-model') { return { current: true, message: 'No newer model package is available.' }; }
         if (scenario === 'cancel') {
             await new Promise<void>(function (resolve) {
                 signal.addEventListener('abort', function () { cancelled = true; resolve(); }, { once: true });
@@ -25,6 +30,8 @@ mock.module('../../src/updates/model-update.js', function () {
 });
 mock.module('../../src/updates/engine-update.js', function () {
     return { availableEngineVersion: null, default: async function () {
+        if (scenario === 'current-engine') { return { installed: '0.4.1', current: true, message: 'The engine is up to date.' }; }
+        if (scenario === 'broken-engine') { return { message: 'The engine installation is incomplete.' }; }
         return { installed: '0.4.1', available: '0.4.2', message: 'Update available.' };
     } };
 });
@@ -34,7 +41,7 @@ if (scenario === 'no-model') {
 } else {
     await showUpdates(model);
 }
-assert.equal(cliCalls, Number(scenario === 'cli' || scenario === 'no-model'));
-assert.equal(modelCalls, Number(scenario === 'model' || scenario === 'cancel'));
+assert.equal(cliCalls, Number(scenario === 'cli' || scenario === 'no-model' || scenario === 'current-cli' || scenario === 'offline-cli'));
+assert.equal(modelCalls, Number(scenario === 'model' || scenario === 'cancel' || scenario === 'current-model'));
 assert.equal(cancelled, scenario === 'cancel');
 process.stdout.write('Updates verified.\n');

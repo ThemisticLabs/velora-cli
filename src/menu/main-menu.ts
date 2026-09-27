@@ -47,12 +47,13 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 return;
             }
         }
+        var licenseVerified = true;
         if (!startSetup && savedLicense) {
-            await startupLicense(savedLicense);
+            licenseVerified = await startupLicense(savedLicense);
         }
         try {
             var enginePreferences = await engineUpdatePreferences();
-            if (enginePreferences?.checkAutomatically) {
+            if (licenseVerified && enginePreferences?.checkAutomatically) {
                 setSetupLayout('Checking engine updates…', '', 'Ctrl+C Close', '/velora/updates');
                 await runTerminalTask(function (signal) { return engineUpdate(signal); });
             }

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 
 var scenario = process.argv[2];
 var choices = ['license', 'saved', 'download', 'yes', 'no'];
+if (scenario === 'corrupt-preferences') {
+    choices = ['license', 'saved', 'download', 'continue'];
+}
 if (scenario === 'navigation') {
     choices = ['public', 'back', 'license', 'saved', 'retry', 'saved', 'back', 'download', 'license', 'saved'];
 }
@@ -70,6 +73,7 @@ mock.module('../../src/setup/download-screen.js', function () {
 });
 mock.module('../../src/updates/engine-update-preferences.js', function () {
     return { default: async function (preferences?: unknown) {
+        if (scenario === 'corrupt-preferences') { throw new Error('Unreadable preferences'); }
         if (!preferences) { return null; }
         assert.deepEqual(preferences, { checkAutomatically: true, installAutomatically: false });
         saved = true;

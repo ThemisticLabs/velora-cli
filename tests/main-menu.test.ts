@@ -2,16 +2,22 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete'])('main menu terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license'])('main menu terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
+    var recoverySent = false;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/main-menu.ts', import.meta.url)), scenario], {
         terminal: { cols: 60, rows: 20, data: function (terminal, data) {
             var frame = Buffer.from(data).toString('utf8');
             output += frame;
+            if (!recoverySent && scenario === 'skip-license' && frame.includes('Change license')) {
+                recoverySent = true;
+                terminal.write('\u001b[B\u001b[B\r');
+                return;
+            }
             if (phase === 0 && frame.includes('Selected model: Skira 7 Alpha')) {
                 phase++;
-                if (scenario === 'first' || scenario === 'returning') {
+                if (scenario === 'first' || scenario === 'returning' || scenario === 'skip-license') {
                     terminal.write('\u0003');
                     return;
                 }

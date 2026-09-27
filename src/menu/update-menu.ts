@@ -16,9 +16,9 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
     var task: Promise<void> | undefined;
     var prompt = createPrompt<void, Record<string, never>>(function (_config, done) {
         var [checking, setChecking] = useState('');
-        var [cliVersion, setCliVersion] = useState('-');
-        var [modelVersion, setModelVersion] = useState('-');
-        var [engineVersion, setEngineVersion] = useState('-');
+        var [cliVersion, setCliVersion] = useState('Not checked');
+        var [modelVersion, setModelVersion] = useState('Not checked');
+        var [engineVersion, setEngineVersion] = useState('Not checked');
         var [installedEngine, setInstalledEngine] = useState('Not checked');
         var [engineStatus, setEngineStatus] = useState('Not checked');
         var [cliStatus, setCliStatus] = useState('Not checked');
@@ -36,7 +36,10 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                         if (!active) {
                             return;
                         }
-                        setCliVersion(version || '-');
+                        var available = 'Unavailable';
+                        if (updateCheckStatus === 'current') { available = 'Up to date'; }
+                        if (version) { available = version; }
+                        setCliVersion(available);
                         var message = 'Could not check. Try again.';
                         if (updateCheckStatus === 'current') {
                             message = 'velora is up to date.';
@@ -51,8 +54,11 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                         if (!active) {
                             return;
                         }
-                        setInstalledEngine(engineReport.installed || 'Not installed');
-                        setEngineVersion(engineReport.available || '-');
+                        setInstalledEngine(engineReport.installed || 'Unknown');
+                        var available = 'Unavailable';
+                        if (engineReport.current) { available = 'Up to date'; }
+                        if (engineReport.available) { available = engineReport.available; }
+                        setEngineVersion(available);
                         setEngineStatus(engineReport.message);
                     }
                     if (checking === 'model' && model) {
@@ -60,7 +66,10 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                         if (!active) {
                             return;
                         }
-                        setModelVersion(report.available?.version || '-');
+                        var available = 'Unavailable';
+                        if (report.current) { available = 'Up to date'; }
+                        if (report.available) { available = report.available.version; }
+                        setModelVersion(available);
                         setModelStatus(report.message);
                     }
                 } catch (error) {
@@ -70,13 +79,13 @@ export default async function updateMenu(model?: InstalledModel): Promise<void> 
                             message = error.message;
                         }
                         if (checking === 'cli') {
-                            setCliVersion('-');
+                            setCliVersion('Unavailable');
                             setCliStatus(message);
                         } else if (checking === 'engine') {
-                            setEngineVersion('-');
+                            setEngineVersion('Unavailable');
                             setEngineStatus(message);
                         } else {
-                            setModelVersion('-');
+                            setModelVersion('Unavailable');
                             setModelStatus(message);
                         }
                     }
