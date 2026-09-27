@@ -35,6 +35,7 @@ test.each(['newer', 'current', 'older', 'missing', 'invalid', 'no license', 'mis
         var release = availableFixture.release;
         var requests = 0;
         var report = await engineUpdate(new AbortController().signal, {
+            install: async function () { throw new Error('A check must not install an engine.'); },
             verify: async function (packagePath, runtimePath, release, signal) { return engineRuntime(packagePath, runtimePath, release, signal, fixture.publicKey); },
             directory: function () { return directory; },
             target: async function () { return 'macosx-14.0-arm64'; },

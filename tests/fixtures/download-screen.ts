@@ -22,7 +22,7 @@ mock.module(source + 'downloads/download-model.ts', function () {
         if (scenario === 'cancel-during-finalize') {
             options.onProgress({ downloaded: 10, total: 10, message: 'Finishing fixture installation.' });
             await delay(150);
-            return { cleanupRequired: scenario === 'cleanup failure' };
+            return { cleanupRequired: false };
         }
         if (scenario === 'cancel-before-install') {
             options.onProgress({ downloaded: 0, total: 10, message: 'Waiting for fixture transfer.' });

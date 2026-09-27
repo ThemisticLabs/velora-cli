@@ -4,6 +4,8 @@ import enginePackage from './fixtures/engine-package.js';
 import engineSession from '../src/engine/engine-session.js';
 import type bootstrapEngine from '../src/engine/bootstrap-engine.js';
 
+var ENGINE_REQUEST_TIMEOUT_MS = 10000;
+var TEST_TIMEOUT_MS = 15000;
 var executable = process.env.VELORA_TEST_ENGINE_BINARY;
 test.skipIf(!executable)('native 0.4.4 protocol rejects combined installation', async function () {
     var fixture = await enginePackage('valid', '0.4.4');
@@ -11,7 +13,7 @@ test.skipIf(!executable)('native 0.4.4 protocol rejects combined installation', 
         return { executable: executable!, packagePath: dirname(executable!), runtimePath: dirname(executable!),
             release: fixture.release, target: fixture.release.runtime_target };
     };
-    var session = await engineSession('ISOLATED-TEST-LICENSE', AbortSignal.timeout(10000), undefined, bootstrap);
+    var session = await engineSession('ISOLATED-TEST-LICENSE', AbortSignal.timeout(ENGINE_REQUEST_TIMEOUT_MS), undefined, bootstrap);
     try {
         var version = await session.request('version');
         expect(version.version).toBe('0.4.4');
@@ -21,4 +23,4 @@ test.skipIf(!executable)('native 0.4.4 protocol rejects combined installation', 
     } finally {
         await session.close();
     }
-}, 15000);
+}, TEST_TIMEOUT_MS);

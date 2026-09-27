@@ -19,7 +19,7 @@ mock.module('../../src/license/manage-license.js', function () {
     } };
 });
 var verified = await (await import('../../src/license/startup-license.js')).default('FIXTURE-PRIVATE');
-assert.equal(verified, ['valid', 'retry', 'change'].includes(scenario));
+assert.equal(verified, ['valid', 'retry', 'change'].includes(scenario || ''));
 assert.equal(saves, Number(scenario === 'change'));
 assert.equal(calls, 1 + Number(scenario === 'retry'));
 process.stdout.write('Startup verified.\n');

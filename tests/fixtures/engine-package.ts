@@ -1,4 +1,5 @@
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import type { PackageRelease } from '../../src/downloads/package-release.js';
 import { ZipFile } from 'yazl';
 
 export default async function enginePackage(scenario = 'valid', engineVersion = '0.4.1', revision = 'engine-r1', sequence = 1) {
@@ -45,9 +46,9 @@ export default async function enginePackage(scenario = 'valid', engineVersion = 
     if (scenario === 'wrong manifest') {
         manifest.runtime_target = 'standalone-windows-x64';
     }
-    var raw = Buffer.from(JSON.stringify(manifest));
-    files['manifest.json'] = raw;
-    files['manifest.sig'] = sign(null, raw, keys.privateKey);
+    var manifestBytes = Buffer.from(JSON.stringify(manifest));
+    files['manifest.json'] = manifestBytes;
+    files['manifest.sig'] = sign(null, manifestBytes, keys.privateKey);
     if (scenario === 'bad manifest signature') {
         files['manifest.sig'] = Buffer.alloc(64);
     }
@@ -55,7 +56,11 @@ export default async function enginePackage(scenario = 'valid', engineVersion = 
     for (var [name, raw] of Object.entries(files)) {
         descriptors[name] = { size: raw.length, sha256: createHash('sha256').update(raw).digest('hex') };
     }
-    var release = { ...manifest, runtime_target: inventory.runtime_target, revision, sequence, enabled: true, notes: 'Isolated fixture', released_at: '2026-09-27T00:00:00Z', files: descriptors };
+    var release: PackageRelease & { notes: string; released_at: string; package_revision: string } = {
+        ...manifest, artifact_kind: 'engine', distribution: 'standalone-v1',
+        runtime_target: inventory.runtime_target, revision, sequence, enabled: true,
+        notes: 'Isolated fixture', released_at: '2026-09-27T00:00:00Z', files: descriptors
+    };
     var requests: Record<string, unknown>[] = [];
     var transport = async function (url: unknown, options?: RequestInit) {
         if (url !== 'https://api.themistic.com/license/engine') {

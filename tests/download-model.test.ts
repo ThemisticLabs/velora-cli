@@ -2,6 +2,7 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import enginePackage from './fixtures/engine-package.js';
 import downloadModel from '../src/downloads/download-model.js';
 import installedModels from '../src/models/installed-models.js';
 import type engineSession from '../src/engine/engine-session.js';
@@ -14,10 +15,12 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
     var closed = false;
     var operations: string[] = [];
     try {
-        var connect = async function () {
+        var fixture = await enginePackage();
+        var connect: typeof engineSession = async function () {
             return {
-                installation: { packagePath: join(directory, 'engine-package'), runtimePath: join(directory, 'engine-runtime'), release: { version: '0.4.1', revision: 'engine-r1' } },
-                request: async function (operation: string, fields: Record<string, unknown>) {
+                installation: { executable: join(directory, 'engine'), target: fixture.release.runtime_target,
+                    packagePath: join(directory, 'engine-package'), runtimePath: join(directory, 'engine-runtime'), release: fixture.release },
+                request: async function (operation: string, fields: Record<string, unknown> = {}) {
                     operations.push(operation);
                     if (operation === 'models') {
                         expect(fields).toEqual({ license_key: 'FIXTURE-LICENSE' });
@@ -43,7 +46,7 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
                 },
                 close: async function () { closed = true; }
             };
-        } as unknown as typeof engineSession;
+        };
         if (scenario === 'retry') {
             await mkdir(path, { recursive: true });
             await writeFile(join(root, 'current.json'), JSON.stringify({ model_id: 'model-a', revision: 'r1', sequence: 1 }));

@@ -17,6 +17,8 @@ export type DownloadOptions = {
 
 export default async function downloadModel(options: DownloadOptions) {
     var { license, modelId, signal, onProgress } = options;
+    var MAX_MODEL_VERSION_LENGTH = 256;
+    var MAX_REVISION_LENGTH = 96;
     if (!/^[A-Z0-9-]{8,64}$/.test(license) || !/^[a-z0-9_-]{2,64}$/.test(modelId) || modelId === 'engine') {
         throw new DownloadError('Invalid license or model.');
     }
@@ -66,9 +68,15 @@ export default async function downloadModel(options: DownloadOptions) {
             engine_runtime: session.installation.runtimePath, progress: true
         });
         var receipt = result.receipt;
-        if (result.model_id !== modelId || result.files_verified !== true || typeof result.model_version !== 'string' ||
-            !result.model_version || result.model_version.length > 256 || /[\x00-\x1f\x7f-\x9f]/.test(result.model_version) ||
-            !isRecord(receipt) || receipt.model_id !== modelId || receipt.license_authorized !== true || receipt.reported_hashes_match !== true) {
+        if (result.model_id !== modelId || result.files_verified !== true) {
+            throw new DownloadError('The engine did not verify the selected model. Retry the installation.');
+        }
+        if (typeof result.model_version !== 'string' || !result.model_version ||
+            result.model_version.length > MAX_MODEL_VERSION_LENGTH || /[\x00-\x1f\x7f-\x9f]/.test(result.model_version)) {
+            throw new DownloadError('The engine returned an invalid model version. Check for an engine update in Settings.');
+        }
+        if (!isRecord(receipt) || receipt.model_id !== modelId ||
+            receipt.license_authorized !== true || receipt.reported_hashes_match !== true) {
             throw new DownloadError('The engine did not confirm a verified installation. Retry the installation.');
         }
         if (result.engine_changed !== false || result.engine_version !== session.installation.release.version ||
@@ -76,7 +84,7 @@ export default async function downloadModel(options: DownloadOptions) {
             throw new DownloadError('The installation does not match your engine. Check for an engine update in Settings, then try again.');
         }
         for (var revision of [receipt.model_revision, receipt.engine_revision]) {
-            if (typeof revision !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$/.test(revision) || revision.endsWith('.') ||
+            if (typeof revision !== 'string' || revision.length > MAX_REVISION_LENGTH || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(revision) || revision.endsWith('.') ||
                 /^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(?:\.|$)/i.test(revision)) {
                 throw new DownloadError('The engine returned an invalid installation revision.');
             }

@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import packageInfo from '../package.json';
+import packageInfo from '../package.json' with { type: 'json' };
 
 test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-model', 'current-cli', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine'])('update versions terminal: %s', async function (scenario) {
     var output = '';
