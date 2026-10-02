@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer } from 'node:net';
 
 var DOCTOR_PATH = new URL('../src/commands/doctor.ts', import.meta.url).href;
 
@@ -18,6 +19,8 @@ test('doctor checks PATH without executing the command and removes its storage p
         var result = runDoctor(directory, 'ready', directory);
         assert.equal(result.status, 0, result.stdout + result.stderr);
         assert.match(result.stdout, /HTTP 200/);
+        assert.match(result.stdout, /Local API port/);
+        assert.match(result.stdout, /127\.0\.0\.1:8001/);
         assert.match(result.stdout, /parent is writable/);
         assert.ok(result.stdout.includes(join(directory, commandName)));
         assert.doesNotMatch(result.stdout, /SHOULD_NOT_RUN|\u001b\[/);
@@ -91,6 +94,54 @@ test.each(['existing', 'file', 'permission', 'write', 'cleanup', 'write and clea
             assert.deepEqual(remainingFiles, []);
         }
     } finally {
+        rmSync(directory, { recursive: true });
+    }
+});
+
+test.each(['available', 'occupied', 'invalid'])('doctor checks the configured local API port: %s', async function (scenario) {
+    var directory = mkdtempSync(join(tmpdir(), 'velora-doctor-port-'));
+    var server = createServer();
+    try {
+        await new Promise(function (resolve, reject) {
+            server.once('error', reject);
+            server.listen({ host: '127.0.0.1', port: 0 }, resolve);
+        });
+        var port = server.address().port;
+        if (scenario !== 'occupied') {
+            await new Promise(function (resolve) { server.close(resolve); });
+        }
+        mkdirSync(join(directory, 'data'));
+        var contents = JSON.stringify({ port });
+        if (scenario === 'invalid') {
+            contents = '{broken';
+        }
+        writeFileSync(join(directory, 'data', 'api.json'), contents);
+        var result = runDoctor(directory, 'ready');
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        if (scenario === 'available') {
+            assert.match(result.stdout, /OK\s+Local API port/);
+            assert.match(result.stdout, /Available now/);
+            await new Promise(function (resolve, reject) {
+                server.once('error', reject);
+                server.listen({ host: '127.0.0.1', port }, resolve);
+            });
+        } else {
+            assert.match(result.stdout, /Action\s+Local API port/);
+        }
+        if (scenario === 'occupied') {
+            assert.ok(result.stdout.includes('http://127.0.0.1:' + port));
+            assert.match(result.stdout, /already in use.*Settings/);
+            assert.ok(server.listening);
+        }
+        if (scenario === 'invalid') {
+            assert.match(result.stdout, /Could not read API settings/);
+            assert.doesNotMatch(result.stdout, /Available now/);
+        }
+        assert.deepEqual(readdirSync(join(directory, 'data')), ['api.json']);
+    } finally {
+        if (server.listening) {
+            await new Promise(function (resolve) { server.close(resolve); });
+        }
         rmSync(directory, { recursive: true });
     }
 });

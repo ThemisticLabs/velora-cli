@@ -64,7 +64,7 @@ program.command('setup')
     .action(function () { return mainMenu(true); });
 
 program.command('doctor')
-    .description('Check your system, global command, storage and server connection')
+    .description('Check your system, global command, storage, local API port and server connection')
     .action(function () {
         return doctor();
     });

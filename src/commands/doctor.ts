@@ -1,11 +1,13 @@
 import { access, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { release } from 'node:os';
+import { createServer } from 'node:net';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
 import { availableVersion } from '../updates/cli-update.js';
 import defaultDataDirectory from '../system/data-directory.js';
 import packageInfo from '../../package.json' with { type: 'json' };
 import style from '../terminal/style.js';
+import apiSettings from '../api/api-settings.js';
 
 type Check = {
     name: string;
@@ -34,7 +36,10 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
     var serverCheck: Check = {
         name: 'License server', status: 'Waiting', detail: 'No license key will be sent.'
     };
-    var checks = [systemCheck, commandCheck, storageCheck, serverCheck];
+    var portCheck: Check = {
+        name: 'Local API port', status: 'Waiting', detail: 'Checking the saved port next.'
+    };
+    var checks = [systemCheck, commandCheck, storageCheck, portCheck, serverCheck];
     process.on('SIGINT', cancel);
     if (interactive) {
         process.stdout.write(ENTER_SCREEN);
@@ -139,6 +144,44 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
             }
             storageCheck.status = 'Action';
             storageCheck.detail = failure;
+        }
+        if (controller.signal.aborted) {
+            return;
+        }
+
+        portCheck.status = 'Checking';
+        render(checks, 'progress');
+        var portFailure = 'Could not read API settings. Check api.json and storage access.';
+        try {
+            var settings = await apiSettings(undefined, dataDirectory);
+            var address = 'http://127.0.0.1:' + settings.port;
+            portCheck.detail = address;
+            portFailure = 'Could not bind ' + address + '. Check system network permissions.';
+            var probe = createServer(function (connection) { connection.destroy(); });
+            try {
+                await new Promise<void>(function (resolve, reject) {
+                    probe.once('error', reject);
+                    probe.listen({ host: '127.0.0.1', port: settings.port, exclusive: true }, resolve);
+                });
+                portCheck.status = 'OK';
+                portCheck.detail = address + ' · Available now';
+            } finally {
+                if (probe.listening) {
+                    await new Promise<void>(function (resolve, reject) {
+                        probe.close(function (error) {
+                            if (error) { reject(error); return; }
+                            resolve();
+                        });
+                    });
+                }
+            }
+        } catch (error) {
+            portCheck.status = 'Action';
+            if (error instanceof Error && 'code' in error && error.code === 'EADDRINUSE') {
+                portCheck.detail += ' · Port is already in use. Choose another port in Settings.';
+            } else {
+                portCheck.detail = portFailure;
+            }
         }
         if (controller.signal.aborted) {
             return;
