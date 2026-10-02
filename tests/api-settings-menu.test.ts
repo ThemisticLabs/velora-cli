@@ -1,15 +1,20 @@
 import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
+import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 test.skipIf(process.platform === 'win32').each(['save', 'invalid', 'back', 'default', 'unreadable', 'reset'])('API port menu: %s', async function (scenario) {
     var output = '';
+    var coloredOutput = '';
     var phase = 0;
     var decoder = new TextDecoder();
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/api-settings.ts', import.meta.url)), scenario], {
+        env: { ...process.env, TERM: 'xterm-256color', NO_COLOR: undefined, FORCE_COLOR: '1' },
         terminal: { cols: 70, rows: 22, data: function (terminal, bytes) {
-            var frame = decoder.decode(bytes, { stream: true });
-            output += frame;
+            var raw = decoder.decode(bytes, { stream: true });
+            coloredOutput += raw;
+            var frame = stripVTControlCharacters(raw);
+            output = stripVTControlCharacters(coloredOutput);
             if (phase === 0 && scenario === 'unreadable' && frame.includes('Could not read API settings')) {
                 phase = 3;
                 terminal.write('\u001b');

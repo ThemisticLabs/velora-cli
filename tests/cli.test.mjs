@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { test } from 'bun:test';
 
 var executable = '../dist/velora';
@@ -16,7 +17,7 @@ test('help works from another directory through every supported form', function 
     for (var args of [[], ['help'], ['--help'], ['-h']]) {
         var result = spawnSync(CLI_PATH, args, { cwd: tmpdir(), encoding: 'utf8' });
         assert.equal(result.status, 0);
-        assert.match(result.stdout, /Usage: velora/);
+        assert.match(stripVTControlCharacters(result.stdout), /Usage: velora/);
         assert.match(result.stdout, /not available yet/);
         assert.equal(result.stderr, '');
     }
@@ -70,7 +71,7 @@ test('help supports color without changing its content', function () {
     assert.equal(colored.status, 0);
     assert.match(colored.stdout, /\u001b\[38;2;104;107;231m/);
     assert.doesNotMatch(plain.stdout, /\u001b\[/);
-    assert.equal(colored.stdout.replace(/\u001b\[[0-9;]*m/g, ''), plain.stdout);
+    assert.equal(stripVTControlCharacters(colored.stdout), plain.stdout);
 });
 
 test('NO_COLOR and dumb terminals disable help colors', function () {
@@ -103,7 +104,7 @@ test('setup requires an interactive terminal and exposes installation help', fun
 test('doctor is discoverable and has command help without running checks', function () {
     var help = spawnSync(CLI_PATH, ['doctor', '--help'], { encoding: 'utf8' });
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /Usage: velora doctor/);
+    assert.match(stripVTControlCharacters(help.stdout), /Usage: velora doctor/);
     assert.match(help.stdout, /server connection/);
     assert.doesNotMatch(help.stdout, /No license checked|HTTP [0-9]/);
     var typo = spawnSync(CLI_PATH, ['doctr'], { encoding: 'utf8' });
