@@ -14,7 +14,7 @@ export type EngineProgress = { downloaded: number; total: number; message: strin
 export default async function bootstrapEngine(license: string, signal: AbortSignal,
     onProgress: (progress: EngineProgress) => void = function () {},
     options: { directory?: string; transport?: typeof fetch; publicKey?: string; target?: string; update?: boolean; installedOnly?: boolean; expectedVersion?: string } = {}) {
-    if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
+    if (!options.installedOnly && !/^[A-Z0-9-]{8,64}$/.test(license)) {
         throw new DownloadError('Check the license key and try again.');
     }
     var target = options.target || await runtimeTarget(signal);
@@ -23,8 +23,18 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
     var publicKey = options.publicKey || PACKAGE_PUBLIC_KEY;
     var transport = options.transport || fetch;
     for (var parent of [directory, root]) {
-        await mkdir(parent, { recursive: true, mode: 0o700 });
-        if (!(await lstat(parent)).isDirectory()) {
+        if (!options.installedOnly) {
+            await mkdir(parent, { recursive: true, mode: 0o700 });
+        }
+        try {
+            var parentInfo = await lstat(parent);
+        } catch (error) {
+            if (options.installedOnly && error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+                throw new DownloadError('No installed engine is available. Complete setup before checking the license.');
+            }
+            throw error;
+        }
+        if (!parentInfo.isDirectory()) {
             throw new DownloadError('Engine storage must be a directory, not a link.');
         }
     }

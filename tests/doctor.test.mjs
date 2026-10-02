@@ -152,14 +152,16 @@ test('doctor publishes progress without printing a second terminal report', func
         var result = runDoctor(directory, 'progress');
         assert.equal(result.status, 0, result.stderr);
         var reports = JSON.parse(result.stdout);
-        assert.equal(reports.length, 6);
+        assert.equal(reports[0].length, 9);
         assert.equal(reports[0][1].status, 'Checking');
         assert.equal(reports[1][2].status, 'Checking');
         assert.equal(reports[2][3].status, 'Checking');
         assert.equal(reports[3][4].status, 'Checking');
         assert.equal(reports[4][4].status, 'OK');
         assert.equal(reports[4][5].status, 'Checking');
-        assert.equal(reports[5][5].status, 'Warning');
+        assert.equal(reports.at(-1)[6].status, 'Warning');
+        assert.equal(reports.at(-1)[7].status, 'Warning');
+        assert.equal(reports.at(-1)[8].status, 'Warning');
     } finally {
         rmSync(directory, { recursive: true });
     }
@@ -214,6 +216,10 @@ function runDoctor(directory, scenario, commandPath = '') {
         var { default: doctor } = await import(${JSON.stringify(DOCTOR_PATH)});
         var reports = [];
         var doctorOptions = {
+            connect: async function () {
+                return { installation: { release: { version: '0.4.4' } }, request: async function () { return {}; }, close: async function () {} };
+            },
+            models: async function () { return []; },
             store: async function () {
                 if (scenario.startsWith('license ')) { return 'PRIVATE-LICENSE-KEY'; }
                 return null;

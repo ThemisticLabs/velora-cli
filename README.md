@@ -46,7 +46,7 @@ Press F1 for documentation for the current step or selected model. Model and lic
 
 ## Check your installation
 
-Run `velora doctor`, or `bun run start doctor` from the source checkout. It reports your system, checks whether the global command is in PATH, tests storage access and checks license-server reachability and validates your saved license through the installed engine. Missing licenses show a warning; invalid licenses show an error. Doctor does not download an engine.
+Run `velora doctor`, or `bun run start doctor` from the source checkout. It reports your system, checks whether the global command is in PATH, tests storage access and checks license-server reachability and validates your saved license through the installed engine. Missing licenses show a warning; invalid licenses show an error. Doctor also verifies the installed engine protocol, loads the selected model and runs a short synthetic inference request. It reports the engine and model versions, then closes its temporary engine session. Missing prerequisites appear as warnings instead of successful checks. Doctor does not download an engine or model.
 
 Checks that need attention include a next step. A completed report exits normally, even when a check needs attention. Read the individual results; exit code 0 does not mean every check passed. These checks do not verify engine or model readiness.
 

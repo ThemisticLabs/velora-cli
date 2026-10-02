@@ -10,7 +10,8 @@ import style from '../terminal/style.js';
 import licenseStore from '../license/license-store.js';
 import licenseAccess from '../license/license-access.js';
 import engineSession from '../engine/engine-session.js';
-import bootstrapEngine from '../engine/bootstrap-engine.js';
+import doctorEngine from './doctor-engine.js';
+import installedModels from '../models/installed-models.js';
 import apiSettings from '../api/api-settings.js';
 
 export type DoctorCheck = {
@@ -19,7 +20,7 @@ export type DoctorCheck = {
     detail: string;
 };
 
-export default async function doctor(transport = fetch, dataDirectory?: string, options: { signal?: AbortSignal; onProgress?: (checks: DoctorCheck[]) => void; store?: typeof licenseStore; checkLicense?: typeof licenseAccess } = {}): Promise<void> {
+export default async function doctor(transport = fetch, dataDirectory?: string, options: { signal?: AbortSignal; onProgress?: (checks: DoctorCheck[]) => void; store?: typeof licenseStore; checkLicense?: typeof licenseAccess; connect?: typeof engineSession; models?: typeof installedModels } = {}): Promise<void> {
     var REQUEST_TIMEOUT_MS = 8000;
     var ENTER_SCREEN = '\u001b[?1049h\u001b[?25l';
     var LEAVE_SCREEN = '\u001b[?25h\u001b[?1049l';
@@ -47,10 +48,14 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
     var portCheck: DoctorCheck = {
         name: 'Local API port', status: 'Waiting', detail: 'Checking the saved port next.'
     };
-    var licenseCheck: DoctorCheck = {
-        name: 'License', status: 'Waiting', detail: 'Checking the saved license next.'
+    var runtimeChecks: Parameters<typeof doctorEngine>[2] = {
+        engine: { name: 'Engine', status: 'Waiting', detail: 'Verifying the installed engine next.' },
+        license: { name: 'License', status: 'Waiting', detail: 'Checking the saved license next.' },
+        model: { name: 'Selected model', status: 'Waiting', detail: 'Checking the selected model next.' },
+        inference: { name: 'Inference', status: 'Waiting', detail: 'Testing local inference next.' }
     };
-    var checks = [systemCheck, commandCheck, storageCheck, portCheck, serverCheck, licenseCheck];
+    var checks = [systemCheck, commandCheck, storageCheck, portCheck, serverCheck,
+        runtimeChecks.engine, runtimeChecks.license, runtimeChecks.model, runtimeChecks.inference];
     process.on('SIGINT', cancel);
     if (interactive) {
         process.stdout.write(ENTER_SCREEN);
@@ -221,36 +226,10 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
         }
         if (signal.aborted) { return; }
 
-        licenseCheck.status = 'Checking';
-        licenseCheck.detail = 'Reading the saved license.';
-        render(checks, 'progress', options.onProgress);
-        try {
-            var store = options.store || licenseStore;
-            var license = await store({ operation: 'read' });
-            signal.throwIfAborted();
-            if (!license) {
-                licenseCheck.status = 'Warning';
-                licenseCheck.detail = 'No license saved. Add one in Settings.';
-            } else {
-                var checkLicense = options.checkLicense || licenseAccess;
-                var result = await checkLicense(license, signal, async function (key, checkSignal, progress) {
-                    await access(join(dataDirectory!, 'engine', 'bootstrap.json'));
-                    return engineSession(key, checkSignal, progress, function (savedKey, savedSignal, savedProgress) {
-                        return bootstrapEngine(savedKey, savedSignal, savedProgress, { directory: dataDirectory, installedOnly: true });
-                    });
-                });
-                signal.throwIfAborted();
-                licenseCheck.status = 'Error';
-                licenseCheck.detail = result.message || 'Could not verify the saved license. Try again.';
-                if (result.ok) {
-                    licenseCheck.status = 'OK';
-                    licenseCheck.detail = 'Valid · Expires ' + result.expiresAt.slice(0, 10) + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices;
-                }
-            }
-        } catch {
-            licenseCheck.status = 'Error';
-            licenseCheck.detail = 'Could not read or verify the saved license. Check the credential store and engine installation.';
-        }
+        await doctorEngine(dataDirectory, signal, runtimeChecks, function () {
+            render(checks, 'progress', options.onProgress);
+        }, { store: options.store || licenseStore, checkLicense: options.checkLicense || licenseAccess,
+            connect: options.connect || engineSession, models: options.models || installedModels });
     } finally {
         process.off('SIGINT', cancel);
         if (interactive) {
@@ -289,9 +268,7 @@ function render(checks: DoctorCheck[], mode: 'progress' | 'report', onProgress?:
         output += check.detail.replace(/[\x00-\x1f\x7f-\x9f]/g, '') + '\n';
     }
     output += '\n' + separator + '\n';
-    if (mode === 'report') {
-        output += 'These checks do not verify engine or model readiness.\n';
-    } else {
+    if (mode === 'progress') {
         output += 'Ctrl+C Cancel\n';
         output = CLEAR_SCREEN + output;
     }

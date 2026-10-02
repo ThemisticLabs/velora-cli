@@ -21,7 +21,7 @@ test.each(['valid', 'bad response signature', 'wrong nonce', 'wrong range', 'tru
         var result = await task;
         expect(await readFile(result.executable, 'utf8')).toContain('synthetic engine');
         var count = fixture.requests.length;
-        expect((await bootstrapEngine('FIXTURE-LICENSE', controller.signal, undefined, options)).executable).toBe(result.executable);
+        expect((await bootstrapEngine('', controller.signal, undefined, { ...options, installedOnly: true })).executable).toBe(result.executable);
         expect(fixture.requests.length).toBe(count);
         await writeFile(result.executable, 'tampered');
         await expect(bootstrapEngine('FIXTURE-LICENSE', controller.signal, undefined, options)).rejects.toThrow('changed');
@@ -83,7 +83,7 @@ test('diagnostics never download a missing engine', async function () {
             directory, target: 'macosx-14.0-arm64', transport: fixture.transport, installedOnly: true
         })).rejects.toThrow('No installed engine');
         expect(fixture.requests.length).toBe(0);
-        expect(await readdir(join(directory, 'engine'))).toEqual([]);
+        expect(await readdir(directory)).toEqual([]);
     } finally {
         await rm(directory, { recursive: true, force: true });
     }
