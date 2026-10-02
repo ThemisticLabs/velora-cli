@@ -50,7 +50,7 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                 } else if (scenario === 'offline' || scenario === 'current') {
                     terminal.write('\u001b[B\u001b[B\u001b[B\r');
                 } else if (scenario === 'doctor') {
-                    terminal.write('\u001b[A\r');
+                    terminal.write('\u001b[A\u001b[A\r');
                 } else {
                     terminal.write('\u001b[B\u001b[B\r');
                 }

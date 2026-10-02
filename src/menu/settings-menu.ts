@@ -8,6 +8,7 @@ import doctorScreen from './doctor-screen.js';
 import updateSettings from './update-settings.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import editApiSettings from './api-settings.js';
+import manageApiKeys from './api-keys.js';
 
 export default async function settingsMenu(): Promise<void> {
     var currentChoice = 'permissions';
@@ -19,7 +20,8 @@ export default async function settingsMenu(): Promise<void> {
             { name: 'Manage models', value: 'models' },
             { name: 'Check for updates', value: 'updates' },
             { name: 'Local API port', value: 'api' },
-            { name: 'Doctor', value: 'doctor' }
+            { name: 'Doctor', value: 'doctor' },
+            { name: 'API keys', value: 'keys' }
         ] });
         currentChoice = choice;
         if (choice === 'back') {
@@ -31,6 +33,10 @@ export default async function settingsMenu(): Promise<void> {
         }
         if (choice === 'api') {
             await editApiSettings();
+            continue;
+        }
+        if (choice === 'keys') {
+            await manageApiKeys();
             continue;
         }
         if (choice === 'models') {
