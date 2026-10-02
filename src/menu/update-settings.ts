@@ -43,7 +43,7 @@ export default async function updateSettings(): Promise<void> {
     }
     values.push('save');
     while (true) {
-        setSetupLayout('Settings / Update permissions', 'Save applies changes. Esc discards unsaved edits.', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit', '/velora/updates');
+        setSetupLayout('Settings / Update permissions', 'Save applies changes. Esc discards unsaved edits.', '/velora/updates', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit');
         var edit = createPrompt<CliUpdatePreferences[] | null, Record<string, never>>(function (_config, done) {
             var [draft, setDraft] = useState(pending);
             var selected = useListNavigation({ values, activateWithSpace: true, initialValue: values[selectedIndex],

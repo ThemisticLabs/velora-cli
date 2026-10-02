@@ -6,7 +6,7 @@ import modelSettings from './model-settings.js';
 export default async function manageModels(): Promise<void> {
     var currentChoice = 'switch';
     while (true) {
-        setSetupLayout('Settings / Manage models', '', '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/models');
+        setSetupLayout('Settings / Manage models', '', '/velora/models');
         var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
             { name: 'Switch model', value: 'switch' },
             { name: 'Install another model', value: 'install' },

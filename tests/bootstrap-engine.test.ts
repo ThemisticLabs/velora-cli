@@ -73,3 +73,18 @@ test.each(['valid', 'bad manifest signature', 'withdrawn', 'cancel', 'downgrade'
         expect(await readdir(join(directory, 'engine'))).not.toContain('.bootstrap.lock');
     } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+test('diagnostics never download a missing engine', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-doctor-bootstrap-'));
+    try {
+        var fixture = await enginePackage();
+        await expect(bootstrapEngine('FIXTURE-LICENSE', new AbortController().signal, undefined, {
+            directory, target: 'macosx-14.0-arm64', transport: fixture.transport, installedOnly: true
+        })).rejects.toThrow('No installed engine');
+        expect(fixture.requests.length).toBe(0);
+        expect(await readdir(join(directory, 'engine'))).toEqual([]);
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

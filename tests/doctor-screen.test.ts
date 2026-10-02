@@ -6,6 +6,7 @@ test.skipIf(process.platform === 'win32').each(['complete', 'back', 'resize'])('
     var output = '';
     var phase = 0;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/doctor-screen.ts', import.meta.url)), scenario], {
+        env: { ...process.env, TERM: 'xterm-256color', NO_COLOR: undefined, FORCE_COLOR: '1' },
         terminal: { cols: 70, rows: 24, data: function (terminal, bytes) {
             var frame = Buffer.from(bytes).toString('utf8');
             output += frame;
@@ -23,6 +24,9 @@ test.skipIf(process.platform === 'win32').each(['complete', 'back', 'resize'])('
             if (frame.includes('Checks complete.')) {
                 expect(output).toContain('100%');
                 expect(output).toContain('Available now');
+                expect(output).toContain('\u001b[32mOK  Local API port');
+                expect(output).toContain('\u001b[38;5;208mWarning  Global command');
+                expect(output).toContain('\u001b[31mError  License');
                 terminal.write('\r');
             }
         } }

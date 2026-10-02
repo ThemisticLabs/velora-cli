@@ -37,7 +37,7 @@ test.each(['unavailable', 'http error'])('doctor reports missing PATH and server
         var result = runDoctor(directory, scenario);
         assert.equal(result.status, 0);
         assert.match(result.stdout, /Add the folder containing velora to PATH/);
-        assert.match(result.stdout, /Action\s+License server/);
+        assert.match(result.stdout, /Error\s+License server/);
         if (scenario === 'http error') {
             assert.match(result.stdout, /HTTP 503/);
         } else {
@@ -67,7 +67,7 @@ test.each(['existing', 'file', 'permission', 'write', 'cleanup', 'write and clea
             assert.match(result.stdout, /OK\s+Storage/);
             assert.match(result.stdout, /Writable/);
         } else {
-            assert.match(result.stdout, /Action\s+Storage/);
+            assert.match(result.stdout, /Error\s+Storage/);
         }
         if (scenario === 'file') {
             assert.match(result.stdout, /ENOTDIR/);
@@ -126,7 +126,7 @@ test.each(['available', 'occupied', 'invalid'])('doctor checks the configured lo
                 server.listen({ host: '127.0.0.1', port }, resolve);
             });
         } else {
-            assert.match(result.stdout, /Action\s+Local API port/);
+            assert.match(result.stdout, /(Warning|Error)\s+Local API port/);
         }
         if (scenario === 'occupied') {
             assert.ok(result.stdout.includes('http://127.0.0.1:' + port));
@@ -152,12 +152,31 @@ test('doctor publishes progress without printing a second terminal report', func
         var result = runDoctor(directory, 'progress');
         assert.equal(result.status, 0, result.stderr);
         var reports = JSON.parse(result.stdout);
-        assert.equal(reports.length, 5);
+        assert.equal(reports.length, 6);
         assert.equal(reports[0][1].status, 'Checking');
         assert.equal(reports[1][2].status, 'Checking');
         assert.equal(reports[2][3].status, 'Checking');
         assert.equal(reports[3][4].status, 'Checking');
         assert.equal(reports[4][4].status, 'OK');
+        assert.equal(reports[4][5].status, 'Checking');
+        assert.equal(reports[5][5].status, 'Warning');
+    } finally {
+        rmSync(directory, { recursive: true });
+    }
+});
+
+test.each(['valid', 'has expired', 'has been revoked', 'key was not found'])('doctor checks the saved license without printing its key: %s', function (state) {
+    var directory = mkdtempSync(join(tmpdir(), 'velora-doctor-license-'));
+    try {
+        var result = runDoctor(directory, 'license ' + state);
+        assert.equal(result.status, 0, result.stderr);
+        assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE-LICENSE-KEY/);
+        if (state === 'valid') {
+            assert.match(result.stdout, /OK\s+License\nValid · Expires 2026-11-01 · Devices 1\/5/);
+        } else {
+            assert.match(result.stdout, /Error\s+License\nThis license/);
+            assert.ok(result.stdout.includes(state));
+        }
     } finally {
         rmSync(directory, { recursive: true });
     }
@@ -194,7 +213,20 @@ function runDoctor(directory, scenario, commandPath = '') {
         });
         var { default: doctor } = await import(${JSON.stringify(DOCTOR_PATH)});
         var reports = [];
-        var doctorOptions = {};
+        var doctorOptions = {
+            store: async function () {
+                if (scenario.startsWith('license ')) { return 'PRIVATE-LICENSE-KEY'; }
+                return null;
+            },
+            checkLicense: async function (key, signal) {
+                if (key !== 'PRIVATE-LICENSE-KEY') { throw new Error('Wrong license'); }
+                signal.throwIfAborted();
+                if (scenario === 'license valid') {
+                    return { ok: true, expiresAt: '2026-11-01T00:00:00Z', registeredDevices: 1, maxDevices: 5, models: [] };
+                }
+                return { ok: false, message: 'This license ' + scenario.slice(8) + '.' };
+            }
+        };
         if (scenario === 'progress') {
             doctorOptions.onProgress = function (checks) { reports.push(JSON.parse(JSON.stringify(checks))); };
         }

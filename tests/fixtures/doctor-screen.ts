@@ -26,6 +26,8 @@ mock.module('../../src/commands/doctor.js', function () {
         if (options.signal.aborted) { return; }
         checks[1]!.status = 'OK';
         checks[1]!.detail = 'Available now';
+        checks.push({ name: 'Global command', status: 'Warning', detail: 'Not in PATH' });
+        checks.push({ name: 'License', status: 'Error', detail: 'This license has expired.' });
         options.onProgress(checks);
     } };
 });

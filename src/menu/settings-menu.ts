@@ -10,10 +10,9 @@ import runTerminalTask from '../terminal/run-terminal-task.js';
 import editApiSettings from './api-settings.js';
 
 export default async function settingsMenu(): Promise<void> {
-    var FOOTER = '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit';
     var currentChoice = 'permissions';
     while (true) {
-        setSetupLayout('Settings', '', FOOTER, '/velora/settings');
+        setSetupLayout('Settings', '', '/velora/settings');
         var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
             { name: 'Update permissions', value: 'permissions' },
             { name: 'Change license', value: 'license' },
@@ -43,18 +42,18 @@ export default async function settingsMenu(): Promise<void> {
             continue;
         }
         if (choice === 'license') {
-            setSetupLayout('Settings / License', 'A verified key replaces the saved license.', 'Enter Continue · Esc Back · Ctrl+C Quit', '/velora/license-api/');
+            setSetupLayout('Settings / License', 'A verified key replaces the saved license.', '/velora/license-api/', 'Enter Continue · Esc Back · Ctrl+C Quit');
             var license = await licenseInput({});
             if (!license) {
                 continue;
             }
-            setSetupLayout('Checking your license…', '', 'Ctrl+C Close', '/velora/license-api/');
+            setSetupLayout('Checking your license…', '', '/velora/license-api/', 'Ctrl+C Close');
             var result = await runTerminalTask(function (signal, progress) { return manageLicense({ operation: 'set', license }, signal, undefined, progress); });
             var message = 'License saved.';
             if (!result.ok) {
                 message = result.message;
             }
-            setSetupLayout('License', '', 'Esc Back · Ctrl+C Quit', '/velora/license-api/');
+            setSetupLayout('License', '', '/velora/license-api/', 'Esc Back · Ctrl+C Quit');
             await select({ back: true, message, choices: [] });
             continue;
         }

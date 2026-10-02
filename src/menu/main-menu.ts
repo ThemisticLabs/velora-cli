@@ -27,13 +27,13 @@ export default async function mainMenu(startSetup = false): Promise<void> {
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
     try {
         try {
-            setSetupLayout('Opening velora…', '', 'Ctrl+C Close', '/velora');
+            setSetupLayout('Opening velora…', '', '/velora', 'Ctrl+C Close');
             var savedLicense = await runTerminalTask(function () { return licenseStore({ operation: 'read' }); });
         } catch (error) {
             if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
                 throw error;
             }
-            setSetupLayout('Saved license unavailable.', 'Unlock your system credential store and try again.', FOOTER, '/velora/license-api/');
+            setSetupLayout('Saved license unavailable.', 'Unlock your system credential store and try again.', '/velora/license-api/', FOOTER);
             var recovery = await select({ message: 'Next step', choices: [
                 { name: 'Enter a license', value: 'enter' }, { name: 'Close', value: 'close' }
             ] });
@@ -54,7 +54,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
         try {
             var enginePreferences = await engineUpdatePreferences();
             if (licenseVerified && enginePreferences?.checkAutomatically) {
-                setSetupLayout('Checking engine updates…', '', 'Ctrl+C Close', '/velora/updates');
+                setSetupLayout('Checking engine updates…', '', '/velora/updates', 'Ctrl+C Close');
                 await runTerminalTask(function (signal) { return engineUpdate(signal); });
             }
         } catch (error) {
@@ -76,7 +76,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 if (selected) {
                     title = 'Selected model: ' + selected.name;
                 }
-                setSetupLayout(title, '', 'Enter Settings · Ctrl+C Quit', '/velora');
+                setSetupLayout(title, '', '/velora', 'Enter Settings · Ctrl+C Quit');
                 await select({ message: '', choices: [{ name: 'Settings', value: 'settings' }] });
                 await settingsMenu();
             } catch (error) {
@@ -90,7 +90,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
                     message = 'Another installation holds the model lock. Wait for it to finish and try again.';
                 }
-                setSetupLayout('Could not complete this action.', '', 'Esc Back · Ctrl+C Quit', '/velora/settings');
+                setSetupLayout('Could not complete this action.', '', '/velora/settings', 'Esc Back · Ctrl+C Quit');
                 await select({ back: true, message, choices: [] });
             }
         }

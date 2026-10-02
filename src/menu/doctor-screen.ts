@@ -45,7 +45,7 @@ export default async function doctorScreen(): Promise<void> {
             if (check.status === 'Checking') { current = check.name; }
             if (check.status === 'Waiting') { continue; }
             if (check.status !== 'Checking') { completed++; }
-            lines.push(check.status + '  ' + check.name);
+            lines.push(style((check.status + '  ' + check.name).slice(0, dimensions.contentWidth), check.status));
             var detail = check.detail.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ');
             for (var offset = 0; offset < detail.length; offset += dimensions.contentWidth) {
                 lines.push(detail.slice(offset, offset + dimensions.contentWidth));
@@ -63,9 +63,9 @@ export default async function doctorScreen(): Promise<void> {
         var PROGRESS_ROWS = 3;
         var capacity = Math.max(1, dimensions.contentRows - PROGRESS_ROWS);
         for (var index = Math.max(0, lines.length - capacity); index < lines.length; index++) {
-            output += '  ' + lines[index]!.slice(0, dimensions.contentWidth) + '\n';
+            output += '  ' + lines[index]! + '\n';
         }
-        setSetupLayout('Settings / Doctor', '', footer, '/velora/settings');
+        setSetupLayout('Settings / Doctor', '', '/velora/settings', footer);
         return useSetupScreen(output, error);
     });
     try {

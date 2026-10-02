@@ -27,12 +27,12 @@ export default async function licenseCommand(operation: 'set' | 'status'): Promi
             var result = await task;
         } else {
             process.stdout.write('\u001b[?1049h');
-            setSetupLayout('Set your license.', 'A verified key replaces the saved license.', 'Enter Continue · Esc Cancel · Ctrl+C Quit', '/velora/license-api/');
+            setSetupLayout('Set your license.', 'A verified key replaces the saved license.', '/velora/license-api/', 'Enter Continue · Esc Cancel · Ctrl+C Quit');
             var license = await licenseInput({}, { signal: controller.signal });
             if (!license) {
                 return;
             }
-            setSetupLayout('Checking your license.', '', 'Ctrl+C Cancel', '/velora/license-api/');
+            setSetupLayout('Checking your license.', '', '/velora/license-api/', 'Ctrl+C Cancel');
             var result = await runTerminalTask(function (signal, progress) {
                 task = manageLicense({ operation: 'set', license }, AbortSignal.any([signal, controller.signal]), undefined, progress);
                 return task;

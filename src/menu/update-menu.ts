@@ -128,7 +128,7 @@ export default async function updateMenu(): Promise<void> {
             var statusRows = output.split('\n').length;
             output = renderList({ rows, columns: [{ title: '' }, { title: 'Installed' }, { title: 'Available' }],
                 selected, width, height: setupDimensions().contentRows - statusRows }) + output;
-            setSetupLayout('Settings / Updates', '', '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/updates');
+            setSetupLayout('Settings / Updates', '', '/velora/updates');
             return useSetupScreen(output);
         });
         try {
@@ -139,17 +139,17 @@ export default async function updateMenu(): Promise<void> {
         if (!action) { return; }
         if (!lastEngineCheck?.available) { continue; }
         var version = lastEngineCheck.available;
-        setSetupLayout('Update engine to ' + version + '?', 'Models and license settings stay in place.', 'Enter Install · Esc Back · Ctrl+C Quit', '/velora/updates');
+        setSetupLayout('Update engine to ' + version + '?', 'Models and license settings stay in place.', '/velora/updates', 'Enter Install · Esc Back · Ctrl+C Quit');
         var confirmation = await select({ back: true, message: '', choices: [{ name: 'Install engine update', value: 'install' }] });
         if (confirmation === 'back') { continue; }
-        setSetupLayout('Updating engine…', '', 'Ctrl+C Cancel', '/velora/updates');
+        setSetupLayout('Updating engine…', '', '/velora/updates', 'Ctrl+C Cancel');
         try {
             await runTerminalTask(function (signal, onProgress) { return engineUpdate(signal, undefined, { version, onProgress }); });
         } catch (error) {
             if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) { throw error; }
             var message = 'Could not update the engine. Check your connection and try again.';
             if (error instanceof DownloadError) { message = error.message; }
-            setSetupLayout('Engine update unsuccessful.', message, 'Esc Back · Ctrl+C Quit', '/velora/updates');
+            setSetupLayout('Engine update unsuccessful.', message, '/velora/updates', 'Esc Back · Ctrl+C Quit');
             await select({ back: true, message: '', choices: [] });
         }
     }

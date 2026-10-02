@@ -4,7 +4,6 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 import installedModels from '../models/installed-models.js';
 
 export default async function modelSettings(operation: 'switch' | 'delete'): Promise<void> {
-    var FOOTER = '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit';
     var currentChoice = '';
     while (true) {
         var models = await installedModels({ operation: 'list' });
@@ -23,7 +22,7 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
         if (operation === 'delete') {
             title = 'Installed models / Delete model';
         }
-        setSetupLayout(title, '', FOOTER, '/velora/models');
+        setSetupLayout(title, '', '/velora/models');
         var selected = await select({ back: true, message: '', initialValue: currentChoice, choices,
             columns: [{ title: 'Model' }, { title: 'Version' }], emptyMessage: 'No models installed.' });
         currentChoice = selected;
@@ -41,14 +40,14 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
                 name = model.name;
             }
         }
-        setSetupLayout('Delete ' + name + '?', 'Deletes its local package. Your license and shared engine settings stay saved.', FOOTER, '/velora/models');
+        setSetupLayout('Delete ' + name + '?', 'Deletes its local package. Your license and shared engine settings stay saved.', '/velora/models');
         var confirmation = await select({ back: true, message: 'This model will need to be downloaded again.', choices: [
             { name: 'Delete model', value: 'delete' }
         ] });
         if (confirmation !== 'delete') {
             continue;
         }
-        setSetupLayout('Deleting model…', name, 'Ctrl+C Close after cleanup', '/velora/models');
+        setSetupLayout('Deleting model…', name, '/velora/models', 'Ctrl+C Close after cleanup');
         await runTerminalTask(function () { return installedModels({ operation: 'delete', id: selected }); });
         return;
     }

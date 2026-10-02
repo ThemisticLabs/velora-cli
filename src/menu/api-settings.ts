@@ -10,7 +10,7 @@ export default async function editApiSettings(): Promise<void> {
     try {
         var saved = await apiSettings();
     } catch {
-        setSetupLayout('Settings / Local API', '', 'Esc Back · Ctrl+C Quit', '/velora/settings');
+        setSetupLayout('Settings / Local API', '', '/velora/settings', 'Esc Back · Ctrl+C Quit');
         await select({ back: true, message: 'Could not read API settings. Check api.json and storage access.', choices: [] });
         return;
     }
@@ -59,7 +59,7 @@ export default async function editApiSettings(): Promise<void> {
     var feedback = '';
     var currentChoice = 'port';
     while (true) {
-        setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/settings');
+        setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, '/velora/settings');
         var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
             { name: 'Port: ' + saved.port, value: 'port', description: feedback || 'Choose a port for the upcoming local API.' },
             { name: 'Reset to default', value: 'reset', description: feedback || 'Use port ' + DEFAULT_API_PORT + '.' }
@@ -70,7 +70,7 @@ export default async function editApiSettings(): Promise<void> {
         currentChoice = choice;
         var port: number | null = DEFAULT_API_PORT;
         if (choice === 'port') {
-            setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, 'Enter Save · Esc Back · Ctrl+C Quit', '/velora/settings');
+            setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, '/velora/settings', 'Enter Save · Esc Back · Ctrl+C Quit');
             port = await input({});
         }
         if (port === null) {

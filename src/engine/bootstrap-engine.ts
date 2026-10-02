@@ -13,7 +13,7 @@ export type EngineProgress = { downloaded: number; total: number; message: strin
 
 export default async function bootstrapEngine(license: string, signal: AbortSignal,
     onProgress: (progress: EngineProgress) => void = function () {},
-    options: { directory?: string; transport?: typeof fetch; publicKey?: string; target?: string; update?: boolean; expectedVersion?: string } = {}) {
+    options: { directory?: string; transport?: typeof fetch; publicKey?: string; target?: string; update?: boolean; installedOnly?: boolean; expectedVersion?: string } = {}) {
     if (!/^[A-Z0-9-]{8,64}$/.test(license)) {
         throw new DownloadError('Check the license key and try again.');
     }
@@ -66,6 +66,9 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
             onProgress({ downloaded: 0, total: 0, message: 'Verifying the installed engine.', engineVersion: release.version });
             var executable = await engineRuntime(packagePath, join(installation, 'runtime'), release, signal, publicKey);
             return { executable, packagePath, runtimePath: join(installation, 'runtime'), release, target };
+        }
+        if (options.installedOnly) {
+            throw new DownloadError('No installed engine is available. Complete setup before checking the license.');
         }
         onProgress({ downloaded: 0, total: 0, message: 'Preparing the engine download.' });
         var binding = { operation: 'resolve' as const, license_key: license, runtime_target: target };

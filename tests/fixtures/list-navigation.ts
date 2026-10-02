@@ -1,7 +1,7 @@
 import select from '../../src/setup/select-option.js';
 import setSetupLayout from '../../src/terminal/set-setup-layout.js';
 
-setSetupLayout('Navigation', '', '↑/↓ Move · Enter Select · Esc Back');
+setSetupLayout('Navigation', '', '/velora/setup', '↑/↓ Move · Enter Select · Esc Back');
 var initialValue = 'first';
 if (process.argv[2] === 'down') {
     initialValue = 'last';

@@ -128,7 +128,7 @@ export default async function downloadScreen(license: string, model: LicenseMode
         if (status !== 'running') {
             footer = 'Enter Continue · Ctrl+C Cancel';
         }
-        setSetupLayout('Download ' + model.name, '', footer, '/velora/models/' + model.id);
+        setSetupLayout('Download ' + model.name, '', '/velora/models/' + model.id, footer);
         return useSetupScreen(output);
     });
     try {

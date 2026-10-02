@@ -7,15 +7,19 @@ import { availableVersion } from '../updates/cli-update.js';
 import defaultDataDirectory from '../system/data-directory.js';
 import packageInfo from '../../package.json' with { type: 'json' };
 import style from '../terminal/style.js';
+import licenseStore from '../license/license-store.js';
+import licenseAccess from '../license/license-access.js';
+import engineSession from '../engine/engine-session.js';
+import bootstrapEngine from '../engine/bootstrap-engine.js';
 import apiSettings from '../api/api-settings.js';
 
 export type DoctorCheck = {
     name: string;
-    status: 'Info' | 'Waiting' | 'Checking' | 'OK' | 'Action';
+    status: 'Info' | 'Waiting' | 'Checking' | 'OK' | 'Warning' | 'Error';
     detail: string;
 };
 
-export default async function doctor(transport = fetch, dataDirectory?: string, options: { signal?: AbortSignal; onProgress?: (checks: DoctorCheck[]) => void } = {}): Promise<void> {
+export default async function doctor(transport = fetch, dataDirectory?: string, options: { signal?: AbortSignal; onProgress?: (checks: DoctorCheck[]) => void; store?: typeof licenseStore; checkLicense?: typeof licenseAccess } = {}): Promise<void> {
     var REQUEST_TIMEOUT_MS = 8000;
     var ENTER_SCREEN = '\u001b[?1049h\u001b[?25l';
     var LEAVE_SCREEN = '\u001b[?25h\u001b[?1049l';
@@ -43,7 +47,10 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
     var portCheck: DoctorCheck = {
         name: 'Local API port', status: 'Waiting', detail: 'Checking the saved port next.'
     };
-    var checks = [systemCheck, commandCheck, storageCheck, portCheck, serverCheck];
+    var licenseCheck: DoctorCheck = {
+        name: 'License', status: 'Waiting', detail: 'Checking the saved license next.'
+    };
+    var checks = [systemCheck, commandCheck, storageCheck, portCheck, serverCheck, licenseCheck];
     process.on('SIGINT', cancel);
     if (interactive) {
         process.stdout.write(ENTER_SCREEN);
@@ -76,7 +83,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
                 break;
             }
         }
-        commandCheck.status = 'Action';
+        commandCheck.status = 'Warning';
         commandCheck.detail = 'Not found in an absolute PATH directory. Add the folder containing velora to PATH. For this source checkout, run bun run build, then bun link.';
         if (commandPath) {
             commandCheck.status = 'OK';
@@ -122,7 +129,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
                 try {
                     await rm(probeDirectory, { recursive: true });
                 } catch {
-                    storageCheck.status = 'Action';
+                    storageCheck.status = 'Error';
                     storageCheck.detail = 'Could not remove the test directory: ' + probeDirectory + '. Check its permissions and remove it manually.';
                 }
             }
@@ -143,10 +150,10 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
                 hint = hints[errorCode]!;
             }
             var failure = 'Could not ' + storageOperation + ' for ' + dataDirectory + ' (' + errorCode + '). ' + hint;
-            if (storageCheck.status === 'Action') {
+            if (storageCheck.status === 'Error') {
                 failure += ' ' + storageCheck.detail;
             }
-            storageCheck.status = 'Action';
+            storageCheck.status = 'Error';
             storageCheck.detail = failure;
         }
         if (signal.aborted) {
@@ -180,8 +187,9 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
                 }
             }
         } catch (error) {
-            portCheck.status = 'Action';
+            portCheck.status = 'Error';
             if (error instanceof Error && 'code' in error && error.code === 'EADDRINUSE') {
+                portCheck.status = 'Warning';
                 portCheck.detail += ' · Port is already in use. Choose another port in Settings.';
             } else {
                 portCheck.detail = portFailure;
@@ -201,15 +209,47 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
                 signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])
             });
             await response.body?.cancel();
-            serverCheck.status = 'Action';
+            serverCheck.status = 'Error';
             serverCheck.detail = 'Server returned HTTP ' + response.status + '. Try velora doctor again shortly.';
             if (response.ok) {
                 serverCheck.status = 'OK';
-                serverCheck.detail = 'Reachable over HTTPS · HTTP ' + response.status + ' · No license checked';
+                serverCheck.detail = 'Reachable over HTTPS · HTTP ' + response.status;
             }
         } catch {
-            serverCheck.status = 'Action';
+            serverCheck.status = 'Error';
             serverCheck.detail = 'Connection failed or timed out. Check your connection, then run velora doctor again.';
+        }
+        if (signal.aborted) { return; }
+
+        licenseCheck.status = 'Checking';
+        licenseCheck.detail = 'Reading the saved license.';
+        render(checks, 'progress', options.onProgress);
+        try {
+            var store = options.store || licenseStore;
+            var license = await store({ operation: 'read' });
+            signal.throwIfAborted();
+            if (!license) {
+                licenseCheck.status = 'Warning';
+                licenseCheck.detail = 'No license saved. Add one in Settings.';
+            } else {
+                var checkLicense = options.checkLicense || licenseAccess;
+                var result = await checkLicense(license, signal, async function (key, checkSignal, progress) {
+                    await access(join(dataDirectory!, 'engine', 'bootstrap.json'));
+                    return engineSession(key, checkSignal, progress, function (savedKey, savedSignal, savedProgress) {
+                        return bootstrapEngine(savedKey, savedSignal, savedProgress, { directory: dataDirectory, installedOnly: true });
+                    });
+                });
+                signal.throwIfAborted();
+                licenseCheck.status = 'Error';
+                licenseCheck.detail = result.message || 'Could not verify the saved license. Try again.';
+                if (result.ok) {
+                    licenseCheck.status = 'OK';
+                    licenseCheck.detail = 'Valid · Expires ' + result.expiresAt.slice(0, 10) + ' · Devices ' + result.registeredDevices + '/' + result.maxDevices;
+                }
+            }
+        } catch {
+            licenseCheck.status = 'Error';
+            licenseCheck.detail = 'Could not read or verify the saved license. Check the credential store and engine installation.';
         }
     } finally {
         process.off('SIGINT', cancel);
@@ -245,7 +285,7 @@ function render(checks: DoctorCheck[], mode: 'progress' | 'report', onProgress?:
     }
     output += separator + '\n';
     for (var check of checks) {
-        output += '\n' + style(check.status.padEnd(STATUS_COLUMN_WIDTH), 'accent') + style(check.name, 'strong') + '\n';
+        output += '\n' + style(check.status.padEnd(STATUS_COLUMN_WIDTH), check.status) + style(check.name, 'strong') + '\n';
         output += check.detail.replace(/[\x00-\x1f\x7f-\x9f]/g, '') + '\n';
     }
     output += '\n' + separator + '\n';

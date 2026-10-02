@@ -20,7 +20,7 @@ export default async function startupUpdate(signal: AbortSignal, directory = dat
         process.stdout.write('\u001b[?1049h');
         try {
             if (allowed === null) {
-                setSetupLayout('velora updates', 'Check GitHub for new versions of velora.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
+                setSetupLayout('velora updates', 'Check GitHub for new versions of velora.', '/velora/updates', '↑/↓ Move · Enter Select · Ctrl+C Cancel');
                 var choice = await choose({
                     message: 'Check for velora updates on startup?',
                     choices: [
@@ -32,7 +32,7 @@ export default async function startupUpdate(signal: AbortSignal, directory = dat
             }
             installAutomatically = false;
             if (allowed) {
-                setSetupLayout('Automatic velora updates', 'Save your choice. Automatic installation is coming later.', '↑/↓ Move · Enter Select · Ctrl+C Cancel', '/velora/updates');
+                setSetupLayout('Automatic velora updates', 'Save your choice. Automatic installation is coming later.', '/velora/updates', '↑/↓ Move · Enter Select · Ctrl+C Cancel');
                 var installation = await choose({
                     message: 'Allow automatic installation when available?',
                     choices: [

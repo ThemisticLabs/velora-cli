@@ -15,7 +15,7 @@ export default async function modelList(models: LicenseModel[], summary: string,
         choices.push({ name: model.name, value: 'model:' + model.id, cells: [model.name, model.description], documentationPath: '/velora/models/' + encodeURIComponent(model.id) });
     }
     while (true) {
-        setSetupLayout('Your models.', summary, '↑/↓ Scroll · Enter Open · Esc Back · Ctrl+C Quit');
+        setSetupLayout('Your models.', summary, '/velora/setup', '↑/↓ Scroll · Enter Open · Esc Back · Ctrl+C Quit');
         var value = await select({ back: true, message: '', choices, initialValue: selectedValue,
             columns: [{ title: 'Model', width: 18 }, { title: 'Description' }],
             actions: [{ name: 'Finish', value: 'finish' }],
@@ -37,7 +37,7 @@ export default async function modelList(models: LicenseModel[], summary: string,
         if (selected.canDownload) {
             footer = '←/→ Pages · Enter Install · Esc Back · Ctrl+C Quit';
         }
-        setSetupLayout('Model details.', selected.name, footer, '/velora/models/' + encodeURIComponent(selected.id));
+        setSetupLayout('Model details.', selected.name, '/velora/models/' + encodeURIComponent(selected.id), footer);
         var installationText = 'No downloadable release is available for this model.';
         if (selected.canDownload) {
             installationText = 'Select Install model to download. This registers this device with your license. The package is verified before installation.';

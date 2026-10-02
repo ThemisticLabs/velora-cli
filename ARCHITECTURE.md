@@ -33,7 +33,7 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | --- | --- |
 | `src/cli.ts` | Configure Commander, register commands, and dispatch arguments. |
 | `src/setup/setup.ts` | Own the setup flow, prompt theme, model access checks and update permission prompts. |
-| `src/terminal/set-setup-layout.ts` | Store the title, detail and footer for the current setup step. |
+| `src/terminal/set-setup-layout.ts` | Store the screen title, detail, F1 target and shared default footer. |
 | `src/terminal/setup-dimensions.ts` | Define terminal limits and derive available content space from the rendered header. |
 | `src/terminal/use-setup-screen.ts` | Render the shared frame and footer and subscribe to terminal resizing without restarting prompts. |
 | `src/setup/select-option.ts` | Connect menu choices and model tables to the shared list and responsive frame. |
@@ -167,11 +167,11 @@ Default data locations are `~/Library/Application Support/velora` on macOS, `%LO
 
 Doctor reads the saved port through `api/api-settings.ts`, using `8001` when no setting exists. It attempts a temporary, exclusive TCP bind on `127.0.0.1` and closes the listener before proceeding. A free port reports **Available now**, an occupied port directs the user to Settings, and configuration or other bind errors report a separate failure. The check starts no HTTP API and reserves no port for later use. API startup must still handle its own bind result.
 
-The server check makes a GET request to the public `/license/health` endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. No license or device identity is sent. The injected transport lets tests simulate network failures without contacting production. An optional internal data-directory argument isolates storage tests in temporary directories; it is not exposed as a CLI option. Storage failures report the failed operation and filesystem error. Cleanup failures name the remaining probe directory, and do not hide an earlier write failure.
+The server check makes a GET request to the public `/license/health` endpoint with an eight-second timeout and no redirects. It reports HTTPS reachability and HTTP status, not license validity. This reachability request sends no license or device identity. A separate License check reads the credential store and uses the installed engine to validate access and report expiry and device usage. An absent license is a warning; denied or unverified access is an error. The check requires an existing engine record and uses installed-only bootstrap, so it cannot download an engine. The injected transport lets tests simulate network failures without contacting production. An optional internal data-directory argument isolates storage tests in temporary directories; it is not exposed as a CLI option. Storage failures report the failed operation and filesystem error. Cleanup failures name the remaining probe directory, and do not hide an earlier write failure.
 
 Interactive output updates in the alternate screen, then restores the terminal and prints the final report once. Piped output receives only the final report. Ctrl+C cancels the request and restores the terminal. Completed checks exit normally even when they report action items, so script runners do not add an error to the diagnostic report. Exit code 0 does not imply that all checks passed. Cancellation also exits normally; unexpected unhandled errors still fail the command.
 
-The report reuses `src/terminal/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. No new icons, colours or web components are introduced.
+The report reuses `src/terminal/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. Status colors distinguish OK (green), warnings (orange), and errors (red). The shared style function honors disabled colors. No new icons or web components are introduced.
 
 ## Engine-managed model installation
 
@@ -208,6 +208,13 @@ Cancellation waits for the in-flight operation. If publication already completed
 PTY regression tests run actual prompts with isolated fixture modules and temporary storage through Bun's terminal API. They cover unexpected error redaction, disk-full messages, cancellation before installation, cancellation during publication and cancellation after completion. These PTY tests are skipped on Windows. Sudden power loss, native Windows/Linux credential stores, production model inference and automatic engine updates remain outside the verified scope.
 
 ## Shared menu navigation
+
+`setSetupLayout(title, detail, documentationPath, footer)` uses the shared menu footer when the fourth argument is omitted. The third argument sets the documentation path for that screen; the fourth overrides navigation hints for input, loading or confirmation. Each call resets both fields, so an override does not leak into the next screen.
+
+```ts
+setSetupLayout('Settings / Manage models', '', '/velora/models');
+setSetupLayout('License', '', '/velora/license-api/', 'Enter Continue · Esc Back · Ctrl+C Quit');
+```
 
 Selection prompts explicitly enable Escape with `back: true`; back navigation is shown in the footer and is not a selectable row. Enter activates the selected action. The shared list navigation wraps from the first item to the last with Up, and from the last to the first with Down, including separate actions. Model details retain left/right paging and use the shared list renderer and navigation hook for the installation action. Escape also returns from details when the terminal is below the minimum size.
 
