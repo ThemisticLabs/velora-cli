@@ -1,5 +1,5 @@
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
-import apiSettings, { MAX_API_PORT } from '../api/api-settings.js';
+import apiSettings, { DEFAULT_API_PORT, MAX_API_PORT } from '../api/api-settings.js';
 import select from '../setup/select-option.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
@@ -7,7 +7,6 @@ import useSetupScreen from '../terminal/use-setup-screen.js';
 import style from '../terminal/style.js';
 
 export default async function editApiSettings(): Promise<void> {
-    setSetupLayout('Settings / Local API', 'Save a port for the upcoming local API.', 'Enter Save · Esc Back · Ctrl+C Quit', '/velora/settings');
     try {
         var saved = await apiSettings();
     } catch {
@@ -54,20 +53,34 @@ export default async function editApiSettings(): Promise<void> {
             setError('');
         });
         var width = setupDimensions().contentWidth;
-        var content = '  ' + style(('http://127.0.0.1:' + saved.port).slice(0, width), 'muted');
-        content += '\n\n  ' + style('Port:', 'strong') + ' ' + value.slice(0, Math.max(1, width - 'Port: '.length));
+        var content = '  ' + style('Port:', 'strong') + ' ' + value.slice(0, Math.max(1, width - 'Port: '.length));
         return useSetupScreen(content, error, true);
     });
-    var port = await input({});
-    if (port === null) {
-        return;
+    var feedback = '';
+    var currentChoice = 'port';
+    while (true) {
+        setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit', '/velora/settings');
+        var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
+            { name: 'Port: ' + saved.port, value: 'port', description: feedback || 'Choose a port for the upcoming local API.' },
+            { name: 'Reset to default', value: 'reset', description: feedback || 'Use port ' + DEFAULT_API_PORT + '.' }
+        ] });
+        if (choice === 'back') {
+            return;
+        }
+        currentChoice = choice;
+        var port: number | null = DEFAULT_API_PORT;
+        if (choice === 'port') {
+            setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, 'Enter Save · Esc Back · Ctrl+C Quit', '/velora/settings');
+            port = await input({});
+        }
+        if (port === null) {
+            continue;
+        }
+        try {
+            saved = await apiSettings(port);
+            feedback = 'Saved.';
+        } catch {
+            feedback = 'Could not save the port. Check storage access and try again.';
+        }
     }
-    try {
-        await apiSettings(port);
-        var message = 'Port saved: ' + port + '.';
-    } catch {
-        message = 'Could not save the port. Check storage access and try again.';
-    }
-    setSetupLayout('Settings / Local API', '', 'Esc Back · Ctrl+C Quit', '/velora/settings');
-    await select({ back: true, message, choices: [] });
 }

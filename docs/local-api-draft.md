@@ -28,7 +28,7 @@ Explain this where a key is created and in the getting-started guide:
 
 ## Port settings and startup
 
-Settings now offers **Local API port**. Enter saves the port to `<data>/api.json`; Esc discards the edit. The provisional default is `8001`. Valid ports range from `1` to `65535`. The view shows the saved `http://127.0.0.1:<port>` address, without claiming that a server is running. No listener or startup conflict handling is implemented yet.
+Settings now offers **Local API port** with an edit row and **Reset to default**. Enter saves the edited port to `<data>/api.json`; Esc discards the edit and returns to the port menu. Reset saves the provisional default `8001` immediately. Both actions show **Saved.** within the same menu. Valid ports range from `1` to `65535`. The view shows the saved `http://127.0.0.1:<port>` address, without claiming that a server is running. No listener or startup conflict handling is implemented yet.
 
 Changing the port must not change the loopback binding. A running API will need to restart to apply a saved port; the restart action remains to be implemented.
 

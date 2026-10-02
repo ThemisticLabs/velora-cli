@@ -27,10 +27,10 @@ export default function useListNavigation(config: Navigation): string {
             return;
         }
         if (key.name === 'down') {
-            setIndex(Math.min(config.values.length - 1, activeIndex + 1));
+            setIndex((activeIndex + 1) % config.values.length);
         }
         if (key.name === 'up') {
-            setIndex(Math.max(0, activeIndex - 1));
+            setIndex((activeIndex + config.values.length - 1) % config.values.length);
         }
     });
     return config.values[activeIndex] || '';
