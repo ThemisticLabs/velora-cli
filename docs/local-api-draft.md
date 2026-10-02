@@ -1,6 +1,6 @@
 # Local API discussion
 
-Draft for review. No HTTP server or API-key management is implemented by this document. JSON field names still need Manu's decision. Local application keys and a configurable port are agreed requirements. Manu selected optional mapping with original text, type and occurrence positions.
+Draft for review. The HTTP server is not implemented. API-key management is available in Settings. JSON field names still need Manu's decision. Local application keys and a configurable port are agreed requirements. Manu selected optional mapping with original text, type and occurrence positions.
 
 ## Verified engine behavior
 
@@ -18,7 +18,7 @@ The script reads the saved license from the system credential store. It uses the
 
 The listener must bind explicitly to `127.0.0.1`. An IPv6 listener, if needed, must bind to `::1`. Never bind to `0.0.0.0` or `::`. There is no remote-access setting.
 
-Give each application its own local API key, sent in `Authorization: Bearer <key>`. Keys can be named and revoked individually, without changing access for other applications. Loopback binding limits network reachability, but other programs on the device can still make requests. Key creation, storage, revocation and browser access rules need a separate decision.
+Give each application its own local API key, sent in `Authorization: Bearer <key>`. Keys can be named and revoked individually, without changing access for other applications. Loopback binding limits network reachability, but other programs on the device can still make requests. Settings now creates named keys with optional notes, copies new keys to the clipboard and confirms individual revocation. Only SHA-256 hashes are persisted; plaintext keys cannot be retrieved. Browser access rules and the HTTP contract still need a separate decision.
 
 API keys authenticate requests and let the user manage access separately for each application. They do not encrypt request text, mapping or responses. The initial API uses HTTP over loopback. Local model processing and transport encryption are separate concepts.
 

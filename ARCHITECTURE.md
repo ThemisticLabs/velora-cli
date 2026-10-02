@@ -4,7 +4,7 @@ This document describes the current implementation. Read [CODINGSTYLE.md](CODING
 
 ## Current scope
 
-velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It does not run model inference, create API keys, or install a service.
+velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It runs temporary engine operations for setup and diagnostics and manages local application keys. It does not expose an HTTP API or install a service.
 
 Setup sends the entered key over HTTPS for a signed read-only access check and displays expiry, occupied device slots, and entitled model IDs. It persists verified keys in the system credential store. Selecting a public model opens an availability notice with a way back to the access selection.
 
@@ -223,3 +223,17 @@ Selection prompts explicitly enable Escape with `back: true`; back navigation is
 `api/api-settings.ts` reads and atomically replaces `<data>/api.json`. A missing file returns the provisional default port `8001` without creating storage. Invalid or unreadable settings fail rather than silently selecting another port. Writes use the existing temporary-file and rename pattern and reject a linked storage directory.
 
 `menu/api-settings.ts` edits the port through the shared terminal frame. The port menu offers editing and Reset to default. Enter saves an edited port; Esc discards the edit and returns to the menu. Reset immediately saves the default. Saved feedback stays in the existing hint row, keeping the menu and footer stable. Invalid input stays in the editor for correction; failed saves show an error in the menu. Settings displays a loopback address, but no HTTP listener, application keys or service are implemented yet. The startup bind and port-conflict warning remain part of the API work described in `docs/local-api-draft.md`.
+
+## Application keys and popups
+
+`api/api-keys.ts` owns local application-key metadata, generation, verification and revocation. Each key contains 32 random bytes encoded as base64url with a `velora_` prefix. Only SHA-256 digests, UUIDs, names, notes and creation times are persisted. Reads validate the stored schema and reject linked or oversized files. Mutations hold an exclusive `.api-keys.lock` and publish a restricted temporary file atomically. Corrupt storage is not replaced. Verification uses constant-time digest comparisons. No HTTP listener uses this verifier yet.
+
+`menu/api-keys.ts` uses the existing shared list renderer for Name, Note and Created columns. Add and revoke use `terminal/popup.ts`, a reusable form prompt rendered over a dimmed table. Popup fields, submit action, busy state, result and errors share one implementation. Tab and arrow keys move between fields and the action, Enter advances or submits, and Esc cancels before submission or closes a result. Resizing recalculates the panel. Repeated submissions are blocked while saving.
+
+`system/copy-clipboard.ts` sends values through stdin to pbcopy on macOS, Set-Clipboard on Windows, or wl-copy/xclip on Linux. No key appears in process arguments. Copy failure displays the new key in the popup once; subsequent listing never returns plaintext. A native macOS copy/paste round trip was checked; native Windows/Linux helpers remain unverified. API keys separate application access and do not encrypt processing.
+
+## macOS menu bar
+
+`system/menu-bar.ts` embeds the existing SVG asset and uses macOS's bundled JavaScript for Automation runtime to create a native AppKit status item. Like Backbone's tray implementation, it sets a monochrome template image sized for the menu bar. Backbone's Tauri builder is coupled to its desktop application and is not imported into the Bun CLI. The existing TC SVG is reused directly; no separate icon artwork or Tauri runtime is added.
+
+The helper has no menu or actions. Its lifetime belongs to the interactive CLI: normal cleanup terminates it, and a native parent-process check removes it if the CLI disappears unexpectedly. It does not represent service health, persist after exit or register autostart. Help, version and standalone Doctor do not start it. Native initialization and helper lifetime were checked on the development Mac. Visible placement has not been verified in a screenshot.

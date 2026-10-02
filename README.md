@@ -14,7 +14,7 @@ The API will return anonymized text, with the original-value mapping included wh
 
 ## Development status
 
-The TypeScript CLI currently provides help, version output, suggestions for misspelled commands, and an interactive setup. velora downloads the standalone Themistic Engine, then uses its local JSON-Lines interface to check license access and install models. Verified keys are saved in the system credential store. The local API is not available yet. This checkout is a development version.
+The TypeScript CLI currently provides help, version output, suggestions for misspelled commands, and an interactive setup. velora downloads the standalone Themistic Engine, then uses its local JSON-Lines interface to check license access and install models. Verified license keys are saved in the system credential store. The local API is not available yet. This checkout is a development version.
 
 Development uses Bun. The build produces a standalone executable with its runtime included, so users do not need to install Bun or Node.js. Homebrew, WinGet, and direct release downloads are planned.
 
@@ -22,7 +22,7 @@ To run the development build, follow [CONTRIBUTING.md](CONTRIBUTING.md). Code co
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the current implementation and its boundaries.
 
-**Settings → Local API port** lets you edit the port or choose **Reset to default** (`8001`). Enter saves an edited port; Esc discards the edit. Saving shows **Saved.** in the port menu. `velora doctor` checks whether the saved port can currently be bound on loopback. This setting does not start a server. Application-key management and the HTTP API are not implemented yet; their proposed behavior is recorded in [the local API draft](docs/local-api-draft.md).
+**Settings → Local API port** lets you edit the port or choose **Reset to default** (`8001`). Enter saves an edited port; Esc discards the edit. Saving shows **Saved.** in the port menu. `velora doctor` checks whether the saved port can currently be bound on loopback. This setting does not start a server. The HTTP API is not implemented yet; its proposed behavior is recorded in [the local API draft](docs/local-api-draft.md).
 
 The CLI and its models are distributed separately. The shared engine downloads licensed model data from the Themistic license server. Users do not need Python or pip. The planned public Veyra1 model will offer a path without a license key.
 
@@ -34,9 +34,17 @@ The menu shows the selected model and **Settings**. Settings let you change your
 
 Deleting a model removes its local package. The shared engine, its update permissions, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic installation is not implemented yet.
 
+## Application keys
+
+Open **Settings → API keys** for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key is copied to the clipboard automatically. If copying fails, the popup displays the key so you can copy it before closing. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.
+
+API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` with restricted file permissions. License keys remain in the system credential store. Creating an application key does not start the planned HTTP API.
+
+On macOS, the interactive menu displays the existing TC logo as a monochrome menu bar icon. It has no menu or click actions and disappears when the CLI closes. It indicates that the CLI is open, not that an API service is running. No autostart is registered.
+
 ## Setup
 
-Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. On first use, the key authorizes a verified standalone engine download. The engine then checks your licensed models through the server. The result shows expiry, device capacity, and entitled models. Verified keys are saved in the system credential store. Setup can reuse the saved license or replace it after another successful check. The access check does not activate a device.
+Run `velora setup` in an interactive terminal to choose license access or a public model. The last character typed at the end of the license key is visible for 600 ms before it is masked. On first use, the key authorizes a verified standalone engine download. The engine then checks your licensed models through the server. The result shows expiry, device capacity, and entitled models. Verified license keys are saved in the system credential store. Setup can reuse the saved license or replace it after another successful check. The access check does not activate a device.
 
 Failed checks offer Try again; press Esc to return. Enter opens a model. Use the left/right arrows to read its details, then select Install model with Enter. Esc returns to the model list. Installed models are excluded from the installation list.
 

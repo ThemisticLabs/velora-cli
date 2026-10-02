@@ -9,6 +9,7 @@ import licenseStore from '../license/license-store.js';
 import installedModels, { type InstalledModel } from '../models/installed-models.js';
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimensions.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
+import menuBar from '../system/menu-bar.js';
 
 export default async function mainMenu(startSetup = false): Promise<void> {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -24,8 +25,10 @@ export default async function mainMenu(startSetup = false): Promise<void> {
     var ENTER_ALTERNATE_SCREEN = '\u001b[?1049h';
     var RESTORE_TERMINAL = '\u001b[?25h\u001b[?1049l';
     var failure = '';
+    var tray: Awaited<ReturnType<typeof menuBar>> | undefined;
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
     try {
+        tray = await menuBar();
         try {
             setSetupLayout('Opening velora…', '', '/velora', 'Ctrl+C Close');
             var savedLicense = await runTerminalTask(function () { return licenseStore({ operation: 'read' }); });
@@ -99,7 +102,9 @@ export default async function mainMenu(startSetup = false): Promise<void> {
             failure = 'Could not open velora. Try again or run velora doctor.';
         }
     } finally {
+        tray?.close();
         process.stdout.write(RESTORE_TERMINAL);
+        if (tray && !tray.available) { process.stdout.write('Could not display the macOS menu bar icon.\n'); }
         if (failure) {
             process.stdout.write(failure + '\n');
         }

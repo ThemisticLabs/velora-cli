@@ -7,3 +7,5 @@
 The CLI reads the JSON directly and applies the existing Themistic accent. It does not rasterize SVGs at runtime. The compact text-only header in short terminals is unchanged.
 
 Project licensing remains to be selected before publication.
+
+The macOS menu bar uses the same `logo.svg` through an AppKit template image, scaled to 22 × 18 points. Its proportions and original paths are preserved. The template-image behavior follows Backbone's existing tray implementation; the logo remains the supplied Themistic TC artwork.
