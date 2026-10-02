@@ -1,6 +1,6 @@
 # Local API discussion
 
-Draft for review. No HTTP server or API-key management is implemented by this document. Authentication and JSON field names still need Manu's decision. Manu selected optional mapping with original text, type and occurrence positions.
+Draft for review. No HTTP server or API-key management is implemented by this document. JSON field names still need Manu's decision. Local application keys and a configurable port are agreed requirements. Manu selected optional mapping with original text, type and occurrence positions.
 
 ## Verified engine behavior
 
@@ -18,7 +18,25 @@ The script reads the saved license from the system credential store. It uses the
 
 The listener must bind explicitly to `127.0.0.1`. An IPv6 listener, if needed, must bind to `::1`. Never bind to `0.0.0.0` or `::`. There is no remote-access setting.
 
-Recommendation for discussion: give each application its own local API key, sent in `Authorization: Bearer <key>`. Keys can be named and revoked individually, without changing access for other applications. Loopback binding limits network reachability, but other programs on the device can still make requests. Key creation, storage, revocation and browser access rules need a separate decision.
+Give each application its own local API key, sent in `Authorization: Bearer <key>`. Keys can be named and revoked individually, without changing access for other applications. Loopback binding limits network reachability, but other programs on the device can still make requests. Key creation, storage, revocation and browser access rules need a separate decision.
+
+API keys authenticate requests and let the user manage access separately for each application. They do not encrypt request text, mapping or responses. The initial API uses HTTP over loopback. Local model processing and transport encryption are separate concepts.
+
+Explain this where a key is created and in the getting-started guide:
+
+> Give each application its own API key so you can manage and revoke its access separately. API keys do not encrypt requests or responses. Processing happens locally on your device.
+
+## Port settings and startup
+
+Settings must offer a local API port, persist the choice and display the resulting `http://127.0.0.1:<port>` address. Changing the port must not change the loopback binding. The default port has not been selected yet.
+
+At API startup, attempt to bind the configured port or the default when no port is saved. The actual bind is authoritative: a separate availability probe cannot reserve a port or prevent another process from taking it. Handle a bind conflict before loading the model for API use.
+
+If the port is already occupied, keep the API stopped and show:
+
+> The local API could not start because port {port} is already in use. Choose another port in Settings, then try again.
+
+Do not silently choose a different port, stop another process or claim the API is running. Keep Settings reachable so the user can correct the port. Other bind failures need their own truthful error; do not label every startup error as a port conflict. Startup registration must use the same saved setting and conflict handling.
 
 ## Request proposal
 
@@ -70,7 +88,8 @@ Manu selected mapping with original text, type and occurrence positions. The exa
 ## Remaining decisions
 
 - Route and request field names.
-- API-key authentication and browser access policy.
+- Key creation, storage and revocation details, and browser access policy.
+- Default port and when a changed port takes effect.
 - Response field names and mapping structure, including the agreed text, type and occurrence positions.
 - Selected model only, or model choice per request.
 - Empty input behavior and text-size limit.
