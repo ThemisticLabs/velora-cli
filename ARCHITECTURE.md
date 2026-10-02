@@ -207,6 +207,6 @@ Selection prompts explicitly enable Escape with `back: true`; back navigation is
 
 ## Local API port
 
-`api/api-settings.ts` reads and atomically replaces `<data>/api.json`. A missing file returns the provisional default port `8001` without creating storage. Invalid or unreadable settings fail rather than silently selecting another port. Writes use the existing temporary-file, sync and rename pattern and reject a linked storage directory.
+`api/api-settings.ts` reads and atomically replaces `<data>/api.json`. A missing file returns the provisional default port `8001` without creating storage. Invalid or unreadable settings fail rather than silently selecting another port. Writes use the existing temporary-file and rename pattern and reject a linked storage directory.
 
-`menu/api-settings.ts` edits the port through the shared terminal frame. Enter saves, Esc discards, and invalid input stays in the view for correction. Save failures retain the pending port for retry. Settings displays a loopback address, but no HTTP listener, application keys or service are implemented yet. The startup bind and port-conflict warning remain part of the API work described in `docs/local-api-draft.md`.
+`menu/api-settings.ts` edits the port through the shared terminal frame. Enter saves, Esc discards, and invalid input stays in the view for correction. A failed save leaves the saved settings unchanged and shows an error. Settings displays a loopback address, but no HTTP listener, application keys or service are implemented yet. The startup bind and port-conflict warning remain part of the API work described in `docs/local-api-draft.md`.

@@ -1,4 +1,4 @@
-import { lstat, mkdir, mkdtemp, open, readFile, rename, rm } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import dataDirectory from '../system/data-directory.js';
 
@@ -35,13 +35,7 @@ export default async function apiSettings(port?: number, directory = dataDirecto
     var temporary = await mkdtemp(join(directory, '.api-settings-'));
     try {
         var temporaryPath = join(temporary, 'api.json');
-        var file = await open(temporaryPath, 'wx', 0o600);
-        try {
-            await file.writeFile(JSON.stringify({ port }, null, 2) + '\n');
-            await file.sync();
-        } finally {
-            await file.close();
-        }
+        await writeFile(temporaryPath, JSON.stringify({ port }) + '\n', { flag: 'wx', mode: 0o600 });
         await rename(temporaryPath, path);
     } finally {
         await rm(temporary, { recursive: true, force: true });
