@@ -230,6 +230,8 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
             render(checks, 'progress', options.onProgress);
         }, { store: options.store || licenseStore, checkLicense: options.checkLicense || licenseAccess,
             connect: options.connect || engineSession, models: options.models || installedModels });
+    } catch (error) {
+        if (!signal.aborted) { throw error; }
     } finally {
         process.off('SIGINT', cancel);
         if (interactive) {

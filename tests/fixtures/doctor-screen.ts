@@ -28,6 +28,19 @@ mock.module('../../src/commands/doctor.js', function () {
         checks[1]!.detail = 'Available now';
         checks.push({ name: 'Global command', status: 'Warning', detail: 'Not in PATH' });
         checks.push({ name: 'License', status: 'Error', detail: 'This license has expired.' });
+        if (scenario === 'scroll') {
+            checks = [
+                { name: 'System', status: 'Info', detail: 'Test system' },
+                { name: 'Global command', status: 'OK', detail: 'Command found' },
+                { name: 'Storage', status: 'Error', detail: 'EARLY STORAGE FAILURE' },
+                { name: 'Local API port', status: 'OK', detail: 'Available now' },
+                { name: 'License server', status: 'OK', detail: 'HTTP 200' },
+                { name: 'Engine', status: 'OK', detail: 'Version 0.4.4' },
+                { name: 'License', status: 'OK', detail: 'Valid' },
+                { name: 'Selected model', status: 'OK', detail: 'Loaded' },
+                { name: 'Inference', status: 'OK', detail: 'FINAL INFERENCE RESULT' }
+            ];
+        }
         options.onProgress(checks);
     } };
 });

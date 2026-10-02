@@ -184,6 +184,19 @@ test.each(['valid', 'has expired', 'has been revoked', 'key was not found'])('do
     }
 });
 
+test('doctor cancellation during runtime checks exits normally without a stacktrace', function () {
+    var directory = mkdtempSync(join(tmpdir(), 'velora-doctor-cancel-'));
+    try {
+        var result = runDoctor(directory, 'cancel runtime');
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        assert.match(result.stdout, /Check cancelled/);
+        assert.equal(result.stderr, '');
+        assert.doesNotMatch(result.stdout, /AbortError|Error:/);
+    } finally {
+        rmSync(directory, { recursive: true });
+    }
+});
+
 function runDoctor(directory, scenario, commandPath = '') {
     var script = `
         import { mock } from 'bun:test';
@@ -216,7 +229,11 @@ function runDoctor(directory, scenario, commandPath = '') {
         var { default: doctor } = await import(${JSON.stringify(DOCTOR_PATH)});
         var reports = [];
         var doctorOptions = {
-            connect: async function () {
+            connect: async function (_key, signal) {
+                if (scenario === 'cancel runtime') {
+                    process.emit('SIGINT');
+                    signal.throwIfAborted();
+                }
                 return { installation: { release: { version: '0.4.4' } }, request: async function () { return {}; }, close: async function () {} };
             },
             models: async function () { return []; },

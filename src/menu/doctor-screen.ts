@@ -13,6 +13,7 @@ export default async function doctorScreen(): Promise<void> {
         var [checks, setChecks] = useState<DoctorCheck[]>([]);
         var [finished, setFinished] = useState(false);
         var [error, setError] = useState('');
+        var [scrollOffset, setScrollOffset] = useState(0);
         useEffect(function () {
             var active = true;
             task = doctor(undefined, undefined, { signal: controller.signal, onProgress: function (updates) {
@@ -35,7 +36,13 @@ export default async function doctorScreen(): Promise<void> {
         useKeypress(function (key) {
             if (key.name === 'escape' || finished && isEnterKey(key)) {
                 done();
+                return;
             }
+            if (!finished || dimensions.tooSmall) { return; }
+            if (key.name === 'up') { setScrollOffset(Math.max(0, start - 1)); }
+            if (key.name === 'down') { setScrollOffset(Math.min(maxStart, start + 1)); }
+            if (key.name === 'home') { setScrollOffset(0); }
+            if (key.name === 'end') { setScrollOffset(maxStart); }
         });
         var dimensions = setupDimensions();
         var completed = 0;
@@ -55,16 +62,25 @@ export default async function doctorScreen(): Promise<void> {
         if (finished) {
             current = 'Checks complete.';
             if (error) { current = 'Checks stopped.'; }
-            footer = 'Enter Continue · Esc Back · Ctrl+C Quit';
+            footer = '↑/↓ Scroll · Enter/Esc Back · Ctrl+C Quit';
         }
         var output = renderProgress(completed, checks.length, dimensions.contentWidth, 0) + '\n';
         output += '  ' + style(current.slice(0, dimensions.contentWidth), 'muted') + '\n';
         output += '  ' + style('─'.repeat(dimensions.contentWidth), 'divider') + '\n';
         var PROGRESS_ROWS = 3;
-        var capacity = Math.max(1, dimensions.contentRows - PROGRESS_ROWS);
-        for (var index = Math.max(0, lines.length - capacity); index < lines.length; index++) {
+        var SCROLL_HINT_ROWS = 1;
+        var capacity = Math.max(1, dimensions.contentRows - PROGRESS_ROWS - SCROLL_HINT_ROWS);
+        var maxStart = Math.max(0, lines.length - capacity);
+        var start = maxStart;
+        if (finished) { start = Math.min(scrollOffset, maxStart); }
+        var end = Math.min(lines.length, start + capacity);
+        for (var index = start; index < end; index++) {
             output += '  ' + lines[index]! + '\n';
         }
+        var hint = '';
+        if (finished && start > 0) { hint = '↑ More above'; }
+        if (finished && end < lines.length) { hint += '  ↓ More below'; }
+        output += '  ' + style(hint, 'muted') + '\n';
         setSetupLayout('Settings / Doctor', '', '/velora/settings', footer);
         return useSetupScreen(output, error);
     });
