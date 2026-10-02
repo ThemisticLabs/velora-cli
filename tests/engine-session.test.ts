@@ -66,6 +66,7 @@ test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed
             expect(await session.request('models', { license_key: 'FIXTURE-LICENSE' })).toEqual({ status: 'ok', models: [] });
         } else if (scenario === 'error') {
             await expect(session.request('models', { license_key: 'FIXTURE-LICENSE' })).rejects.toThrow('verified installation');
+            expect((await session.request('version')).version).toBe('0.4.1');
         } else if (scenario === 'progress') {
             await session.request('install_model', { model_id: 'model-a' });
             expect(progress).toEqual([1, 0]);

@@ -9,7 +9,7 @@ export default async function engineSession(license: string, signal: AbortSignal
     onProgress?: (progress: EngineProgress) => void, bootstrap = bootstrapEngine) {
     var installation = await bootstrap(license, signal, onProgress);
     signal.throwIfAborted();
-    var child = spawn(installation.executable, ['--stdio'], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    var child = spawn(installation.executable, ['--stdio'], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
     var exited = new Promise<void>(function (resolve) { child.once('close', function () { resolve(); }); });
     var MAX_RESPONSE_BYTES = 2 * 1024 ** 2;
     var REQUEST_TIMEOUT_MS = 30000;
@@ -33,7 +33,6 @@ export default async function engineSession(license: string, signal: AbortSignal
     };
     var abort = function () { stop(new DownloadError('Engine operation cancelled.')); };
     signal.addEventListener('abort', abort, { once: true });
-    child.stderr.resume();
     child.on('error', function () { stop(new DownloadError('The engine could not start. Check its installation and system permissions.')); });
     child.stdin.on('error', function () { stop(new DownloadError('The connection to the engine closed. Try again.')); });
     child.on('close', function () {

@@ -154,13 +154,13 @@ export default async function installedModels(action: ModelAction, directory = d
         }
         var quarantine = await mkdtemp(join(modelsPath, '.delete-'));
         try {
+            await lock.close();
             await rename(root, join(quarantine, 'model'));
             moved = true;
         } catch (error) {
             await rm(quarantine, { recursive: true, force: true });
             throw error;
         }
-        await lock.close();
         try {
             await rm(quarantine, { recursive: true, force: true });
         } catch {

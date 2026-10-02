@@ -24,7 +24,8 @@ for await (var line of createInterface({ input: process.stdin })) {
     }
     if (scenario === 'wrong id') { request.id++; }
     if (scenario === 'error' && request.operation === 'models') {
-        process.stderr.write('PRIVATE-DIAGNOSTIC\n');
+        var DIAGNOSTIC_BYTES = 4 * 1024 ** 2;
+        process.stderr.write('PRIVATE-DIAGNOSTIC\n' + 'x'.repeat(DIAGNOSTIC_BYTES));
         process.stdout.write(JSON.stringify({ id: request.id, ok: false, error: 'download_or_verification_failed' }) + '\n');
         continue;
     }
