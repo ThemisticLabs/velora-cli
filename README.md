@@ -22,6 +22,8 @@ To run the development build, follow [CONTRIBUTING.md](CONTRIBUTING.md). Code co
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the current implementation and its boundaries.
 
+**Settings → Local API port** saves the port for the upcoming API. The provisional default is `8001`. Enter saves; Esc discards the edit. This setting does not start a server. Application-key management and the HTTP API are not implemented yet; their proposed behavior is recorded in [the local API draft](docs/local-api-draft.md).
+
 The CLI and its models are distributed separately. The shared engine downloads licensed model data from the Themistic license server. Users do not need Python or pip. The planned public Veyra1 model will offer a path without a license key.
 
 ## Main menu

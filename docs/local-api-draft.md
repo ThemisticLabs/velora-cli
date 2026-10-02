@@ -28,7 +28,9 @@ Explain this where a key is created and in the getting-started guide:
 
 ## Port settings and startup
 
-Settings must offer a local API port, persist the choice and display the resulting `http://127.0.0.1:<port>` address. Changing the port must not change the loopback binding. The default port has not been selected yet.
+Settings now offers **Local API port**. Enter saves the port to `<data>/api.json`; Esc discards the edit. The provisional default is `8001`. Valid ports range from `1` to `65535`. The view shows the saved `http://127.0.0.1:<port>` address, without claiming that a server is running. No listener or startup conflict handling is implemented yet.
+
+Changing the port must not change the loopback binding. A running API will need to restart to apply a saved port; the restart action remains to be implemented.
 
 At API startup, attempt to bind the configured port or the default when no port is saved. The actual bind is authoritative: a separate availability probe cannot reserve a port or prevent another process from taking it. Handle a bind conflict before loading the model for API use.
 
@@ -89,7 +91,7 @@ Manu selected mapping with original text, type and occurrence positions. The exa
 
 - Route and request field names.
 - Key creation, storage and revocation details, and browser access policy.
-- Default port and when a changed port takes effect.
+- Confirm the provisional default port and the restart interaction when a running API changes ports.
 - Response field names and mapping structure, including the agreed text, type and occurrence positions.
 - Selected model only, or model choice per request.
 - Empty input behavior and text-size limit.

@@ -6,6 +6,7 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 import modelSettings from './model-settings.js';
 import updateSettings from './update-settings.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
+import editApiSettings from './api-settings.js';
 
 export default async function settingsMenu(): Promise<void> {
     var FOOTER = '↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit';
@@ -17,7 +18,8 @@ export default async function settingsMenu(): Promise<void> {
             { name: 'Change license', value: 'license' },
             { name: 'Switch model', value: 'model' },
             { name: 'Delete model', value: 'delete' },
-            { name: 'Check for updates', value: 'updates' }
+            { name: 'Check for updates', value: 'updates' },
+            { name: 'Local API port', value: 'api' }
         ] });
         currentChoice = choice;
         if (choice === 'back') {
@@ -25,6 +27,10 @@ export default async function settingsMenu(): Promise<void> {
         }
         if (choice === 'permissions') {
             await updateSettings();
+            continue;
+        }
+        if (choice === 'api') {
+            await editApiSettings();
             continue;
         }
         if (choice === 'model' || choice === 'delete') {

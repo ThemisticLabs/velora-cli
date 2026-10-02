@@ -13,6 +13,7 @@ Setup sends the entered key over HTTPS for a signed read-only access check and d
 ```text
 src/
   cli.ts       Command registration and startup
+  api/         Persisted local API port, without an HTTP listener
   commands/    Doctor and license commands
   menu/        Main menu, settings and cancellable menu tasks
   models/      Installed package inventory, selection and deletion
@@ -203,3 +204,9 @@ PTY regression tests run actual prompts with isolated fixture modules and tempor
 ## Shared menu navigation
 
 Selection prompts explicitly enable Escape with `back: true`; back navigation is shown in the footer and is not a selectable row. Enter activates the selected action. Model details retain left/right paging and use the shared list renderer and navigation hook for the installation action. Escape also returns from details when the terminal is below the minimum size.
+
+## Local API port
+
+`api/api-settings.ts` reads and atomically replaces `<data>/api.json`. A missing file returns the provisional default port `8001` without creating storage. Invalid or unreadable settings fail rather than silently selecting another port. Writes use the existing temporary-file, sync and rename pattern and reject a linked storage directory.
+
+`menu/api-settings.ts` edits the port through the shared terminal frame. Enter saves, Esc discards, and invalid input stays in the view for correction. Save failures retain the pending port for retry. Settings displays a loopback address, but no HTTP listener, application keys or service are implemented yet. The startup bind and port-conflict warning remain part of the API work described in `docs/local-api-draft.md`.
