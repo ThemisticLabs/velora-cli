@@ -15,6 +15,8 @@ A mismatched tag fails before builds begin. Branch pushes, pull requests and man
 
 `.github/workflows/build.yml` reads the matrix from `scripts/release-targets.ts`. Each native runner installs Bun 1.3.14, installs the frozen lockfile, typechecks and builds its release executable once. The test suite exercises that exact binary through `VELORA_TEST_BINARY`. The release binary is also run with `--version` and `--help` through pipes, so smoke checks cannot prompt or contact the update server. PTY tests are explicitly skipped on Windows.
 
+Compilation uses a cache inside the checkout so Bun's downloaded compiler runtime stays on the same drive. This avoids Bun 1.3.14's cross-drive move failure on Windows while preserving the x64 baseline targets.
+
 `.github/workflows/release.yml` calls that workflow for the tag. Only when every matrix job succeeds does the publish job download all five binaries. `scripts/release-manifest.ts` refuses missing, empty, linked or unexpected assets and produces:
 
 - `release.json`: schema version, package version, platform, architecture, byte size and SHA-256 for each executable.

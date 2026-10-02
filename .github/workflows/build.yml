@@ -47,6 +47,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run release:build
+        env:
+          # Bun 1.3.14 cannot move the downloaded compiler runtime across Windows drives.
+          BUN_INSTALL_CACHE_DIR: ${{ github.workspace }}/.bun-compile-cache
       - run: bun test
         env:
           VELORA_TEST_BINARY: ${{ github.workspace }}/dist/release/${{ matrix.asset }}
