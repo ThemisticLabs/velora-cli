@@ -4,15 +4,19 @@ import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import packageInfo from '../package.json' with { type: 'json' };
 
-test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-model', 'current-cli', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine'])('update versions terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-model', 'current-cli', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine', 'install-error'])('update versions terminal: %s', async function (scenario) {
     var output = '';
+    var coloredOutput = '';
     var phase = 0;
     var decoder = new TextDecoder();
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/update-menu.ts', import.meta.url)), scenario], {
+        env: { ...process.env, TERM: 'xterm-256color', NO_COLOR: undefined, FORCE_COLOR: '1' },
         terminal: { cols: 60, rows: 20, data: function (terminal, bytes) {
-            var frame = stripVTControlCharacters(decoder.decode(bytes, { stream: true }));
-            output += frame;
-            if (scenario === 'cached' || scenario === 'install-engine') {
+            var raw = decoder.decode(bytes, { stream: true });
+            coloredOutput += raw;
+            var frame = stripVTControlCharacters(raw);
+            output = stripVTControlCharacters(coloredOutput);
+            if (scenario === 'cached' || scenario === 'install-engine' || scenario === 'install-error') {
                 if (phase === 0 && frame.includes('0.4.3')) {
                     phase++;
                     if (scenario === 'cached') { terminal.write('\u001b'); }
@@ -20,6 +24,12 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-m
                 } else if (phase === 1 && frame.includes('Update engine to')) {
                     phase++;
                     terminal.write('\r');
+                } else if (phase === 2 && scenario === 'install-error' && frame.includes('Engine update unsuccessful.')) {
+                    phase++;
+                    terminal.write('\u001b');
+                } else if (phase === 3 && scenario === 'install-error' && frame.includes('Settings / Updates')) {
+                    phase++;
+                    terminal.write('\u001b');
                 } else if (phase === 2 && frame.includes('Up to date')) {
                     phase++;
                     terminal.write('\u001b');
@@ -44,6 +54,13 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-m
         expect(output).toContain('Updates verified.');
         expect(output).not.toContain('Install model update');
         expect(output).not.toContain('Skira');
+        if (scenario === 'install-error') {
+            expect(coloredOutput).toContain('\u001b[31mEngine update unsuccessful.');
+            expect(output).toContain('Not enough storage space.');
+            expect(output).not.toContain('Private storage diagnostic');
+        }
+        if (scenario === 'current-cli') { expect(coloredOutput).toContain('\u001b[32mvelora is up to date.'); }
+        if (scenario === 'offline-cli') { expect(coloredOutput).toContain('\u001b[31mCould not check. Try again.'); }
         if (scenario === 'cached') { expect(output).toContain('0.4.3'); expect(output).toContain('2.0.0'); }
         if (scenario.startsWith('current-')) { expect(output).toContain('Up to date'); }
         if (scenario === 'offline-cli' || scenario === 'broken-engine') {

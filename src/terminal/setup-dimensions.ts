@@ -9,9 +9,10 @@ export var TERMINAL_BOTTOM_MARGIN_ROWS = 1;
 
 export default function setupDimensions() {
     var FULL_HEADER_MIN_ROWS = 28;
+    var contentWidth = Math.max(1, process.stdout.columns - SCREEN_MARGIN_COLUMNS * 2);
     var STEP_HEADING_ROWS = 3;
     if (setupLayout.detail) {
-        STEP_HEADING_ROWS++;
+        STEP_HEADING_ROWS += Math.ceil(setupLayout.detail.length / contentWidth);
     }
     var columns = process.stdout.columns;
     var rows = process.stdout.rows;
@@ -25,7 +26,7 @@ export default function setupDimensions() {
         columns,
         rows,
         tooSmall: columns < MIN_COLUMNS || rows < MIN_ROWS,
-        contentWidth: Math.max(1, columns - SCREEN_MARGIN_COLUMNS * 2),
+        contentWidth,
         contentRows,
         headerText
     };

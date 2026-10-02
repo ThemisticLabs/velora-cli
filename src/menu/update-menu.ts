@@ -4,7 +4,7 @@ import { createPrompt, useEffect, useState } from '@inquirer/core';
 import packageInfo from '../../package.json' with { type: 'json' };
 import cliUpdate, { updateCheckStatus, availableVersion } from '../updates/cli-update.js';
 import engineUpdate, { lastEngineCheck } from '../updates/engine-update.js';
-import DownloadError from '../downloads/download-error.js';
+import downloadFailure from '../downloads/download-failure.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
@@ -71,10 +71,7 @@ export default async function updateMenu(): Promise<void> {
                         }
                     } catch (error) {
                         if (active) {
-                            var message = 'Could not check. Try again.';
-                            if (error instanceof DownloadError) {
-                                message = error.message;
-                            }
+                            var message = downloadFailure(error, 'Could not check. Try again.');
                             if (checking === 'cli') {
                                 setCliVersion('Unavailable');
                                 setCliStatus(message);
@@ -112,7 +109,14 @@ export default async function updateMenu(): Promise<void> {
                 status = engineStatus;
                 target = 'Engine';
             }
+            var available = cliVersion;
+            if (selected === 'engine') { available = engineVersion; }
+            var statusTone: 'muted' | 'OK' | 'Error' | 'accent' = 'muted';
+            if (available === 'Up to date') { statusTone = 'OK'; }
+            if (available === 'Unavailable') { statusTone = 'Error'; }
+            if (available !== 'Not checked' && available !== 'Up to date' && available !== 'Unavailable') { statusTone = 'accent'; }
             if (checking) {
+                statusTone = 'muted';
                 status = 'Checking…';
             }
             output += '  ' + style(target.slice(0, width), 'strong') + '\n';
@@ -121,10 +125,10 @@ export default async function updateMenu(): Promise<void> {
                 if (end < 1) {
                     end = width;
                 }
-                output += '  ' + style(status.slice(0, end), 'muted') + '\n';
+                output += '  ' + style(status.slice(0, end), statusTone) + '\n';
                 status = status.slice(end).trimStart();
             }
-            output += '  ' + style(status, 'muted');
+            output += '  ' + style(status, statusTone);
             var statusRows = output.split('\n').length;
             output = renderList({ rows, columns: [{ title: '' }, { title: 'Installed' }, { title: 'Available' }],
                 selected, width, height: setupDimensions().contentRows - statusRows }) + output;
@@ -147,9 +151,8 @@ export default async function updateMenu(): Promise<void> {
             await runTerminalTask(function (signal, onProgress) { return engineUpdate(signal, undefined, { version, onProgress }); });
         } catch (error) {
             if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) { throw error; }
-            var message = 'Could not update the engine. Check your connection and try again.';
-            if (error instanceof DownloadError) { message = error.message; }
-            setSetupLayout('Engine update unsuccessful.', message, '/velora/updates', 'Esc Back · Ctrl+C Quit');
+            var message = downloadFailure(error, 'Could not update the engine. Check your connection and try again.');
+            setSetupLayout('Engine update unsuccessful.', message, '/velora/updates', 'Esc Back · Ctrl+C Quit', 'Error');
             await select({ back: true, message: '', choices: [] });
         }
     }

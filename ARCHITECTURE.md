@@ -171,7 +171,7 @@ The server check makes a GET request to the public `/license/health` endpoint wi
 
 Interactive output updates in the alternate screen, then restores the terminal and prints the final report once. Piped output receives only the final report. Ctrl+C cancels the request and restores the terminal. Completed checks exit normally even when they report action items, so script runners do not add an error to the diagnostic report. Exit code 0 does not imply that all checks passed. Cancellation also exits normally; unexpected unhandled errors still fail the command.
 
-The report reuses `src/terminal/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. Status colors distinguish OK (green), warnings (orange), and errors (red). The shared style function honors disabled colors. No new icons or web components are introduced.
+The report reuses `src/terminal/style.ts` and follows the Gallery's `STANDARD.md` and voice examples. Status colors distinguish OK (green), warnings (orange), and errors (red). Downloads, update checks and update permissions use the same shared styles. Download logs carry their severity separately from the message; colors are applied after sanitizing and wrapping the text. `downloads/download-failure.ts` maps storage errors and safe download errors to user-facing messages, hiding unexpected backend diagnostics. Screen layouts accept an optional status tone for outcome headings and details, reset it on every screen change, and wrap details to preserve the full correction hint. The shared style function honors disabled colors. No new icons or web components are introduced.
 
 ## Engine-managed model installation
 

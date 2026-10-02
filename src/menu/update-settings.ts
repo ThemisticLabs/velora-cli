@@ -26,6 +26,7 @@ export default async function updateSettings(): Promise<void> {
             scope.readable = false;
         }
     }
+    var feedbackTone: 'muted' | 'OK' | 'Error' = 'muted';
     var feedback = '';
     var selectedIndex = 0;
     var pending: CliUpdatePreferences[] = [];
@@ -97,7 +98,9 @@ export default async function updateSettings(): Promise<void> {
                 actions: [{ name: 'Save changes', value: 'save' }], selected, width,
                 height: setupDimensions().contentRows - 1 });
             var hint = feedback;
+            var hintTone: 'muted' | 'OK' | 'Warning' | 'Error' = feedbackTone;
             if (index < rows.length) {
+                hintTone = 'muted';
                 var row = rows[index]!;
                 hint = 'Check GitHub when velora starts.';
                 if (row.field === 'installAutomatically') {
@@ -112,10 +115,11 @@ export default async function updateSettings(): Promise<void> {
                     }
                 }
                 if (!scopes[row.scopeIndex]!.readable) {
+                    hintTone = 'Warning';
                     hint = 'Cannot read preferences. Check the settings file.';
                 }
             }
-            output += '  ' + style(hint.slice(0, width), 'muted');
+            output += '  ' + style(hint.slice(0, width), hintTone);
             return useSetupScreen(output);
         });
         var draft = await edit({});
@@ -124,6 +128,7 @@ export default async function updateSettings(): Promise<void> {
         }
         pending = draft;
         feedback = 'No changes.';
+        feedbackTone = 'muted';
         for (var index = 0; index < scopes.length; index++) {
             var scope = scopes[index]!;
             var next = draft[index]!;
@@ -138,7 +143,9 @@ export default async function updateSettings(): Promise<void> {
                 }
                 scope.saved = next;
                 feedback = 'Saved.';
+                feedbackTone = 'OK';
             } catch {
+                feedbackTone = 'Error';
                 feedback = 'Could not save ' + scope.name + '. Check storage access.';
                 break;
             }

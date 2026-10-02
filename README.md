@@ -82,6 +82,6 @@ velora uses one engine for all installed models. Installing or switching a model
 
 **Settings → Manage models** groups switching, installing another model and deleting a model. New model versions are separate choices. Installed models are not updated in place. Switching saves your selection; it does not yet start local processing.
 
-**Settings → Doctor** runs the same checks as `velora doctor`, with a progress bar, the current check and results below it. The percentage counts completed checks, not elapsed time. Enter returns when checks finish; Esc cancels and returns to Settings. Ctrl+C quits velora.
+**Settings → Doctor** runs the same checks as `velora doctor`, with a progress bar, the current check and results below it. Doctor, download results and update messages share status colors: green for success, orange for warnings and red for errors. The percentage counts completed checks, not elapsed time. Enter returns when checks finish; Esc cancels and returns to Settings. Ctrl+C quits velora.
 
 Older installations may still contain an unused second engine directory. It is left in place until a separate cleanup is reviewed. See [ARCHITECTURE.md](ARCHITECTURE.md) for storage and protocol details.

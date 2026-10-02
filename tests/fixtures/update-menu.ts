@@ -5,7 +5,7 @@ var scenario = process.argv[2];
 var cliCalls = 0;
 var engineInstalls = 0;
 var cached: { installed: string; available?: string; current?: boolean; message: string } | null = null;
-if (scenario === 'cached' || scenario === 'install-engine') {
+if (scenario === 'cached' || scenario === 'install-engine' || scenario === 'install-error') {
     cached = { installed: '0.4.2', available: '0.4.3', message: 'Update available.' };
 }
 var cancelled = false;
@@ -26,6 +26,7 @@ mock.module('../../src/updates/engine-update.js', function () {
         if (install) {
             assert.equal(install.version, '0.4.3');
             engineInstalls++;
+            if (scenario === 'install-error') { throw Object.assign(new Error('Private storage diagnostic'), { code: 'ENOSPC' }); }
             cached!.installed = '0.4.3';
             cached!.current = true;
             cached!.message = 'Engine updated.';
@@ -46,5 +47,5 @@ var showUpdates = (await import('../../src/menu/update-menu.js')).default;
 await showUpdates();
 assert.equal(cliCalls, Number(scenario === 'cli' || scenario === 'no-model' || scenario === 'current-cli' || scenario === 'offline-cli'));
 assert.equal(cancelled, scenario === 'cancel');
-assert.equal(engineInstalls, Number(scenario === 'install-engine'));
+assert.equal(engineInstalls, Number(scenario === 'install-engine' || scenario === 'install-error'));
 process.stdout.write('Updates verified.\n');

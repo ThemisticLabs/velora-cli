@@ -10,7 +10,7 @@ test.skipIf(process.platform === 'win32').each(['error', 'disk full', 'cleanup f
     var output = '';
     var sent = false;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/download-screen.ts', import.meta.url)), scenario], {
-        env: { ...process.env, VELORA_TEST_DIRECTORY: root },
+        env: { ...process.env, VELORA_TEST_DIRECTORY: root, TERM: 'xterm-256color', NO_COLOR: undefined, FORCE_COLOR: '1' },
         terminal: {
             cols: 90, rows: 30,
             data: function (terminal, data) {
@@ -41,13 +41,14 @@ test.skipIf(process.platform === 'win32').each(['error', 'disk full', 'cleanup f
         expect(output).not.toContain('Local API setup comes next');
         expect(output).toContain('\u001b[?1049l');
         if (scenario === 'cleanup failure') {
-            expect(output).toContain('Installed, but cleanup failed.');
+            expect(output).toContain('\u001b[38;5;208mInstalled, but cleanup failed.');
+            expect(output).toContain('\u001b[32mInstallation complete.');
             expect(output).toContain('Outcome: complete');
         } else if (scenario === 'error') {
-            expect(output).toContain('Download failed. Check your connection and try again.');
+            expect(output).toContain('\u001b[31mDownload failed. Check your connection and try again.');
             expect(output).toContain('Outcome: failed');
         } else if (scenario === 'disk full') {
-            expect(output).toContain('Not enough storage space.');
+            expect(output).toContain('\u001b[31mNot enough storage space.');
             expect(output).not.toContain('Private filesystem diagnostic');
             expect(output).toContain('Outcome: failed');
         } else if (scenario === 'cancel-before-install') {

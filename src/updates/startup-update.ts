@@ -2,13 +2,14 @@ import cliUpdatePreferences from './cli-update-preferences.js';
 import dataDirectory from '../system/data-directory.js';
 import selectOption from '../setup/select-option.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
+import style from '../terminal/style.js';
 import cliUpdate from './cli-update.js';
 
 export default async function startupUpdate(signal: AbortSignal, directory = dataDirectory(), choose = selectOption, check = cliUpdate): Promise<void> {
     try {
         var preferences = await cliUpdatePreferences(undefined, directory);
     } catch {
-        process.stderr.write('Could not read cli-updates.json. Update checks are off. Check the file and try again.\n');
+        process.stderr.write(style('Could not read cli-updates.json. Update checks are off. Check the file and try again.', 'Warning') + '\n');
         return;
     }
     var firstLaunch = preferences === null;
@@ -55,7 +56,7 @@ export default async function startupUpdate(signal: AbortSignal, directory = dat
             if (signal.aborted) {
                 throw error;
             }
-            process.stderr.write('Could not save update preferences. Update checks are off. Check storage permissions and try again.\n');
+            process.stderr.write(style('Could not save update preferences. Update checks are off. Check storage permissions and try again.', 'Warning') + '\n');
             return;
         }
     }

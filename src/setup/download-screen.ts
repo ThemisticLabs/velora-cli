@@ -1,5 +1,6 @@
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import { mkdir, lstat } from 'node:fs/promises';
+import downloadFailure from '../downloads/download-failure.js';
 import DownloadError from '../downloads/download-error.js';
 import { join } from 'node:path';
 import dataDirectory from '../system/data-directory.js';
@@ -17,7 +18,7 @@ export default async function downloadScreen(license: string, model: LicenseMode
     var installed = false;
     var prompt = createPrompt<boolean, Record<string, never>>(function (_config, done) {
         var [progress, setProgress] = useState<DownloadProgress>({ downloaded: 0, total: 0, message: '' });
-        var [logs, setLogs] = useState<string[]>([]);
+        var [logs, setLogs] = useState<{ message: string; tone: 'muted' | 'Warning' | 'Error' }[]>([]);
         var [status, setStatus] = useState('running');
         var [frame, setFrame] = useState(0);
         useEffect(function () {
@@ -47,8 +48,8 @@ export default async function downloadScreen(license: string, model: LicenseMode
                             if (update.message) {
                                 var MAX_LOG_LINES = 100;
                                 setLogs(function (previous) {
-                                    if (previous[previous.length - 1] === update.message) { return previous; }
-                                    return [...previous.slice(-(MAX_LOG_LINES - 1)), update.message];
+                                    if (previous[previous.length - 1]?.message === update.message) { return previous; }
+                                    return [...previous.slice(-(MAX_LOG_LINES - 1)), { message: update.message, tone: 'muted' }];
                                 });
                             }
                         }
@@ -57,26 +58,15 @@ export default async function downloadScreen(license: string, model: LicenseMode
                     if (active) {
                         if (installation.cleanupRequired) {
                             setLogs(function (previous) {
-                                return [...previous, 'Installed, but cleanup failed. Check model storage permissions and .update.lock before retrying.'];
+                                return [...previous, { message: 'Installed, but cleanup failed. Check model storage permissions and .update.lock before retrying.', tone: 'Warning' }];
                             });
                         }
                         setStatus('complete');
                     }
                 } catch (error) {
                     if (active && !controller.signal.aborted) {
-                        var message = 'Download failed. Check your connection and try again.';
-                        if (error instanceof DownloadError) {
-                            message = error.message;
-                        }
-                        if (error instanceof Error && 'code' in error) {
-                            if (error.code === 'ENOSPC') {
-                                message = 'Not enough storage space. Free disk space and try again.';
-                            }
-                            if (error.code === 'EACCES' || error.code === 'EPERM') {
-                                message = 'Cannot write to model storage. Check its permissions and try again.';
-                            }
-                        }
-                        setLogs(function (previous) { return [...previous, message]; });
+                        var message = downloadFailure(error, 'Download failed. Check your connection and try again.');
+                        setLogs(function (previous) { return [...previous, { message, tone: 'Error' }]; });
                         setStatus('failed');
                     }
                 }
@@ -105,7 +95,10 @@ export default async function downloadScreen(license: string, model: LicenseMode
         if (status === 'complete') {
             label = 'Installation complete.';
         }
-        output += '  ' + style(label.slice(0, dimensions.contentWidth), 'muted') + '\n';
+        var labelTone: 'muted' | 'OK' | 'Error' = 'muted';
+        if (status === 'complete') { labelTone = 'OK'; }
+        if (status === 'failed') { label = 'Installation failed.'; labelTone = 'Error'; }
+        output += '  ' + style(label.slice(0, dimensions.contentWidth), labelTone) + '\n';
         var version = '';
         if (progress.engineVersion) {
             version = 'Engine ' + progress.engineVersion;
@@ -113,10 +106,10 @@ export default async function downloadScreen(license: string, model: LicenseMode
         output += '  ' + style(version, 'muted') + '\n';
         output += '  ' + style('─'.repeat(dimensions.contentWidth), 'divider') + '\n';
         var logLines: string[] = [];
-        for (var message of logs) {
-            var safe = message.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ');
+        for (var log of logs) {
+            var safe = log.message.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ');
             for (var offset = 0; offset < safe.length; offset += dimensions.contentWidth) {
-                logLines.push(safe.slice(offset, offset + dimensions.contentWidth));
+                logLines.push(style(safe.slice(offset, offset + dimensions.contentWidth), log.tone));
             }
         }
         var PROGRESS_ROWS = 4;

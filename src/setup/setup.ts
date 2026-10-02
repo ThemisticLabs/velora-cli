@@ -80,7 +80,7 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                 return manageLicense({ operation: 'set', license }, signal, undefined, progress);
             });
             if (!result.ok) {
-                setSetupLayout('License check unsuccessful.', result.message, '/velora/license-api/');
+                setSetupLayout('License check unsuccessful.', result.message, '/velora/license-api/', undefined, 'Error');
                 var action = await select({ back: true, message: 'Next step', choices: [
                     { name: 'Try again', value: 'retry' }
                 ] });
@@ -137,7 +137,7 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                         return true;
                     }
                 } catch {
-                    setSetupLayout('Model installed. Update settings unavailable.', 'Check engine-updates.json before changing engine permissions.', '/velora/updates', 'Enter Continue · Ctrl+C Close');
+                    setSetupLayout('Model installed. Update settings unavailable.', 'Check engine-updates.json before changing engine permissions.', '/velora/updates', 'Enter Continue · Ctrl+C Close', 'Warning');
                     await select({ message: '', choices: [{ name: 'Continue', value: 'continue' }] });
                     return true;
                 }
@@ -156,7 +156,7 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                 try {
                     await engineUpdatePreferences({ checkAutomatically: checks === 'yes', installAutomatically });
                 } catch {
-                    setSetupLayout('Model installed. Preferences not saved.', 'Open Settings to save engine update permissions.', '/velora/updates', 'Enter Continue · Ctrl+C Close');
+                    setSetupLayout('Model installed. Preferences not saved.', 'Open Settings to save engine update permissions.', '/velora/updates', 'Enter Continue · Ctrl+C Close', 'Warning');
                     await select({ message: '', choices: [{ name: 'Continue', value: 'continue' }] });
                 }
                 return true;

@@ -55,13 +55,18 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
         cursor = SHOW_CURSOR;
     }
     screen = cursor + screen;
-    screen += '  ' + style(setupLayout.title.slice(0, width), 'strong') + '\n';
+    var titleTone: 'strong' | 'OK' | 'Warning' | 'Error' = 'strong';
+    if (setupLayout.tone !== 'muted') { titleTone = setupLayout.tone; }
+    screen += '  ' + style(setupLayout.title.slice(0, width), titleTone) + '\n';
     if (setupLayout.detail) {
-        screen += '  ' + style(setupLayout.detail.slice(0, width), 'muted') + '\n';
+        for (var offset = 0; offset < setupLayout.detail.length; offset += width) {
+            screen += '  ' + style(setupLayout.detail.slice(offset, offset + width), setupLayout.tone) + '\n';
+        }
     }
     screen += '  ' + style('─'.repeat(width), 'divider') + '\n\n';
     screen += content;
-    var bottom = error;
+    var bottom = '';
+    if (error) { bottom = style(error, 'Error'); }
     var contentRows = screen.split('\n').length;
     var errorRows = 0;
     if (error) {
