@@ -146,6 +146,23 @@ test.each(['available', 'occupied', 'invalid'])('doctor checks the configured lo
     }
 });
 
+test('doctor publishes progress without printing a second terminal report', function () {
+    var directory = mkdtempSync(join(tmpdir(), 'velora-doctor-progress-'));
+    try {
+        var result = runDoctor(directory, 'progress');
+        assert.equal(result.status, 0, result.stderr);
+        var reports = JSON.parse(result.stdout);
+        assert.equal(reports.length, 5);
+        assert.equal(reports[0][1].status, 'Checking');
+        assert.equal(reports[1][2].status, 'Checking');
+        assert.equal(reports[2][3].status, 'Checking');
+        assert.equal(reports[3][4].status, 'Checking');
+        assert.equal(reports[4][4].status, 'OK');
+    } finally {
+        rmSync(directory, { recursive: true });
+    }
+});
+
 function runDoctor(directory, scenario, commandPath = '') {
     var script = `
         import { mock } from 'bun:test';
@@ -176,6 +193,11 @@ function runDoctor(directory, scenario, commandPath = '') {
             };
         });
         var { default: doctor } = await import(${JSON.stringify(DOCTOR_PATH)});
+        var reports = [];
+        var doctorOptions = {};
+        if (scenario === 'progress') {
+            doctorOptions.onProgress = function (checks) { reports.push(JSON.parse(JSON.stringify(checks))); };
+        }
         await doctor(async function (url, options) {
             if (url !== 'https://api.themistic.com/license/health' || options.method !== 'GET' || options.body || options.headers || options.redirect !== 'error') {
                 throw new Error('Unexpected request');
@@ -187,7 +209,8 @@ function runDoctor(directory, scenario, commandPath = '') {
                 return new Response('', { status: 503 });
             }
             return new Response('', { status: 200 });
-        }, ${JSON.stringify(join(directory, 'data'))});
+        }, ${JSON.stringify(join(directory, 'data'))}, doctorOptions);
+        if (scenario === 'progress') { process.stdout.write(JSON.stringify(reports)); }
     `;
     return spawnSync(process.execPath, ['-e', script], {
         env: { ...process.env, PATH: commandPath, NO_COLOR: '1' },

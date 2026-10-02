@@ -2,10 +2,11 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license'])('main menu terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor'])('main menu terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var recoverySent = false;
+    var modelsOpened = false;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/main-menu.ts', import.meta.url)), scenario], {
         terminal: { cols: 60, rows: 20, data: function (terminal, data) {
             var frame = Buffer.from(data).toString('utf8');
@@ -47,10 +48,34 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                 } else if (scenario === 'license' || scenario === 'escape-license') {
                     terminal.write('\u001b[B\r');
                 } else if (scenario === 'offline' || scenario === 'current') {
-                    terminal.write('\u001b[B\u001b[B\u001b[B\u001b[B\r');
-                } else {
                     terminal.write('\u001b[B\u001b[B\u001b[B\r');
+                } else if (scenario === 'doctor') {
+                    terminal.write('\u001b[A\r');
+                } else {
+                    terminal.write('\u001b[B\u001b[B\r');
                 }
+                return;
+            }
+            if (!modelsOpened && phase === 2 && frame.includes('Settings / Manage models')) {
+                modelsOpened = true;
+                if (scenario === 'switch') {
+                    terminal.write('\r');
+                } else {
+                    terminal.write('\u001b[A\r');
+                }
+                return;
+            }
+            if ((phase === 3 && scenario === 'switch' || phase === 4 && scenario === 'delete') && frame.includes('Settings / Manage models')) {
+                terminal.write('\u001b');
+                return;
+            }
+            if (scenario === 'doctor' && phase === 2 && frame.includes('Checks complete.')) {
+                phase++;
+                terminal.write('\u001b');
+                return;
+            }
+            if (scenario === 'doctor' && phase === 3 && frame.includes('Change license')) {
+                terminal.write('\u0003');
                 return;
             }
             if (phase === 3 && scenario === 'switch' && frame.includes('Change license')) {

@@ -157,6 +157,10 @@ The opener uses the published routes recorded in `src/system/documentation-path.
 
 ## Installation checks
 
+`menu/doctor-screen.ts` runs Doctor inside Settings using the shared progress bar and responsive frame. Doctor publishes check snapshots instead of printing its command report in this mode. The bar counts completed checks, including action items; it does not estimate remaining time or imply that every check passed. Esc cancels through the supplied signal and waits for work to settle. Completed results remain visible until Enter or Esc. The standalone command keeps its existing diagnostic report.
+
+`menu/manage-models.ts` groups switching, installing and deleting. It reuses the existing model list, setup flow and deletion confirmation. Install is available in the management menu rather than duplicated inside the switch list.
+
 `src/commands/doctor.ts` implements `velora doctor`. It reports OS and architecture without claiming model support, looks for an executable in absolute PATH directories without running it, and probes the default data location with a temporary directory and file. The probe is removed afterward. Missing data directories are not created; their nearest existing parent is checked instead.
 
 Default data locations are `~/Library/Application Support/velora` on macOS, `%LOCALAPPDATA%/velora` on Windows (falling back to `~/AppData/Local/velora`), and `$XDG_DATA_HOME/velora` on Linux (falling back to `~/.local/share/velora`). Relative environment paths are ignored. These locations store model packages and preferences. Doctor probes storage access and the local API port; it does not install an engine.

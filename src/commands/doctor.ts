@@ -9,34 +9,38 @@ import packageInfo from '../../package.json' with { type: 'json' };
 import style from '../terminal/style.js';
 import apiSettings from '../api/api-settings.js';
 
-type Check = {
+export type DoctorCheck = {
     name: string;
     status: 'Info' | 'Waiting' | 'Checking' | 'OK' | 'Action';
     detail: string;
 };
 
-export default async function doctor(transport = fetch, dataDirectory?: string): Promise<void> {
+export default async function doctor(transport = fetch, dataDirectory?: string, options: { signal?: AbortSignal; onProgress?: (checks: DoctorCheck[]) => void } = {}): Promise<void> {
     var REQUEST_TIMEOUT_MS = 8000;
     var ENTER_SCREEN = '\u001b[?1049h\u001b[?25l';
     var LEAVE_SCREEN = '\u001b[?25h\u001b[?1049l';
-    var interactive = Boolean(process.stdout.isTTY && process.stdin.isTTY);
+    var interactive = Boolean(!options.onProgress && process.stdout.isTTY && process.stdin.isTTY);
     var controller = new AbortController();
+    var signal = controller.signal;
+    if (options.signal) {
+        signal = AbortSignal.any([signal, options.signal]);
+    }
     var cancel = function () {
         controller.abort();
     };
-    var systemCheck: Check = {
+    var systemCheck: DoctorCheck = {
         name: 'System', status: 'Info', detail: process.platform + ' ' + release() + ' · ' + process.arch
     };
-    var commandCheck: Check = {
+    var commandCheck: DoctorCheck = {
         name: 'Global command', status: 'Checking', detail: 'Looking for velora in PATH.'
     };
-    var storageCheck: Check = {
+    var storageCheck: DoctorCheck = {
         name: 'Storage', status: 'Waiting', detail: 'Checking the default data location next.'
     };
-    var serverCheck: Check = {
+    var serverCheck: DoctorCheck = {
         name: 'License server', status: 'Waiting', detail: 'No license key will be sent.'
     };
-    var portCheck: Check = {
+    var portCheck: DoctorCheck = {
         name: 'Local API port', status: 'Waiting', detail: 'Checking the saved port next.'
     };
     var checks = [systemCheck, commandCheck, storageCheck, portCheck, serverCheck];
@@ -45,7 +49,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
         process.stdout.write(ENTER_SCREEN);
     }
     try {
-        render(checks, 'progress');
+        render(checks, 'progress', options.onProgress);
         var commandNames = ['velora'];
         if (process.platform === 'win32') {
             commandNames = ['velora.exe', 'velora.cmd', 'velora.bat', 'velora.com'];
@@ -78,7 +82,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
             commandCheck.status = 'OK';
             commandCheck.detail = commandPath;
         }
-        if (controller.signal.aborted) {
+        if (signal.aborted) {
             return;
         }
 
@@ -87,7 +91,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
         }
         storageCheck.status = 'Checking';
         storageCheck.detail = dataDirectory;
-        render(checks, 'progress');
+        render(checks, 'progress', options.onProgress);
         var storageOperation = 'inspect the storage path';
         try {
             var existingDirectory = dataDirectory;
@@ -145,12 +149,12 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
             storageCheck.status = 'Action';
             storageCheck.detail = failure;
         }
-        if (controller.signal.aborted) {
+        if (signal.aborted) {
             return;
         }
 
         portCheck.status = 'Checking';
-        render(checks, 'progress');
+        render(checks, 'progress', options.onProgress);
         var portFailure = 'Could not read API settings. Check api.json and storage access.';
         try {
             var settings = await apiSettings(undefined, dataDirectory);
@@ -183,18 +187,18 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
                 portCheck.detail = portFailure;
             }
         }
-        if (controller.signal.aborted) {
+        if (signal.aborted) {
             return;
         }
 
         serverCheck.status = 'Checking';
         serverCheck.detail = 'Connecting to api.themistic.com.';
-        render(checks, 'progress');
+        render(checks, 'progress', options.onProgress);
         try {
             var response = await transport('https://api.themistic.com/license/health', {
                 method: 'GET',
                 redirect: 'error',
-                signal: AbortSignal.any([controller.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])
+                signal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])
             });
             await response.body?.cancel();
             serverCheck.status = 'Action';
@@ -212,15 +216,21 @@ export default async function doctor(transport = fetch, dataDirectory?: string):
         if (interactive) {
             process.stdout.write(LEAVE_SCREEN);
         }
-        if (controller.signal.aborted) {
-            process.stdout.write('velora  Check cancelled.\n');
+        if (signal.aborted) {
+            if (!options.onProgress) {
+                process.stdout.write('velora  Check cancelled.\n');
+            }
         } else {
-            render(checks, 'report');
+            render(checks, 'report', options.onProgress);
         }
     }
 }
 
-function render(checks: Check[], mode: 'progress' | 'report'): void {
+function render(checks: DoctorCheck[], mode: 'progress' | 'report', onProgress?: (checks: DoctorCheck[]) => void): void {
+    if (onProgress) {
+        onProgress(checks);
+        return;
+    }
     if (mode === 'progress' && (!process.stdout.isTTY || !process.stdin.isTTY)) {
         return;
     }

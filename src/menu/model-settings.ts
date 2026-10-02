@@ -1,6 +1,5 @@
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import select from '../setup/select-option.js';
-import setup from '../setup/setup.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import installedModels from '../models/installed-models.js';
 
@@ -20,22 +19,15 @@ export default async function modelSettings(operation: 'switch' | 'delete'): Pro
             }
             choices.push({ name, value: 'model:' + model.id, cells: [name, model.version], documentationPath: '/velora/models/' + encodeURIComponent(model.id) });
         }
-        var actions = [];
         var title = 'Installed models / Switch model';
-        if (operation === 'switch') {
-            actions.push({ name: 'Install another model', value: 'install' });
-        } else {
+        if (operation === 'delete') {
             title = 'Installed models / Delete model';
         }
         setSetupLayout(title, '', FOOTER, '/velora/models');
-        var selected = await select({ back: true, message: '', initialValue: currentChoice, choices, actions,
+        var selected = await select({ back: true, message: '', initialValue: currentChoice, choices,
             columns: [{ title: 'Model' }, { title: 'Version' }], emptyMessage: 'No models installed.' });
         currentChoice = selected;
         if (selected === 'back') {
-            return;
-        }
-        if (selected === 'install') {
-            await setup({ modelsOnly: true });
             return;
         }
         selected = selected.slice('model:'.length);

@@ -3,7 +3,8 @@ import select from '../setup/select-option.js';
 import licenseInput from '../setup/license-input.js';
 import manageLicense from '../license/manage-license.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
-import modelSettings from './model-settings.js';
+import manageModels from './manage-models.js';
+import doctorScreen from './doctor-screen.js';
 import updateSettings from './update-settings.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import editApiSettings from './api-settings.js';
@@ -16,10 +17,10 @@ export default async function settingsMenu(): Promise<void> {
         var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
             { name: 'Update permissions', value: 'permissions' },
             { name: 'Change license', value: 'license' },
-            { name: 'Switch model', value: 'model' },
-            { name: 'Delete model', value: 'delete' },
+            { name: 'Manage models', value: 'models' },
             { name: 'Check for updates', value: 'updates' },
-            { name: 'Local API port', value: 'api' }
+            { name: 'Local API port', value: 'api' },
+            { name: 'Doctor', value: 'doctor' }
         ] });
         currentChoice = choice;
         if (choice === 'back') {
@@ -33,12 +34,12 @@ export default async function settingsMenu(): Promise<void> {
             await editApiSettings();
             continue;
         }
-        if (choice === 'model' || choice === 'delete') {
-            var operation: 'switch' | 'delete' = 'switch';
-            if (choice === 'delete') {
-                operation = 'delete';
-            }
-            await modelSettings(operation);
+        if (choice === 'models') {
+            await manageModels();
+            continue;
+        }
+        if (choice === 'doctor') {
+            await doctorScreen();
             continue;
         }
         if (choice === 'license') {

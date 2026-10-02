@@ -1,0 +1,34 @@
+import { mock } from 'bun:test';
+import assert from 'node:assert/strict';
+import type { DoctorCheck } from '../../src/commands/doctor.js';
+
+var scenario = process.argv[2];
+var cancelled = false;
+mock.module('../../src/commands/doctor.js', function () {
+    return { default: async function (_transport: unknown, _directory: unknown, options: { signal: AbortSignal; onProgress: (checks: DoctorCheck[]) => void }) {
+        var checks: DoctorCheck[] = [
+            { name: 'System', status: 'Info', detail: 'Test system' },
+            { name: 'Local API port', status: 'Checking', detail: 'Checking 127.0.0.1:8001' }
+        ];
+        options.onProgress(checks);
+        await new Promise<void>(function (resolve) {
+            var timer = setTimeout(function () {
+                options.signal.removeEventListener('abort', onAbort);
+                resolve();
+            }, 1000);
+            var onAbort = function () {
+                clearTimeout(timer);
+                cancelled = true;
+                resolve();
+            };
+            options.signal.addEventListener('abort', onAbort, { once: true });
+        });
+        if (options.signal.aborted) { return; }
+        checks[1]!.status = 'OK';
+        checks[1]!.detail = 'Available now';
+        options.onProgress(checks);
+    } };
+});
+await (await import('../../src/menu/doctor-screen.js')).default();
+assert.equal(cancelled, scenario === 'back');
+process.stdout.write('Doctor screen verified.\n');

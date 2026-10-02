@@ -6,6 +6,7 @@ var setupCalls = 0;
 var licenseCalls = 0;
 var updateCalls = 0;
 var engineCalls = 0;
+var doctorCalls = 0;
 var models = [{ id: 'skira7alpha', name: 'Skira 7 Alpha', version: '1', revision: 'r1', sequence: 1, engineVersion: '0.1.1', selected: true }];
 if (scenario === 'switch') {
     for (var index = 1; index <= 12; index++) {
@@ -66,6 +67,12 @@ mock.module('../../src/updates/engine-update.js', function () {
         return {};
     } };
 });
+mock.module('../../src/commands/doctor.js', function () {
+    return { default: async function (_transport: unknown, _directory: unknown, options: { onProgress: (checks: { name: string; status: string; detail: string }[]) => void }) {
+        doctorCalls++;
+        options.onProgress([{ name: 'Local API port', status: 'OK', detail: 'Available now' }]);
+    } };
+});
 await (await import('../../src/menu/main-menu.js')).default();
 assert.equal(setupCalls, Number(scenario === 'first'));
 assert.equal(engineCalls, Number(scenario !== 'skip-license'));
@@ -77,6 +84,7 @@ if (scenario === 'delete') {
 } else {
     assert.equal(models.length, 1);
 }
+assert.equal(doctorCalls, Number(scenario === 'doctor'));
 assert.equal(licenseCalls, Number(scenario === 'license'));
 assert.equal(updateCalls, Number(scenario === 'offline' || scenario === 'current'));
 process.stdout.write('Menu verified.\n');
