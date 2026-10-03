@@ -2,6 +2,8 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, mkdir, readFile, writeFile, symlink, rm, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import directoryLock from '../src/system/directory-lock.js';
+import servicePaths from '../src/service/service-paths.js';
 import installedModels from '../src/models/installed-models.js';
 
 test('selection survives restart and deletion removes only the chosen package', async function () {
@@ -64,6 +66,31 @@ test.each(['busy', 'linked root', 'linked package', 'invalid id', 'missing packa
             expect(await readFile(join(root, '.update.lock'), 'utf8')).toBe('busy');
         }
     } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
+
+test('service ownership blocks model changes and releases them after stop', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-model-service-'));
+    var root = join(directory, 'models', 'model-a');
+    await mkdir(join(root, 'installed', 'model-a', 'r1'), { recursive: true });
+    await writeFile(join(root, 'current.json'), JSON.stringify({ model_id: 'model-a', revision: 'r1', version: '1', sequence: 1 }));
+    var path = servicePaths(directory).lock;
+    var lease = await directoryLock({ operation: 'acquire', path });
+    try {
+        for (var operation of ['select', 'delete'] as const) {
+            await expect(installedModels({ operation, id: 'model-a' }, directory)).rejects.toThrow('Stop the velora service');
+        }
+        expect((await installedModels({ operation: 'list' }, directory)).length).toBe(1);
+        expect(await readFile(join(root, 'current.json'), 'utf8')).toContain('model-a');
+        await directoryLock({ operation: 'release', path, lease });
+        await installedModels({ operation: 'select', id: 'model-a' }, directory);
+        expect((await installedModels({ operation: 'list' }, directory))[0]?.selected).toBe(true);
+        await installedModels({ operation: 'delete', id: 'model-a' }, directory);
+        expect(await installedModels({ operation: 'list' }, directory)).toEqual([]);
+    } finally {
+        await directoryLock({ operation: 'release', path, lease });
         await rm(directory, { recursive: true, force: true });
     }
 });

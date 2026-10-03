@@ -8,6 +8,7 @@ import serviceControl from '../src/service/service-control.js';
 import servicePaths from '../src/service/service-paths.js';
 import engineSession from '../src/engine/engine-session.js';
 import enginePackage from './fixtures/engine-package.js';
+import licenseStore from '../src/license/license-store.js';
 import type { InstalledModel } from '../src/models/installed-models.js';
 
 var root: string;
@@ -167,3 +168,35 @@ test.each(['model', 'version'])('a mismatched load response closes the engine: %
     })).rejects.toThrow('does not match');
     await connected?.exited;
 }, 15000);
+
+
+test('credential store failures retain their safe recovery message in service status', async function () {
+    var directory = await mkdtemp(join(root, 'credential-error-'));
+    var worker = serviceWorker(directory, function (path, signal) {
+        return serviceEngine(path, signal, {
+            models: async function () { return [model]; },
+            store: function (request) {
+                return licenseStore(request, {
+                    get: async function () { throw new Error('PRIVATE CREDENTIAL DETAILS'); },
+                    set: async function () { throw new Error('Unexpected credential write'); }
+                });
+            },
+            connect: async function () { throw new Error('Unexpected engine launch'); }
+        });
+    });
+    try {
+        var started = Date.now();
+        var status = await serviceControl('status', directory);
+        while (status.state !== 'failed') {
+            if (Date.now() - started > 5000) { throw new Error('Credential failure did not appear'); }
+            await Bun.sleep(20);
+            status = await serviceControl('status', directory);
+        }
+        expect(status.message).toBe('Could not read the system credential store. Unlock it and try again.');
+        expect(status.message).not.toContain('PRIVATE');
+    } finally {
+        await serviceControl('stop', directory);
+        await worker;
+        await rm(servicePaths(directory).runtime, { recursive: true, force: true });
+    }
+}, 10000);

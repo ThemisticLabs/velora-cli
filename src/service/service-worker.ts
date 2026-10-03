@@ -7,7 +7,7 @@ import syncDirectory from '../system/sync-directory.js';
 import serviceEngine, { type ServiceEngine } from './service-engine.js';
 import downloadFailure from '../downloads/download-failure.js';
 import type { ServiceStatus } from './service-request.js';
-import servicePaths, { CONTROL_TOKEN_BYTES, CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, START_TIMEOUT_MS } from './service-paths.js';
+import servicePaths, { CONTROL_TOKEN_BYTES, CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, MAX_STATUS_MESSAGE_CHARACTERS, START_TIMEOUT_MS } from './service-paths.js';
 
 export default async function serviceWorker(directory: string, loadEngine = serviceEngine): Promise<void> {
     var paths = servicePaths(directory);
@@ -126,6 +126,9 @@ export default async function serviceWorker(directory: string, loadEngine = serv
             }
         } catch (error) {
             var message = downloadFailure(error, 'Could not load the engine or selected model. Check the license and installation, then restart the service.');
+            if (error instanceof Error && error.name === 'LicenseStoreError') {
+                message = error.message.replace(/[\x00-\x1f\x7f-\x9f]/g, ' ').slice(0, MAX_STATUS_MESSAGE_CHARACTERS);
+            }
             if (engineController.signal.aborted && !stopping) { message = 'Loading the selected model took too long. Stop the service, then try again.'; }
             state = { state: 'failed', pid: process.pid, message };
         } finally {

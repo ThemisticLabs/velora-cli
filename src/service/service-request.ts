@@ -1,6 +1,6 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { createConnection } from 'node:net';
-import servicePaths, { CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, STOP_TIMEOUT_MS } from './service-paths.js';
+import servicePaths, { CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, MAX_STATUS_MESSAGE_CHARACTERS, STOP_TIMEOUT_MS } from './service-paths.js';
 
 export type ServiceStatus = { state: 'running'; pid: number; model: string; engineVersion: string } |
     { state: 'starting'; pid: number } | { state: 'failed'; pid: number; message: string } | { state: 'stopped' };
@@ -68,7 +68,7 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
                         return;
                     }
                     if (response.state === 'failed' && 'message' in response && typeof response.message === 'string' &&
-                        response.message.length <= 512 && !/[\x00-\x1f\x7f-\x9f]/.test(response.message)) {
+                        response.message.length <= MAX_STATUS_MESSAGE_CHARACTERS && !/[\x00-\x1f\x7f-\x9f]/.test(response.message)) {
                         resolve({ state: 'failed', pid, message: response.message });
                         return;
                     }

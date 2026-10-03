@@ -1,3 +1,5 @@
+import directoryLock from '../system/directory-lock.js';
+import servicePaths from '../service/service-paths.js';
 import syncDirectory from '../system/sync-directory.js';
 import { lstat, mkdtemp, open, readdir, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -108,77 +110,90 @@ export default async function installedModels(action: ModelAction, directory = d
     if (!/^[a-z0-9_-]{2,64}$/.test(action.id)) {
         throw new ModelStorageError('Invalid model identifier.');
     }
-    var found = false;
-    for (var model of await installedModels({ operation: 'list' }, directory)) {
-        if (model.id === action.id) {
-            found = true;
-        }
-    }
-    if (!found) {
-        throw new ModelStorageError('This model is no longer installed.');
-    }
-    var root = join(modelsPath, action.id);
-    if (!(await lstat(root)).isDirectory()) {
-        throw new ModelStorageError('The model directory is missing or linked.');
-    }
-    var operationLockPath = join(modelsPath, '.velora.lock');
-    var operationLock = await open(operationLockPath, 'wx', 0o600);
-    var lockPath = join(root, '.update.lock');
+    var serviceLock = servicePaths(directory).lock;
     try {
-        var lock = await open(lockPath, 'wx', 0o600);
+        var lease = await directoryLock({ operation: 'acquire', path: serviceLock });
     } catch (error) {
-        await operationLock.close();
-        await rm(operationLockPath, { force: true });
+        if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+            throw new ModelStorageError('Stop the velora service before switching or deleting a model.');
+        }
         throw error;
     }
-    var moved = false;
     try {
-        if (!(await lstat(join(root, 'current.json'))).isFile()) {
-            throw new ModelStorageError('The model has no installation record.');
-        }
-        if (action.operation === 'select') {
-            var temporary = await mkdtemp(join(directory, '.selection-'));
-            try {
-                var path = join(temporary, 'selected-model.json');
-                var file = await open(path, 'wx', 0o600);
-                try {
-                    await file.writeFile(JSON.stringify({ id: action.id }) + '\n');
-                    await file.sync();
-                } finally {
-                    await file.close();
-                }
-                await rename(path, selectionPath);
-                await syncDirectory(directory);
-            } finally {
-                await rm(temporary, { recursive: true, force: true });
+        var found = false;
+        for (var model of await installedModels({ operation: 'list' }, directory)) {
+            if (model.id === action.id) {
+                found = true;
             }
-            return [];
         }
-        var quarantine = await mkdtemp(join(modelsPath, '.delete-'));
+        if (!found) {
+            throw new ModelStorageError('This model is no longer installed.');
+        }
+        var root = join(modelsPath, action.id);
+        if (!(await lstat(root)).isDirectory()) {
+            throw new ModelStorageError('The model directory is missing or linked.');
+        }
+        var operationLockPath = join(modelsPath, '.velora.lock');
+        var operationLock = await open(operationLockPath, 'wx', 0o600);
+        var lockPath = join(root, '.update.lock');
         try {
-            await lock.close();
-            await rename(root, join(quarantine, 'model'));
-            moved = true;
+            var lock = await open(lockPath, 'wx', 0o600);
         } catch (error) {
-            await rm(quarantine, { recursive: true, force: true });
-            throw error;
-        }
-        try {
-            await rm(quarantine, { recursive: true, force: true });
-        } catch {
-            throw new ModelStorageError('Model removed from the menu. Some files remain in models/.delete-*. Check storage permissions.');
-        }
-        return [];
-    } finally {
-        await lock.close();
-        try {
-            if (!moved) {
-                await rm(lockPath, { force: true });
-            }
-        } finally {
             await operationLock.close();
             await rm(operationLockPath, { force: true });
+            throw error;
         }
+        var moved = false;
+        try {
+            if (!(await lstat(join(root, 'current.json'))).isFile()) {
+                throw new ModelStorageError('The model has no installation record.');
+            }
+            if (action.operation === 'select') {
+                var temporary = await mkdtemp(join(directory, '.selection-'));
+                try {
+                    var path = join(temporary, 'selected-model.json');
+                    var file = await open(path, 'wx', 0o600);
+                    try {
+                        await file.writeFile(JSON.stringify({ id: action.id }) + '\n');
+                        await file.sync();
+                    } finally {
+                        await file.close();
+                    }
+                    await rename(path, selectionPath);
+                    await syncDirectory(directory);
+                } finally {
+                    await rm(temporary, { recursive: true, force: true });
+                }
+                return [];
+            }
+            var quarantine = await mkdtemp(join(modelsPath, '.delete-'));
+            try {
+                await lock.close();
+                await rename(root, join(quarantine, 'model'));
+                moved = true;
+            } catch (error) {
+                await rm(quarantine, { recursive: true, force: true });
+                throw error;
+            }
+            try {
+                await rm(quarantine, { recursive: true, force: true });
+            } catch {
+                throw new ModelStorageError('Model removed from the menu. Some files remain in models/.delete-*. Check storage permissions.');
+            }
+            return [];
+        } finally {
+            await lock.close();
+            try {
+                if (!moved) {
+                    await rm(lockPath, { force: true });
+                }
+            } finally {
+                await operationLock.close();
+                await rm(operationLockPath, { force: true });
+            }
+        }
+    } finally {
+        await directoryLock({ operation: 'release', path: serviceLock, lease });
     }
 }
 

@@ -41,6 +41,9 @@ export default async function serviceControl(operation: 'start' | 'status' | 'st
             status = await serviceRequest('status', paths.directory);
             if (status.state === 'running') { return status; }
             if (status.state === 'failed') { throw new Error(status.message); }
+            if (status.state === 'stopped' && waitingForModel) {
+                throw new Error('The velora service was stopped during startup. Start it again when ready.');
+            }
             if (status.state === 'starting' && !waitingForModel) {
                 waitingForModel = true;
                 deadline = Date.now() + START_TIMEOUT_MS;

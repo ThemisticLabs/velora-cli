@@ -46,6 +46,8 @@ velora serve stop
 
 The service survives closing the terminal. Start reads the saved license, reuses the verified installed engine and loads the selected installed model once. It reports ready only after the engine confirms the model and engine version. Repeated starts reuse that instance. Startup does not download packages; complete setup and select an installed model first. Status distinguishes starting, ready and failed. An engine crash requires an explicit stop and restart. Stop unloads the model and closes the engine.
 
+Stop the service before switching or deleting a model. Model changes and service startup share an exclusive lock, so a running service cannot retain a model whose installation is being deleted. Switching the saved selection does not reload a running engine.
+
 The HTTP API, interactive Start/Stop action, service-owned menubar and autostart are not connected yet.
 
 ## Application keys

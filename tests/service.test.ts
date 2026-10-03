@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
-import { lstat, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createConnection } from 'node:net';
+import { createConnection, createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import serviceControl, { type ServiceLaunch } from '../src/service/service-control.js';
 import { spawn } from 'node:child_process';
@@ -145,3 +145,28 @@ test('the compiled worker reports missing setup without reading credentials and 
         await rm(paths.runtime, { recursive: true, force: true });
     }
 }, 15000);
+
+
+test('start aborts promptly when the observed service stops during startup', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-start-stop-'));
+    var paths = servicePaths(directory);
+    var token = 'a'.repeat(43);
+    if (process.platform !== 'win32') {
+        await mkdir(paths.runtime, { mode: 0o700 });
+    }
+    await writeFile(paths.record, JSON.stringify({ pid: process.pid, token }));
+    var server = createServer(function (socket) {
+        socket.once('data', async function () {
+            await rm(paths.record);
+            socket.end(JSON.stringify({ state: 'starting', pid: process.pid }) + '\n');
+        });
+    });
+    await new Promise<void>(function (resolve) { server.listen(paths.endpoint, resolve); });
+    try {
+        await expect(serviceControl('start', directory)).rejects.toThrow('stopped during startup');
+    } finally {
+        await new Promise<void>(function (resolve) { server.close(function () { resolve(); }); });
+        await rm(paths.runtime, { recursive: true, force: true });
+        await rm(directory, { recursive: true, force: true });
+    }
+}, 2000);
