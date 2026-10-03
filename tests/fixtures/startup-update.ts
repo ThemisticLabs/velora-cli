@@ -10,5 +10,8 @@ globalThis.fetch = Object.assign(async function () {
     appendFileSync(join(directory, 'requests'), 'request\n');
     return new Response(null, { status: 404 });
 }, { preconnect: function () {} });
-process.argv = [process.execPath, 'velora', '--help'];
+mock.module('../../src/menu/main-menu.js', function () {
+    return { default: async function () { process.stdout.write('Fixture menu opened.\n'); } };
+});
+process.argv = [process.execPath, 'velora'];
 await import('../../src/cli.js');

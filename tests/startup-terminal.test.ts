@@ -53,7 +53,7 @@ test.skipIf(process.platform === 'win32').each(['yes', 'no', 'cancel'])('startup
                     expect(sent).toBe(true);
                     continue;
                 }
-                expect(output).toContain('Usage:');
+                expect(output).toContain('Fixture menu opened.');
                 expect(sent).toBe(launch === 1);
                 expect(JSON.parse(await readFile(join(root, 'cli-updates.json'), 'utf8'))).toEqual({ checkAutomatically: choice === 'yes', installAutomatically: false });
                 if (choice === 'yes') {

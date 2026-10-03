@@ -22,7 +22,8 @@ if (process.argv[2] === '--finish-update' && process.argv[3]) {
     catch { process.exit(1); }
     process.exit(0);
 }
-if (process.stdin.isTTY && process.stdout.isTTY) {
+var interactiveMenuStart = process.argv.length === 2 || process.argv.length === 3 && process.argv[2] === 'setup';
+if (interactiveMenuStart && process.stdin.isTTY && process.stdout.isTTY) {
     try {
         var recovery = await recoverCliUpdate();
         if (recovery.message) { process.stdout.write(recovery.message + '\n'); }
@@ -33,7 +34,7 @@ if (process.stdin.isTTY && process.stdout.isTTY) {
     }
 }
 
-if (process.stdin.isTTY && process.stdout.isTTY) {
+if (interactiveMenuStart && process.stdin.isTTY && process.stdout.isTTY) {
     var startupController = new AbortController();
     var cancelStartup = function () { startupController.abort(); };
     process.once('SIGINT', cancelStartup);
