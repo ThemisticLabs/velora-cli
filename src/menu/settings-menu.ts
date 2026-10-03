@@ -9,6 +9,7 @@ import doctorScreen from './doctor-screen.js';
 import updateSettings from './update-settings.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import editApiSettings from './api-settings.js';
+import autostartSettings from './autostart-settings.js';
 
 export default async function settingsMenu(): Promise<void> {
     var currentChoice = 'permissions';
@@ -20,6 +21,7 @@ export default async function settingsMenu(): Promise<void> {
             { name: 'Manage models', value: 'models' },
             { name: 'Check for updates', value: 'updates' },
             { name: 'Local API port', value: 'api' },
+            { name: 'Start at login', value: 'autostart' },
             { name: 'Doctor', value: 'doctor' }
         ] });
         currentChoice = choice;
@@ -28,6 +30,10 @@ export default async function settingsMenu(): Promise<void> {
         }
         if (choice === 'permissions') {
             await updateSettings();
+            continue;
+        }
+        if (choice === 'autostart') {
+            await autostartSettings();
             continue;
         }
         if (choice === 'api') {
