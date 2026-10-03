@@ -25,13 +25,14 @@ test.skipIf(process.platform === 'win32').each([20, 30])('footer stays fixed thr
             if (frame.includes('Checking your license…')) { stages.add('checking'); }
             if (frame.includes('Checking license access.')) { stages.add('progress'); }
             if (frame.includes('Enter a license key.')) { stages.add('error'); terminal.write('\r'); }
+            if (frame.includes('Full content')) { stages.add('overflow'); terminal.write('\r'); }
             if (frame.includes('Selected model: Test model')) { stages.add('menu'); terminal.write('\u001b'); }
         } }
     });
     var timeout = setTimeout(function () { child.kill(); }, 5000);
     try {
         expect(await child.exited, stripVTControlCharacters(raw)).toBe(0);
-        expect(stages).toEqual(new Set(['opening', 'checking', 'progress', 'error', 'menu']));
+        expect(stages).toEqual(new Set(['opening', 'checking', 'progress', 'error', 'overflow', 'menu']));
         expect(raw).toContain('Footer verified.');
     } finally { clearTimeout(timeout); child.kill(); child.terminal?.close(); }
 });

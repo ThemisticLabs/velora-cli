@@ -13,11 +13,13 @@ await runTerminalTask(async function (_signal, progress) {
     await Bun.sleep(150);
 });
 setSetupLayout('License input', '', '/velora/license-api/', 'Enter Continue · Esc Back · Ctrl+C Quit');
-var prompt = createPrompt<void, Record<string, never>>(function (_config, done) {
+var prompt = createPrompt<void, { content: string; error?: string }>(function (config, done) {
     useKeypress(function (key) { if (isEnterKey(key)) { done(); } });
-    return useSetupScreen('  License key: ', 'Enter a license key.');
+    return useSetupScreen(config.content, config.error);
 });
-await prompt({});
+await prompt({ content: '  License key: ', error: 'Enter a license key.' });
+setSetupLayout('Full content', '', '/velora', 'Enter Continue · Ctrl+C Quit');
+await prompt({ content: '  Extra content row\n'.repeat(80) });
 setSetupLayout('Selected model: Test model', '', '/velora');
 await select({ message: '', back: true, choices: [{ name: 'Settings', value: 'settings' }] });
 process.stdout.write('Footer verified.\n');

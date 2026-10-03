@@ -64,16 +64,20 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
         }
     }
     screen += '  ' + style('─'.repeat(width), 'divider') + '\n\n';
-    screen += content;
+    var errorRows = 0;
+    if (error) { errorRows = error.split('\n').length; }
+    var contentLines = content.split('\n');
+    if (contentLines[contentLines.length - 1] === '') { contentLines.pop(); }
+    var availableRows = Math.max(1, dimensions.contentRows - errorRows);
+    for (var index = 0; index < Math.min(contentLines.length, availableRows); index++) {
+        if (index > 0) { screen += '\n'; }
+        screen += contentLines[index];
+    }
     // Inquirer adds a row when the prompt ends with an empty line.
     if (screen.endsWith('\n')) { screen += '  '; }
     var bottom = '';
     if (error) { bottom = style(error, 'Error') + '\n'; }
     var contentRows = screen.split('\n').length;
-    var errorRows = 0;
-    if (error) {
-        errorRows = error.split('\n').length;
-    }
     var padding = Math.max(0, rows - contentRows - errorRows - FOOTER_ROWS - TERMINAL_BOTTOM_MARGIN_ROWS);
     bottom += '\n'.repeat(padding);
     bottom += '  ' + style(footer.slice(0, width), 'muted');
