@@ -1,6 +1,6 @@
 # Local API plan
 
-Agreed HTTP contract and remaining lifecycle decisions, 3 October 2026. The HTTP server, persistent inference service and operating-system autostart are not implemented. API-key management, saved port settings and an engine inference check are available.
+Agreed HTTP contract and remaining lifecycle decisions, 3 October 2026. The HTTP server, persistent inference service and operating-system autostart are not implemented. An independent service foundation provides start, status and stop through private local control; it does not yet load the engine or serve HTTP. API-key management, saved port settings and an engine inference check are available.
 
 ## Local access
 
@@ -158,13 +158,15 @@ Terminal selection and exact tab activation need a small macOS compatibility che
 
 The service runs independently of a terminal. A headless start command must return only after service startup succeeds or report a startup failure. Users can then close the terminal without stopping the service. Running the command when velora is already running must not start another instance.
 
-Provisional command spelling for review:
+The first service-core implementation provides:
 
 ```sh
 velora serve start --headless
+velora serve status
+velora serve stop
 ```
 
-The requirement is agreed; the exact command spelling is not final. Do not add multiple synonymous commands before choosing one.
+These commands control only the service foundation so far. They do not start inference or expose the HTTP API. Start/Stop in the interactive menu, service-owned menubar and autostart are still planned.
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 
@@ -194,6 +196,6 @@ If the HTTP client disconnects, discard its result. Do not interrupt the shared 
 3. Define recovery if loading another model fails and how selected-model persistence relates to the model actually loaded by the service.
 4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
 5. Design local service control and interactive-session discovery. Verify configured terminal discovery and exact tab activation on macOS.
-6. Choose the final headless command and autostart event.
+6. Choose the autostart event and coordinate service lifetime with executable updates.
 
 Resolve the offset unit, browser access, validation details and remaining error statuses before implementing the endpoint. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.

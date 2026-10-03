@@ -34,6 +34,18 @@ The menu shows the selected model, **API keys**, then **Settings**. Settings let
 
 Deleting a model removes its local package. The shared engine, its update permissions, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic velora installation is available with explicit consent. Automatic engine installation is not connected.
 
+## Service foundation
+
+The independent service process can be started, checked and stopped:
+
+```sh
+velora serve start --headless
+velora serve status
+velora serve stop
+```
+
+The service survives closing the terminal. Repeated starts reuse the same running instance. This first step provides private local control only; it does not expose the HTTP API, load an inference model or register autostart. The interactive Start/Stop action and service-owned menubar are not connected yet.
+
 ## Application keys
 
 Open **API keys** in the main menu for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key appears immediately in the popup and is copied to the clipboard automatically. It stays visible until you close the popup, including when copying fails. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.

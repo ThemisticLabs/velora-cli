@@ -4,7 +4,7 @@ This document describes the current implementation. Read [CODINGSTYLE.md](CODING
 
 ## Current scope
 
-velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It runs temporary engine operations for setup and diagnostics and manages local application keys. It does not expose an HTTP API or install a service.
+velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It runs temporary engine operations for setup and diagnostics and manages local application keys. It provides an independent service process with local start, status and stop controls. It does not expose an HTTP API or register an operating-system service.
 
 Setup sends the entered key over HTTPS for a signed read-only access check and displays expiry, occupied device slots, and entitled model IDs. It persists verified keys in the system credential store. Selecting a public model opens an availability notice with a way back to the access selection.
 
@@ -14,7 +14,8 @@ Setup sends the entered key over HTTPS for a signed read-only access check and d
 src/
   cli.ts       Command registration and startup
   api/         Persisted local API port, without an HTTP listener
-  commands/    Doctor and license commands
+  commands/    Doctor, license and service commands
+  service/     Independent worker and private local lifecycle control
   menu/        Main menu, settings and cancellable menu tasks
   models/      Installed package inventory, selection and deletion
   setup/       Guided installation and model selection
@@ -252,3 +253,18 @@ A durable journal beside the executable records prepared, installing, installed,
 `system/sync-directory.ts` syncs directory entries on macOS/Linux. Windows file contents are synced, but this runtime does not provide the same directory-sync guarantee. Atomic rename and recovery tests do not prove survival of every disk fault or power loss. Dead process owners are reclaimed even if no journal was written. Invalid legacy lock files require manual inspection. A failed restoration is reported; there is no claim that recovery always succeeds. Backups are retained and are not an independent backup of user data.
 
 Native compiled helper tests cover installation, failed installed-binary tests, interrupted installation, changed targets, signed metadata rejection and preservation of data. The current local run verifies the development host only; the native CI matrix must verify Windows and Linux before release.
+
+
+## Independent service foundation
+
+`service/service-control.ts` owns start, status and stop. The compiled CLI starts itself with an internal worker argument; development runs start the source with Bun. The child is detached with no inherited terminal streams. Start waits for an authenticated status response before reporting success. Concurrent starters may launch workers, but only one worker acquires `.service.lock`; all starters discover the same surviving instance. A failed or timed-out launch terminates only the child it created.
+
+`service/service-worker.ts` owns the lifetime and uses the existing directory lock. It publishes `service.json` atomically with a PID and a fresh 32-byte control token. That token is separate from application API keys and is never sent through command arguments or displayed. POSIX record files use `0600`. Process death permits a later worker to reclaim the stale lease. User data is not deleted to recover a service.
+
+`service/service-paths.ts` names the record, lease and control endpoint. macOS/Linux use a Unix socket inside an owner-checked `0700` temporary directory; the socket uses `0600`. Its name is derived from the resolved data directory to avoid long home-directory socket paths. Windows uses a named pipe. The persisted token authenticates status and stop commands on both transports. Control does not open a TCP port. This is a same-user control channel, not a boundary against malicious code already running as that user.
+
+`service/service-request.ts` bounds control records and messages and applies a response timeout. It validates the returned instance PID. Missing records or records whose process has exited mean stopped; invalid records or an unreachable live process fail closed. Stop acknowledges completion after closing the listener and releasing service ownership. There is no engine workload to drain in this first step.
+
+`commands/service-command.ts` provides `velora serve start --headless`, `velora serve status` and `velora serve stop`. Output states that the HTTP API is not connected. Tests use isolated storage and include concurrent starts, a launcher exiting before later control, SIGKILL recovery, rejected unauthenticated control and a compiled worker without Bun on PATH. Native Windows/Linux behavior still requires their CI jobs.
+
+Engine loading, HTTP requests, interactive attachment, the Start/Stop menu action, menubar ownership, operating-system autostart and coordination with binary updates remain subsequent steps. The existing menu still owns its icon helper. No readiness response claims that a model or HTTP API is available.
