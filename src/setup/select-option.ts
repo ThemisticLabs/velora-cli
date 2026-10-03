@@ -18,7 +18,9 @@ type Selection = {
 export default createPrompt<string, Selection>(function (config, done) {
     var values: string[] = [];
     var rows = [];
+    var hasDescriptions = false;
     for (var choice of config.choices) {
+        hasDescriptions = hasDescriptions || choice.description !== undefined;
         values.push(choice.value);
         rows.push({ value: choice.value, cells: choice.cells || [choice.name] });
     }
@@ -57,19 +59,12 @@ export default createPrompt<string, Selection>(function (config, done) {
         }
     }
     var MESSAGE_ROWS = content.split('\n').length - 1;
-    var DESCRIPTION_ROWS = 0;
-    var detail = '';
-    if (description && config.actions?.length) {
-        detail = description;
-        description = '';
-    }
-    if (description) {
-        DESCRIPTION_ROWS = 1;
-    }
+    var detail: string | undefined;
+    if (hasDescriptions) { detail = description; }
     if (values.length || config.emptyMessage) {
         content += renderList({ rows, columns: config.columns, actions: config.actions, selected,
-            width, height: setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS, emptyMessage: config.emptyMessage, detail });
+            width, height: setupDimensions().contentRows - MESSAGE_ROWS, emptyMessage: config.emptyMessage, detail });
     }
-    content += '  ' + style(description.slice(0, width), 'muted');
+    if (content.endsWith('\n')) { content = content.slice(0, -1); }
     return useSetupScreen(content, '', false, documentationPath);
 });

@@ -101,9 +101,10 @@ export default function renderList(config: ListOptions): string {
     if (actions.length) {
         actionRows = actions.length + 1;
     }
+    var DETAIL_TEXT_ROWS = 2;
     var detailRows = 0;
-    if (config.detail) { detailRows = 1; }
-    var capacity = Math.max(1, height - headingRows - actionRows - SCROLL_HINT_ROWS - detailRows);
+    if (config.detail !== undefined) { detailRows = DETAIL_TEXT_ROWS + 1; }
+    var capacity = Math.max(0, height - headingRows - actionRows - SCROLL_HINT_ROWS - detailRows);
     var anchor = 0;
     for (var index = 0; index < blocks.length; index++) {
         if (blocks[index]!.value === selected) {
@@ -131,6 +132,9 @@ export default function renderList(config: ListOptions): string {
         used += blocks[end]!.height;
         end++;
     }
+    if (actions.length || detailRows) {
+        output += '  \n'.repeat(capacity - used);
+    }
     var hint = '';
     if (start > 0) {
         hint = '↑ More above';
@@ -142,8 +146,22 @@ export default function renderList(config: ListOptions): string {
         hint = config.emptyMessage ?? 'No entries.';
     }
     output += '  ' + style(hint.slice(0, width), 'muted') + '\n';
-    if (config.detail) {
-        output += '  ' + style(config.detail.slice(0, width), 'muted') + '\n';
+    if (config.detail !== undefined) {
+        output += '  \n';
+        var remaining = config.detail;
+        for (var index = 0; index < DETAIL_TEXT_ROWS; index++) {
+            var text = remaining;
+            if (remaining.length > width) {
+                var end = remaining.lastIndexOf(' ', width);
+                if (end < 1) { end = width; }
+                text = remaining.slice(0, end);
+                remaining = remaining.slice(end).trimStart();
+                if (index === DETAIL_TEXT_ROWS - 1) { text = text.slice(0, width - 1) + '…'; }
+            } else {
+                remaining = '';
+            }
+            output += '  ' + style(text, 'muted') + '\n';
+        }
     }
     if (actions.length) {
         output += '\n';

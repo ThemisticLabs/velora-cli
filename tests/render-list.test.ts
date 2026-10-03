@@ -45,7 +45,22 @@ test('selected row details sit above list actions with a blank line between them
         columns: [{ title: 'Name' }, { title: 'Note' }], selected: 'editor', width: 56, height: 12,
         detail: 'Selected application note.', actions: [{ name: 'Add API key', value: 'add' }]
     }));
-    expect(output).toContain('Selected application note.\n\n    Add API key');
+    expect(output).toContain('Selected application note.\n  \n\n    Add API key');
     expect(output.indexOf('Selected application note.')).toBeLessThan(output.indexOf('Add API key'));
     expect(output.split('\n').length - 1).toBeLessThanOrEqual(12);
+});
+
+
+test('list actions stay fixed for empty, short and full lists with changing details', function () {
+    for (var count of [0, 1, 20]) {
+        var rows = [];
+        for (var index = 0; index < count; index++) { rows.push({ value: String(index), cells: ['Key ' + index] }); }
+        for (var detail of [undefined, '', 'Short note.', 'Long note with several words. '.repeat(8)]) {
+            var output = stripVTControlCharacters(renderList({ rows, columns: [{ title: 'Name' }],
+                selected: 'add', width: 56, height: 12, detail, actions: [{ name: 'Add API key', value: 'add' }] }));
+            var lines = output.split('\n');
+            expect(lines.length - 1).toBe(12);
+            expect(lines[11]).toContain('Add API key');
+        }
+    }
 });
