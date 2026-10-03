@@ -3,7 +3,7 @@ import { spawn } from 'bun';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'back', 'engine', 'unreadable'])('inline update permissions: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'back', 'engine', 'unreadable', 'twice'])('inline update permissions: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var initialFrame = '';
@@ -34,6 +34,12 @@ test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'b
                 terminal.write(' \u001b[B\u001b[B\u001b[B\u001b[B\r');
                 return;
             }
+            if (phase === 1 && scenario === 'twice' && frame.includes('Saved.')) {
+                phase++;
+                terminal.write('\u001b[B \u001b[B\u001b[B\u001b[B\u001b[B\r');
+                return;
+            }
+            if (phase === 2 && scenario === 'twice' && frame.includes('Saved.')) { phase++; terminal.write('\u001b'); return; }
             if (phase === 1 && (frame.includes('Saved.') || scenario === 'cancel' && frame.includes('Automatic checks'))) {
                 phase++;
                 terminal.write('\u001b');

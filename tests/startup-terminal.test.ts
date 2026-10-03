@@ -13,11 +13,11 @@ test.skipIf(process.platform === 'win32').each(['yes', 'no', 'cancel'])('setup c
         env: { ...process.env, VELORA_TEST_DIRECTORY: directory },
         terminal: { cols: 60, rows: 20, data: function (terminal, bytes) {
             output += Buffer.from(bytes).toString('utf8');
-            if (sent || !output.includes('[ Save and continue ]')) { return; }
+            if (sent || !output.includes('Save and continue')) { return; }
             sent = true;
-            if (choice === 'cancel') { terminal.write(' \u001b'); return; }
-            var keys = '\u001b[B\u001b[B\u001b[B\u001b[B\r';
-            if (choice === 'yes') { keys = ' ' + keys; }
+            if (choice === 'cancel') { terminal.write('\u001b[B \u001b'); return; }
+            var keys = '\r';
+            if (choice === 'yes') { keys = '\u001b[B \u001b[A\r'; }
             terminal.write(keys);
         } }
     });

@@ -61,7 +61,7 @@ export default async function editApiSettings(): Promise<void> {
     while (true) {
         setSetupLayout('Settings / Local API', 'http://127.0.0.1:' + saved.port, '/velora/settings');
         var choice = await select({ back: true, message: '', initialValue: currentChoice, choices: [
-            { name: 'Port: ' + saved.port, value: 'port', description: feedback || 'Choose a port for the upcoming local API.' },
+            { name: 'Port: ' + saved.port, value: 'port', description: feedback || 'Choose a port for the local API.' },
             { name: 'Reset to default', value: 'reset', description: feedback || 'Use port ' + DEFAULT_API_PORT + '.' }
         ] });
         if (choice === 'back') {

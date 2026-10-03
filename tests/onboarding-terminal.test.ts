@@ -20,8 +20,12 @@ test.skipIf(process.platform === 'win32').each([20, 30])('introductory terminal 
             expect(lines.length, frame).toBe(rows - 1);
             for (var line of lines) { expect(line.length, frame).toBeLessThan(60); }
             if (stage === 0 && frame.includes('Create API key')) { stage++; terminal.write('\u001b[B\r'); return; }
-            if (stage === 1 && frame.includes('[ Save and continue ]')) { stage++; terminal.write('\u001b[B\u001b[B\u001b[B\u001b[B\r'); return; }
-            if (stage === 2 && frame.includes('Start at login')) { stage++; terminal.write('\r'); return; }
+            if (stage === 1 && frame.includes('› Save and continue')) { stage++; terminal.write('\r'); return; }
+            if (stage === 2 && frame.includes('Start at login') && frame.includes('› Save and continue')) {
+                expect(frame).toMatch(/Start at login +│ Off/);
+                expect(frame).not.toContain('[ Save');
+                stage++; terminal.write('\r'); return;
+            }
             for (var item of [{ stage: 3, title: 'Start and stop' }, { stage: 4, title: 'Your applications' }, { stage: 5, title: 'The macOS menu bar' }, { stage: 6, title: 'Keep it running' }, { stage: 7, title: 'Find your way' }]) {
                 if (stage === item.stage && frame.includes(item.title)) { stage++; terminal.write('\r'); return; }
             }

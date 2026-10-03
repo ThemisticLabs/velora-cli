@@ -1,4 +1,5 @@
 import autostart from '../system/autostart.js';
+import switchList from '../terminal/switch-list.js';
 import select from '../setup/select-option.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 
@@ -21,24 +22,29 @@ export default async function autostartSettings(options: { setup?: boolean } = {
             var next = await select({ back: true, message: '', choices: [{ name: 'Continue', value: 'continue' }] });
             return next !== 'back';
         }
-        var initialValue = 'off';
-        if (saved.enabled) { initialValue = 'on'; }
-        setSetupLayout(title, 'Start the local service and menu bar after you sign in to your Mac.', '/velora/settings');
-        var choice = await select({ back: true, initialValue, message: '', choices: [
-            { name: 'Off', value: 'off', description: 'Start velora yourself. Your choice takes effect at the next login.' },
-            { name: 'On', value: 'on', description: 'A saved license and installed model are required.' }
-        ] });
-        if (choice === 'back') { return false; }
-        try { await autostart(choice === 'on'); }
+        break;
+    }
+    var saveLabel = 'Save changes';
+    var initialValue = 'login';
+    if (options.setup) { saveLabel = 'Save and continue'; initialValue = 'save'; }
+    var rows = [{ value: 'login', name: 'Start at login', enabled: saved.enabled,
+        hint: 'Requires a saved license and an installed model.' }];
+    var feedback = '';
+    var feedbackTone: 'muted' | 'OK' | 'Error' = 'muted';
+    while (true) {
+        setSetupLayout(title, 'Start the service and menu bar at your next Mac login.', '/velora/settings', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit');
+        var draft = await switchList({ rows, saveLabel, initialValue, feedback, feedbackTone });
+        if (!draft) { return false; }
+        rows[0]!.enabled = draft[0]!.enabled === true;
+        initialValue = 'save';
+        try { await autostart(rows[0]!.enabled); }
         catch {
-            setSetupLayout(title, '', '/velora/settings', undefined, 'Error');
-            var retry = await select({ back: true, message: 'Could not save. Check Library/LaunchAgents and try again.', choices: [{ name: 'Try again', value: 'retry' }] });
-            if (retry === 'back') { return false; }
+            feedback = 'Could not save. Check Library/LaunchAgents and retry.';
+            feedbackTone = 'Error';
             continue;
         }
         if (options.setup) { return true; }
-        setSetupLayout(title, 'Saved. Takes effect at the next login.', '/velora/settings', undefined, 'OK');
-        await select({ back: true, message: '', choices: [] });
-        return true;
+        feedback = 'Saved. Takes effect at the next login.';
+        feedbackTone = 'OK';
     }
 }

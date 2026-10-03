@@ -25,6 +25,8 @@ try {
         assert.equal(cli, '{broken');
     } else if (scenario === 'disable') {
         assert.deepEqual(JSON.parse(cli), { checkAutomatically: false, installAutomatically: false });
+    } else if (scenario === 'twice') {
+        assert.deepEqual(JSON.parse(cli), JSON.parse(original));
     } else if (scenario === 'allow') {
         assert.deepEqual(JSON.parse(cli), { checkAutomatically: true, installAutomatically: true });
     } else {
