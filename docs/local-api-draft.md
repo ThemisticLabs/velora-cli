@@ -1,6 +1,6 @@
 # Local API plan
 
-Agreed HTTP contract and remaining lifecycle decisions, 3 October 2026. The HTTP server, persistent inference service and operating-system autostart are not implemented. An independent service foundation provides start, status and stop through private local control; it does not yet load the engine or serve HTTP. API-key management, saved port settings and an engine inference check are available.
+HTTP contract, first implementation and remaining lifecycle work, 3 October 2026. The independent service now loads the selected model and serves POST /anonymize through the configured loopback port. API-key management, saved port settings and an engine inference check are available. Interactive Start/Stop, service-owned menubar and operating-system autostart are not connected yet.
 
 ## Local access
 
@@ -17,7 +17,7 @@ The main menu provides key creation and individual revocation. Keys have a name 
 
 API keys authenticate requests and let users manage access separately for each application. They do not encrypt text, mappings or responses. Requests use HTTP over loopback, and anonymization happens locally. License checks can contact the license server; local processing does not mean that every operation is offline.
 
-Browser access and Origin handling remain to be decided. Loopback binding alone does not prevent other programs on the device from making requests.
+The first implementation rejects requests containing Origin or Sec-Fetch-Site and provides no CORS permission. Browser access is not enabled. Host must exactly match 127.0.0.1:{running port}; DNS names are rejected. Loopback binding alone does not prevent other programs on the device from making requests.
 
 ## Anonymize text
 
@@ -60,11 +60,11 @@ With `include_mapping: true`:
 }
 ```
 
-Mapping keys are the complete placeholders used in the response text. Each entry contains the original text, its type and all occurrences represented by that placeholder. Positions refer to the input text, start at zero and use an exclusive end. The offset unit for emoji and other non-BMP characters still needs to be agreed and verified against the engine.
+Mapping keys are the complete placeholders used in the response text. Each entry contains the original text, its type and all occurrences represented by that placeholder. Positions refer to the input text, start at zero and use an exclusive end. The first implementation preserves Unicode code-point positions from the engine. An emoji counts as one character; these are not JavaScript UTF-16 string indices. For JavaScript slicing, use Array.from(input).slice(start, end).
 
 The example shows the HTTP format, not a guaranteed prediction for every model. The engine returns `placeholder_text` and numeric string mapping keys; velora adapts those fields to the agreed HTTP format.
 
-Mapping contains sensitive original values. It is returned only when requested and is not persisted by velora. Requests, original text, mappings and API keys must not appear in logs. Empty input behavior and unknown request fields remain to be decided.
+Mapping contains sensitive original values. It is returned only when requested and is not persisted by velora. Requests, original text, mappings and API keys do not appear in API logs. Empty text is accepted; unknown fields, malformed UTF-8, unpaired Unicode surrogates and invalid field types return 400. If the engine groups different original spellings under one ID, velora splits them into separate placeholders so each original field matches all its occurrences. It verifies every input occurrence and the full placeholder output before returning a result.
 
 ## Request limits and concurrency
 
@@ -74,7 +74,7 @@ Enforce the limit while reading the body, including requests without a reliable 
 
 The engine protocol currently accepts request lines up to 2 MiB. Before sending a request, check the actual serialized engine message, including its envelope and line terminator. JSON escaping can expand the message, so an HTTP body below 1.6 MiB does not by itself guarantee that the engine request fits. Reject an oversized engine message with `413` before sending it. Keep this protocol check separate from the HTTP body limit.
 
-Process one anonymization request at a time. While the engine is busy, reject another processing request with `429` and `Retry-After`. Do not create an unbounded queue. The retry delay remains to be chosen. This concurrency rule is separate from the request-size limit.
+Process one anonymization request at a time. While the engine is busy, reject another processing request with `429` and `Retry-After`. Do not create an unbounded queue. Retry-After is 1 second. The slot includes reading an authorized request body; uploads have a 15-second absolute deadline and a 15-second idle timeout. This concurrency rule is separate from the request-size limit.
 
 ## Errors
 
@@ -99,7 +99,23 @@ Agreed statuses:
 | `429` | Another anonymization request is being processed; include `Retry-After` |
 | `503` | The engine crashes during processing; return a readable error if the client is still connected |
 
-Before implementation, finish the status and code list for malformed JSON, invalid fields, missing or revoked API keys, unavailable engine or model, license failure, unsupported content type, unknown routes and request timeout.
+Additional implemented errors:
+
+| HTTP status | Code | Condition |
+| --- | --- | --- |
+| 400 | invalid_json, invalid_request, request_interrupted | Invalid or incomplete input |
+| 401 | invalid_api_key | Missing, invalid or revoked application key |
+| 403 | local_access_only, browser_access_denied | Wrong Host or browser request |
+| 404 | route_not_found | Unknown path or query string |
+| 405 | method_not_allowed | Use POST; response includes Allow |
+| 408 | body_timeout | Body upload exceeded 15 seconds |
+| 413 | request_too_large | HTTP body or encoded engine message too large |
+| 415 | unsupported_content_type, unsupported_content_encoding | Use uncompressed UTF-8 JSON |
+| 429 | engine_busy | One processing slot is occupied |
+| 503 | key_store_unavailable, service_unavailable, license_unavailable, engine_unavailable | Storage, readiness, authorization or engine failure |
+| 504 | processing_timeout | Engine exceeded its existing 30-second request deadline |
+
+Keys are verified from the current store for each request, so revocation does not require a restart. The engine enforces license authorization during processing. A protocol timeout terminates the engine and leaves the service failed until manual restart. An oversized encoded message is rejected before writing to the child and does not terminate an otherwise healthy engine.
 
 ## Port settings and startup
 
@@ -137,7 +153,7 @@ The interactive CLI controls the same service used by headless startup. It must 
 
 Stop stops accepting new anonymization work and lets the active request finish. After its response completes, shut down the listener and engine and return the menu action to **Start**. Show a stopping state while waiting; do not claim that shutdown has completed early.
 
-Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. If graceful Stop exceeds its waiting deadline, offer an explicit forced Stop. Never automatically cancel the active request merely because the Stop deadline passed. The waiting duration still needs to be chosen.
+Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. If graceful Stop exceeds its waiting deadline, offer an explicit forced Stop. Never automatically cancel the active request merely because the Stop deadline passed. The control command waits up to 60 seconds for its acknowledgement and never automatically force-stops a request. If it times out, the service may still be draining; inspect status. A forced Stop action is not implemented yet.
 
 ## Menubar: Open velora
 
@@ -166,7 +182,7 @@ velora serve status
 velora serve stop
 ```
 
-Start now opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages or expose the HTTP API. Start/Stop in the interactive menu, service-owned menubar and autostart are still planned.
+Start now opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages. Its local API binds before model loading; port conflicts fail without loading an engine. Model-load failure releases the HTTP port. Ready reports the actual bound port. Stop closes the listener to new connections, waits for active processing and response completion, then closes the engine. Private status stays reachable and reports stopping during that wait. Start/Stop in the interactive menu, service-owned menubar and autostart are still planned.
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 
@@ -191,11 +207,11 @@ If the HTTP client disconnects, discard its result. Do not interrupt the shared 
 
 ## Remaining decisions and implementation checks
 
-1. Choose the Stop waiting duration, inference timeout and busy-response retry delay. Define timeout recovery separately from client disconnection.
+1. Revisit the first implementation defaults of a 60-second control wait, a 30-second engine request deadline and Retry-After of 1 second when adding interactive lifecycle controls. Add an explicit forced Stop action.
 2. Define visible starting, ready, busy, stopping and failed states, including startup failure feedback. Decide pause behavior separately.
 3. Define recovery if loading another model fails and how selected-model persistence relates to the model actually loaded by the service.
 4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
 5. Design local service control and interactive-session discovery. Verify configured terminal discovery and exact tab activation on macOS.
 6. Choose the autostart event and coordinate service lifetime with executable updates.
 
-Resolve the offset unit, browser access, validation details and remaining error statuses before implementing the endpoint. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.
+Unicode code-point offsets, blocked browser access, strict validation and the error list above are the defaults of the first HTTP implementation. These choices can be revised before wider use. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.

@@ -2,7 +2,7 @@
 
 Local anonymization for the tools you already use.
 
-> **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup, not a finished release. Verified engine downloads and engine-managed model installation are implemented; the local API and service setup are still being built.
+> **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup, not a finished release. Verified engine downloads and engine-managed model installation are implemented; a headless local API is available. Interactive service controls and autostart are still being built.
 
 velora is an open-source CLI from Themistic, being built to run model families such as Skira and Veyra on your device and make them available through a local API.
 <img width="1179" height="761" alt="velora CLI development screenshot" src="https://github.com/user-attachments/assets/23185312-759a-44a4-94c8-f10075d08203" />
@@ -14,7 +14,7 @@ The API will return anonymized text, with the original-value mapping included wh
 
 ## Development status
 
-The TypeScript CLI currently provides help, version output, suggestions for misspelled commands, and an interactive setup. velora downloads the standalone Themistic Engine, then uses its local JSON-Lines interface to check license access and install models. Verified license keys are saved in the system credential store. The local API is not available yet. This checkout is a development version.
+The TypeScript CLI currently provides help, version output, suggestions for misspelled commands, and an interactive setup. velora downloads the standalone Themistic Engine, then uses its local JSON-Lines interface to check license access and install models. Verified license keys are saved in the system credential store. The headless service provides the local API. This checkout is a development version.
 
 Development uses Bun. The build produces a standalone executable with its runtime included, so users do not need to install Bun or Node.js. Homebrew, WinGet, and direct release downloads are planned.
 
@@ -22,7 +22,7 @@ To run the development build, follow [CONTRIBUTING.md](CONTRIBUTING.md). Code co
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the current implementation and its boundaries.
 
-**Settings → Local API port** lets you edit the port or choose **Reset to default** (`8001`). Enter saves an edited port; Esc discards the edit. Saving shows **Saved.** in the port menu. `velora doctor` checks whether the saved port can currently be bound on loopback. This setting does not start a server. The HTTP API is not implemented yet; its proposed behavior is recorded in [the local API draft](docs/local-api-draft.md).
+**Settings → Local API port** lets you edit the port or choose **Reset to default** (`8001`). Enter saves an edited port; Esc discards the edit. Saving shows **Saved.** in the port menu. `velora doctor` checks whether the saved port can currently be bound on loopback. This setting does not start a server. Start the headless service to bind this port. Its current behavior is recorded in [the local API contract](docs/local-api-draft.md).
 
 The CLI and its models are distributed separately. The shared engine downloads licensed model data from the Themistic license server. Users do not need Python or pip. The planned public Veyra1 model will offer a path without a license key.
 
@@ -44,17 +44,28 @@ velora serve status
 velora serve stop
 ```
 
-The service survives closing the terminal. Start reads the saved license, reuses the verified installed engine and loads the selected installed model once. It reports ready only after the engine confirms the model and engine version. Repeated starts reuse that instance. Startup does not download packages; complete setup and select an installed model first. Status distinguishes starting, ready and failed. An engine crash requires an explicit stop and restart. Stop unloads the model and closes the engine.
+The service survives closing the terminal. Start reads the saved license, reuses the verified installed engine and loads the selected installed model once. It reports ready only after the engine confirms the model and engine version. Repeated starts reuse that instance. Startup does not download packages; complete setup and select an installed model first. Status distinguishes starting, ready, stopping and failed. An engine crash requires an explicit stop and restart. Stop unloads the model and closes the engine.
 
 Stop the service before switching or deleting a model. Model changes and service startup share an exclusive lock, so a running service cannot retain a model whose installation is being deleted. Switching the saved selection does not reload a running engine.
 
-The HTTP API, interactive Start/Stop action, service-owned menubar and autostart are not connected yet.
+The service exposes POST /anonymize only on 127.0.0.1, using the port saved in Settings (8001 by default). Status shows the actual address. Create an application API key in the interactive menu, then use it:
+
+```sh
+curl http://127.0.0.1:8001/anonymize \
+  -H "Authorization: Bearer $VELORA_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Hallo Anna Müller.","include_mapping":true}'
+```
+
+The response contains text and, when requested, mapping with original values, types and input occurrences. Positions count Unicode code points, including one position per emoji. The complete JSON body may contain at most 1.6 MiB. One authorized request is processed at a time; busy requests receive 429 with Retry-After. Keys are checked on every request. Browser access is blocked. API keys separate application access; they do not encrypt requests or responses. Processing is local, but engine license checks may use the network.
+
+Stop waits for active processing and response completion before closing the engine. A disconnected client does not cancel inference. See [the API contract](docs/local-api-draft.md) for validation, deadlines and errors. Interactive Start/Stop, service-owned menubar and autostart are not connected yet.
 
 ## Application keys
 
 Open **API keys** in the main menu for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key appears immediately in the popup and is copied to the clipboard automatically. It stays visible until you close the popup, including when copying fails. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.
 
-API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` and a recovery copy with restricted file permissions. Plaintext keys are never saved. Both copies carry a revision and checksum; the latest valid revision is used if one copy is damaged. If both are unreadable, changes are refused. This is a file store, not a database. Names and notes are not encrypted. License keys remain in the system credential store. Creating an application key does not start the planned HTTP API.
+API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` and a recovery copy with restricted file permissions. Plaintext keys are never saved. Both copies carry a revision and checksum; the latest valid revision is used if one copy is damaged. If both are unreadable, changes are refused. This is a file store, not a database. Names and notes are not encrypted. License keys remain in the system credential store. Creating an application key does not start the HTTP service.
 
 On macOS, the interactive menu displays the existing TC logo as a monochrome menu bar icon. It has no menu or click actions and disappears when the CLI closes. It indicates that the CLI is open, not that an API service is running. No autostart is registered.
 
