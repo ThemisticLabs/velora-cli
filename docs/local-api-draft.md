@@ -1,101 +1,138 @@
-# Local API discussion
+# Local API plan
 
-Draft for review. The HTTP server is not implemented. API-key management is available in Settings. JSON field names still need Manu's decision. Local application keys and a configurable port are agreed requirements. Manu selected optional mapping with original text, type and occurrence positions.
-
-## Verified engine behavior
-
-Engine 0.4.4 and the isolated skira7alpha3 installation processed synthetic text successfully. Repeated occurrences of Anna Müller used the same placeholder. Mapping offsets matched the input, restoring placeholders reproduced the original text, empty input succeeded, and shutdown unloaded the model. This is a functional check, not a model-quality evaluation.
-
-Run the check against an existing installation:
-
-```sh
-bun run scripts/check-inference.ts /path/to/installed/data
-```
-
-The script reads the saved license from the system credential store. It uses the selected model and verified cached engine, downloads no packages, and closes the engine process after the check. Its input is fixed synthetic text. License verification can contact the license server; anonymization runs locally.
+Agreed HTTP contract and remaining lifecycle decisions, 3 October 2026. The HTTP server and persistent inference service are not implemented. API-key management, saved port settings and an engine inference check are available.
 
 ## Local access
 
-The listener must bind explicitly to `127.0.0.1`. An IPv6 listener, if needed, must bind to `::1`. Never bind to `0.0.0.0` or `::`. There is no remote-access setting.
+The API binds only to `127.0.0.1`. Its default address is `http://127.0.0.1:8001`. Settings can change the port, but cannot enable remote access. Never bind to `0.0.0.0` or `::`. IPv6 support is outside the first implementation.
 
-Give each application its own local API key, sent in `Authorization: Bearer <key>`. Keys can be named and revoked individually, without changing access for other applications. Loopback binding limits network reachability, but other programs on the device can still make requests. The main menu now creates named keys with optional notes, copies new keys to the clipboard and confirms individual revocation. Only SHA-256 hashes are persisted; plaintext keys cannot be retrieved. Browser access rules and the HTTP contract still need a separate decision.
+Each application uses its own named API key:
 
-API keys authenticate requests and let the user manage access separately for each application. They do not encrypt request text, mapping or responses. The initial API uses HTTP over loopback. Local model processing and transport encryption are separate concepts.
+```http
+Authorization: Bearer velora_…
+Content-Type: application/json
+```
 
-Explain this where a key is created and in the getting-started guide:
+The main menu provides key creation and individual revocation. Keys have a name and optional note. A new key is shown immediately and copied to the clipboard. Only SHA-256 digests and metadata are persisted; plaintext keys cannot be retrieved later.
 
-> Give each application its own API key so you can manage and revoke its access separately. API keys do not encrypt requests or responses. Processing happens locally on your device.
+API keys authenticate requests and let users manage access separately for each application. They do not encrypt text, mappings or responses. Requests use HTTP over loopback, and anonymization happens locally. License checks can contact the license server; local processing does not mean that every operation is offline.
 
-## Port settings and startup
+Browser access and Origin handling remain to be decided. Loopback binding alone does not prevent other programs on the device from making requests.
 
-Settings now offers **Local API port** with an edit row and **Reset to default**. Enter saves the edited port to `<data>/api.json`; Esc discards the edit and returns to the port menu. Reset saves the provisional default `8001` immediately. Both actions show **Saved.** within the same menu. Valid ports range from `1` to `65535`. The view shows the saved `http://127.0.0.1:<port>` address, without claiming that a server is running. No listener or startup conflict handling is implemented yet.
+## Anonymize text
 
-Changing the port must not change the loopback binding. A running API will need to restart to apply a saved port; the restart action remains to be implemented.
-
-At API startup, attempt to bind the configured port or the default when no port is saved. The actual bind is authoritative: a separate availability probe cannot reserve a port or prevent another process from taking it. Handle a bind conflict before loading the model for API use.
-
-If the port is already occupied, keep the API stopped and show:
-
-> The local API could not start because port {port} is already in use. Choose another port in Settings, then try again.
-
-Do not silently choose a different port, stop another process or claim the API is running. Keep Settings reachable so the user can correct the port. Other bind failures need their own truthful error; do not label every startup error as a port conflict. Startup registration must use the same saved setting and conflict handling.
-
-## Request proposal
-
-The route name is open for discussion. Example: `POST /anonymize`.
+Use `POST /anonymize`. There is no `/v1` prefix.
 
 ```json
 {
-  "text": "Anna Müller wohnt in Berlin.",
+  "text": "Hallo Anna Müller.",
   "include_mapping": false
 }
 ```
 
-Proposed default: omit mapping unless requested. Use the selected model for the first implementation. Whether a request may choose a different installed model remains open.
+`text` is a required string. `include_mapping` is an optional boolean and defaults to `false`. The API uses the model selected in velora. Requests cannot select or change a model.
 
-## Response proposal
-
-Without mapping:
+A successful response without mapping contains only the anonymized text:
 
 ```json
 {
-  "text": "[PERSON:1] wohnt in [LOCATION:2]."
+  "text": "Hallo [PERSON:1]."
 }
 ```
 
-With `include_mapping: true`, one possible format is:
+With `include_mapping: true`:
 
 ```json
 {
-  "text": "[PERSON:1] wohnt in [LOCATION:2].",
+  "text": "Hallo [PERSON:1].",
   "mapping": {
     "[PERSON:1]": {
-      "text": "Anna Müller",
+      "original": "Anna Müller",
       "type": "PERSON",
-      "occurrences": [{ "start": 0, "end": 11 }]
-    },
-    "[LOCATION:2]": {
-      "text": "Berlin",
-      "type": "LOCATION",
-      "occurrences": [{ "start": 21, "end": 27 }]
+      "occurrences": [
+        {
+          "start": 6,
+          "end": 17
+        }
+      ]
     }
   }
 }
 ```
 
-This is a proposed HTTP shape, not the raw engine result. The engine currently returns `placeholder_text` and numeric string mapping keys. Exposing or adapting that format is still a decision. The offset unit must be defined before the HTTP contract is implemented; non-ASCII cases, including emoji, need verification across the engine and JavaScript clients.
+Mapping keys are the complete placeholders used in the response text. Each entry contains the original text, its type and all occurrences represented by that placeholder. Positions refer to the input text, start at zero and use an exclusive end. The offset unit for emoji and other non-BMP characters still needs to be agreed and verified against the engine.
 
-Manu selected mapping with original text, type and occurrence positions. The exact JSON keys and offset unit remain to be agreed. Mapping contains original sensitive text and should only be returned when explicitly requested.
+The example shows the HTTP format, not a guaranteed prediction for every model. The engine returns `placeholder_text` and numeric string mapping keys; velora adapts those fields to the agreed HTTP format.
 
-## Remaining decisions
+Mapping contains sensitive original values. It is returned only when requested and is not persisted by velora. Requests, original text, mappings and API keys must not appear in logs. Empty input behavior and unknown request fields remain to be decided.
 
-- Route and request field names.
-- Key creation, storage and revocation details, and browser access policy.
-- Confirm the provisional default port and the restart interaction when a running API changes ports.
-- Response field names and mapping structure, including the agreed text, type and occurrence positions.
-- Selected model only, or model choice per request.
-- Empty input behavior and text-size limit.
-- Error JSON and HTTP statuses for invalid input, invalid API key, unavailable model, license failure and a busy engine.
-- Queueing, cancellation and model switching while a request runs.
+## Request limits and concurrency
 
-The API implementation follows these decisions. Background service and startup registration come afterwards.
+The entire UTF-8 JSON request body is limited to **1.6 MiB**. The implementation uses `floor(1.6 × 1024 × 1024)`, or **1,677,721 bytes**. This is a byte limit, not a token limit. There is no 32K-token limit.
+
+Enforce the limit while reading the body, including requests without a reliable `Content-Length`. Reject larger bodies with HTTP `413`. Never silently truncate input.
+
+The engine protocol currently accepts request lines up to 2 MiB. Before sending a request, check the actual serialized engine message, including its envelope and line terminator. JSON escaping can expand the message, so an HTTP body below 1.6 MiB does not by itself guarantee that the engine request fits. Reject an oversized engine message with `413` before sending it. Keep this protocol check separate from the HTTP body limit.
+
+Process one anonymization request at a time. While the engine is busy, reject another processing request with `429` and `Retry-After`. Do not create an unbounded queue. The retry delay remains to be chosen. This concurrency rule is separate from the request-size limit.
+
+## Errors
+
+Errors use one JSON shape:
+
+```json
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Provide text as a string."
+  }
+}
+```
+
+Codes identify the error for applications. Messages describe the problem and a useful next step. Do not return raw engine exceptions, local paths, license keys, API keys or input text.
+
+Agreed statuses:
+
+| HTTP status | Condition |
+| --- | --- |
+| `413` | HTTP body or serialized engine request is too large |
+| `429` | Another anonymization request is being processed; include `Retry-After` |
+
+Before implementation, finish the status and code list for malformed JSON, invalid fields, missing or revoked API keys, unavailable engine or model, license failure, unsupported content type, unknown routes and request timeout.
+
+## Port settings and startup
+
+Settings provides **Local API port** and **Reset to default**. The default is `8001`. Enter saves the edited port to `<data>/api.json`; Esc discards the edit. Reset saves the default immediately. Both actions show **Saved.** within the same menu. Valid ports range from `1` to `65535`.
+
+The menu displays the saved address without claiming that a listener is running. Startup and Doctor can check current port availability. A probe cannot reserve the port; the actual bind remains authoritative.
+
+At API startup, bind the saved port or the default if no port is saved. Handle a bind conflict before loading the model for API use. Keep the API stopped and Settings reachable:
+
+> The local API could not start because port {port} is already in use. Choose another port in Settings, then try again.
+
+Do not silently choose another port or stop another process. Other bind failures need their own error. Applying a port change to a running server still needs a restart policy.
+
+## Engine check
+
+The existing project check records successful synthetic inference with engine 0.4.4 and an isolated skira7alpha3 installation. Repeated occurrences shared a placeholder, mapping positions matched the input, replacing placeholders restored the original text, empty input succeeded and shutdown unloaded the model. This is a functional check, not a model-quality evaluation. It was not repeated as part of this documentation change.
+
+Run against an existing installation:
+
+```sh
+bun run scripts/check-inference.ts /path/to/installed/data
+```
+
+The script reads the saved license from the system credential store, uses the selected installed model and cached verified engine, downloads no packages and closes the engine process afterwards. Input is fixed synthetic text. License verification can contact the license server.
+
+## Next planning step: service lifecycle
+
+The following are proposals for discussion, not approved behavior:
+
+1. Decide how users start the API during the first implementation and whether it stops when the CLI closes. Build the foreground API before adding an operating-system service.
+2. Load the selected model once and keep one engine process ready for requests. Define visible states for starting, ready, busy, paused, stopped and failed.
+3. Decide what pause and stop do to an active request. Define what happens when an HTTP client disconnects, the engine crashes or a request times out.
+4. Define model switching: finish or cancel active work, load the next model, and retain the previous selection if loading fails.
+5. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
+6. Decide whether a saved port change restarts the API immediately or requires an explicit restart.
+
+Resolve the offset unit, browser access, validation details, error statuses, retry delay and timeout before implementing the endpoint. Background service registration and optional autostart follow after the local API works and its behavior has been tested.
