@@ -4,9 +4,12 @@ import { join } from 'node:path';
 import { createServer, type Socket } from 'node:net';
 import directoryLock from '../system/directory-lock.js';
 import syncDirectory from '../system/sync-directory.js';
-import servicePaths, { CONTROL_TOKEN_BYTES, CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES } from './service-paths.js';
+import serviceEngine, { type ServiceEngine } from './service-engine.js';
+import downloadFailure from '../downloads/download-failure.js';
+import type { ServiceStatus } from './service-request.js';
+import servicePaths, { CONTROL_TOKEN_BYTES, CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, START_TIMEOUT_MS } from './service-paths.js';
 
-export default async function serviceWorker(directory: string): Promise<void> {
+export default async function serviceWorker(directory: string, loadEngine = serviceEngine): Promise<void> {
     var paths = servicePaths(directory);
     await mkdir(paths.directory, { recursive: true, mode: 0o700 });
     if (!(await lstat(paths.directory)).isDirectory()) {
@@ -15,12 +18,16 @@ export default async function serviceWorker(directory: string): Promise<void> {
     var lease = await directoryLock({ operation: 'acquire', path: paths.lock });
     var token = randomBytes(CONTROL_TOKEN_BYTES).toString('base64url');
     var sockets = new Set<Socket>();
+    var state: ServiceStatus = { state: 'starting', pid: process.pid };
+    var engine: ServiceEngine | undefined;
+    var engineController = new AbortController();
     var stopping = false;
     var stopSocket: Socket | undefined;
     var finish: () => void;
     var stopped = new Promise<void>(function (resolve) { finish = resolve; });
     var stop = function () {
         stopping = true;
+        if (state.state === 'starting') { engineController.abort(); }
         finish();
     };
     var server = createServer(function (socket) {
@@ -54,7 +61,7 @@ export default async function serviceWorker(directory: string): Promise<void> {
                     stop();
                     return;
                 }
-                socket.end(JSON.stringify({ state: 'running', pid: process.pid }) + '\n');
+                socket.end(JSON.stringify(state) + '\n');
             } catch {
                 socket.destroy();
             }
@@ -106,6 +113,24 @@ export default async function serviceWorker(directory: string): Promise<void> {
         } finally {
             await rm(temporary, { recursive: true, force: true });
         }
+        var startupTimer = setTimeout(function () { engineController.abort(); }, START_TIMEOUT_MS);
+        try {
+            engine = await loadEngine(paths.directory, engineController.signal);
+            if (engine && !stopping) {
+                state = { state: 'running', pid: process.pid, model: engine.model, engineVersion: engine.engineVersion };
+                engine.exited.then(function () {
+                    if (!stopping) {
+                        state = { state: 'failed', pid: process.pid, message: 'The engine stopped. Stop the service, then start it again.' };
+                    }
+                });
+            }
+        } catch (error) {
+            var message = downloadFailure(error, 'Could not load the engine or selected model. Check the license and installation, then restart the service.');
+            if (engineController.signal.aborted && !stopping) { message = 'Loading the selected model took too long. Stop the service, then try again.'; }
+            state = { state: 'failed', pid: process.pid, message };
+        } finally {
+            clearTimeout(startupTimer);
+        }
         await stopped;
     } finally {
         process.removeListener('SIGTERM', stop);
@@ -117,14 +142,18 @@ export default async function serviceWorker(directory: string): Promise<void> {
             if (socket !== stopSocket) { socket.destroy(); }
         }
         try {
-            if (published) {
-                await rm(paths.record, { force: true });
-                await syncDirectory(paths.directory);
-            }
+            await engine?.close();
         } finally {
-            await directoryLock({ operation: 'release', path: paths.lock, lease });
-            stopSocket?.end(JSON.stringify({ state: 'stopped' }) + '\n');
-            await closed;
+            try {
+                if (published) {
+                    await rm(paths.record, { force: true });
+                    await syncDirectory(paths.directory);
+                }
+            } finally {
+                await directoryLock({ operation: 'release', path: paths.lock, lease });
+                stopSocket?.end(JSON.stringify({ state: 'stopped' }) + '\n');
+                await closed;
+            }
         }
     }
 }

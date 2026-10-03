@@ -30,7 +30,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
             var parentInfo = await lstat(parent);
         } catch (error) {
             if (options.installedOnly && error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-                throw new DownloadError('No installed engine is available. Complete setup before checking the license.');
+                throw new DownloadError('No installed engine is available. Complete setup before using the engine.');
             }
             throw error;
         }
@@ -78,7 +78,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
             return { executable, packagePath, runtimePath: join(installation, 'runtime'), release, target };
         }
         if (options.installedOnly) {
-            throw new DownloadError('No installed engine is available. Complete setup before checking the license.');
+            throw new DownloadError('No installed engine is available. Complete setup before using the engine.');
         }
         onProgress({ downloaded: 0, total: 0, message: 'Preparing the engine download.' });
         var binding = { operation: 'resolve' as const, license_key: license, runtime_target: target };

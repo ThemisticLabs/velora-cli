@@ -19,6 +19,11 @@ for await (var line of createInterface({ input: process.stdin })) {
         if (scenario === 'no capability') { delete result.capabilities; }
         if (scenario === 'old version') { result.version = '0.4.0'; }
     }
+    if (request.operation === 'load') {
+        result = { model_id: 'model-a', engine_version: '0.4.1' };
+    }
+    if (request.operation === 'shutdown') { result = { unloaded: true }; }
+    if (request.operation === 'fixture_exit') { process.exit(0); }
     if (request.operation === 'models') {
         result = { status: 'ok', models: [] };
     }

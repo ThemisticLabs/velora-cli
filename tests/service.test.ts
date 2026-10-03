@@ -4,13 +4,17 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createConnection } from 'node:net';
 import { fileURLToPath } from 'node:url';
-import serviceControl from '../src/service/service-control.js';
+import serviceControl, { type ServiceLaunch } from '../src/service/service-control.js';
+import { spawn } from 'node:child_process';
 import servicePaths from '../src/service/service-paths.js';
 
 var CLI_PATH = fileURLToPath(new URL('../dist/velora', import.meta.url));
 if (process.platform === 'win32') { CLI_PATH += '.exe'; }
 var fixture = fileURLToPath(new URL('./fixtures/service-control.ts', import.meta.url));
 
+var fixtureLaunch: ServiceLaunch = function (_command, args, options) {
+    return spawn(process.execPath, ['run', fileURLToPath(new URL('./fixtures/service-worker.ts', import.meta.url)), args.at(-1)!], options);
+};
 test('the detached service survives its launcher and concurrent starts share one instance', async function () {
     var directory = await mkdtemp(join(tmpdir(), 'velora-service-'));
     var paths = servicePaths(directory);
@@ -32,7 +36,7 @@ test('the detached service survives its launcher and concurrent starts share one
         var status = await serviceControl('status', directory);
         expect(status.state).toBe('running');
         if (status.state === 'running') { expect(pids.has(status.pid)).toBe(true); }
-        expect(await serviceControl('start', directory)).toEqual(status);
+        expect(await serviceControl('start', directory, fixtureLaunch)).toEqual(status);
         if (process.platform !== 'win32') {
             expect((await lstat(paths.record)).mode & 0o777).toBe(0o600);
             expect((await lstat(paths.endpoint)).mode & 0o777).toBe(0o600);
@@ -40,7 +44,7 @@ test('the detached service survives its launcher and concurrent starts share one
         expect(await serviceControl('stop', directory)).toEqual({ state: 'stopped' });
         expect(await serviceControl('status', directory)).toEqual({ state: 'stopped' });
         expect(await serviceControl('stop', directory)).toEqual({ state: 'stopped' });
-        var restarted = await serviceControl('start', directory);
+        var restarted = await serviceControl('start', directory, fixtureLaunch);
         expect(restarted.state).toBe('running');
         if (restarted.state === 'running') { expect(pids.has(restarted.pid)).toBe(false); }
     } finally {
@@ -55,7 +59,7 @@ test('a crashed service can restart without deleting user data', async function 
     var paths = servicePaths(directory);
     try {
         await writeFile(join(directory, 'user-data'), 'keep this');
-        var status = await serviceControl('start', directory);
+        var status = await serviceControl('start', directory, fixtureLaunch);
         expect(status.state).toBe('running');
         if (status.state !== 'running') { throw new Error('Service did not start'); }
         process.kill(status.pid, 'SIGKILL');
@@ -71,7 +75,7 @@ test('a crashed service can restart without deleting user data', async function 
             await Bun.sleep(20);
         }
         expect(await serviceControl('status', directory)).toEqual({ state: 'stopped' });
-        var restarted = await serviceControl('start', directory);
+        var restarted = await serviceControl('start', directory, fixtureLaunch);
         expect(restarted.state).toBe('running');
         if (restarted.state === 'running') { expect(restarted.pid).not.toBe(status.pid); }
         expect(await readFile(join(directory, 'user-data'), 'utf8')).toBe('keep this');
@@ -86,7 +90,7 @@ test('unauthorized control messages cannot stop the service', async function () 
     var directory = await mkdtemp(join(tmpdir(), 'velora-service-auth-'));
     var paths = servicePaths(directory);
     try {
-        var status = await serviceControl('start', directory);
+        var status = await serviceControl('start', directory, fixtureLaunch);
         await new Promise<void>(function (resolve, reject) {
             var socket = createConnection(paths.endpoint);
             socket.once('error', reject);
@@ -107,26 +111,28 @@ test('invalid control information fails closed', async function () {
     var directory = await mkdtemp(join(tmpdir(), 'velora-service-invalid-'));
     try {
         await writeFile(servicePaths(directory).record, '{}');
-        await expect(serviceControl('start', directory)).rejects.toThrow('Invalid service control');
+        await expect(serviceControl('start', directory, fixtureLaunch)).rejects.toThrow('Invalid service control');
     } finally {
         await rm(directory, { recursive: true, force: true });
     }
 });
 
-test('the compiled worker runs without Bun on PATH and rejects a second worker', async function () {
+test('the compiled worker reports missing setup without reading credentials and rejects a second worker', async function () {
     var directory = await mkdtemp(join(tmpdir(), 'velora-service-native-'));
     var paths = servicePaths(directory);
     var worker = Bun.spawn([CLI_PATH, '--service-worker', directory], { cwd: tmpdir(), env: { ...process.env, PATH: '' }, stdout: 'pipe', stderr: 'pipe' });
     try {
         var started = Date.now();
-        while ((await serviceControl('status', directory)).state === 'stopped') {
+        while (true) {
+            var status = await serviceControl('status', directory);
+            if (status.state === 'failed') { break; }
             if (Date.now() - started > 5000) { throw new Error('Compiled worker did not start'); }
             await Bun.sleep(20);
         }
-        expect(await serviceControl('status', directory)).toEqual({ state: 'running', pid: worker.pid });
+        expect(await serviceControl('status', directory)).toEqual({ state: 'failed', pid: worker.pid, message: 'Select an installed model in velora before starting the service.' });
         var second = Bun.spawn([CLI_PATH, '--service-worker', directory], { stdout: 'ignore', stderr: 'ignore' });
         expect(await second.exited).toBe(1);
-        expect(await serviceControl('status', directory)).toEqual({ state: 'running', pid: worker.pid });
+        expect(await serviceControl('status', directory)).toEqual({ state: 'failed', pid: worker.pid, message: 'Select an installed model in velora before starting the service.' });
         await serviceControl('stop', directory);
         expect(await worker.exited).toBe(0);
         expect(await new Response(worker.stdout).text()).toBe('');

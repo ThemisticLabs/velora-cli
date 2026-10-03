@@ -18,6 +18,7 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
         var fixture = await enginePackage();
         var connect: typeof engineSession = async function () {
             return {
+                exited: new Promise<void>(function () {}),
                 installation: { executable: join(directory, 'engine'), target: fixture.release.runtime_target,
                     packagePath: join(directory, 'engine-package'), runtimePath: join(directory, 'engine-runtime'), release: fixture.release },
                 request: async function (operation: string, fields: Record<string, unknown> = {}) {

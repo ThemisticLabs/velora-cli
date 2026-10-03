@@ -13,6 +13,7 @@ export default async function engineSession(license: string, signal: AbortSignal
     var exited = new Promise<void>(function (resolve) { child.once('close', function () { resolve(); }); });
     var MAX_RESPONSE_BYTES = 2 * 1024 ** 2;
     var REQUEST_TIMEOUT_MS = 30000;
+    var LOAD_TIMEOUT_MS = 120000;
     var INSTALL_TIMEOUT_MS = 30 * 60 * 1000;
     var KILL_DELAY_MS = 1000;
     var buffer = Buffer.alloc(0);
@@ -145,6 +146,9 @@ export default async function engineSession(license: string, signal: AbortSignal
         }
         var id = ++nextId;
         var timeout = REQUEST_TIMEOUT_MS;
+        if (operation === 'load') {
+            timeout = LOAD_TIMEOUT_MS;
+        }
         if (operation === 'install_model') {
             timeout = INSTALL_TIMEOUT_MS;
         }
@@ -180,7 +184,7 @@ export default async function engineSession(license: string, signal: AbortSignal
             semver.order(version.version, MIN_ENGINE_VERSION) < 0) {
             throw new DownloadError('This engine is not compatible with velora. Check for an engine update in Settings.');
         }
-        return { request, close, installation };
+        return { request, close, installation, exited };
     } catch (error) {
         await close();
         throw error;

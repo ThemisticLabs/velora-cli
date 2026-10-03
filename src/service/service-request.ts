@@ -1,8 +1,9 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { createConnection } from 'node:net';
-import servicePaths, { CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES } from './service-paths.js';
+import servicePaths, { CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, STOP_TIMEOUT_MS } from './service-paths.js';
 
-export type ServiceStatus = { state: 'running'; pid: number } | { state: 'stopped' };
+export type ServiceStatus = { state: 'running'; pid: number; model: string; engineVersion: string } |
+    { state: 'starting'; pid: number } | { state: 'failed'; pid: number; message: string } | { state: 'stopped' };
 
 export default async function serviceRequest(operation: 'status' | 'stop', directory: string): Promise<ServiceStatus> {
     var paths = servicePaths(directory);
@@ -29,9 +30,11 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
         return await new Promise<ServiceStatus>(function (resolve, reject) {
             var socket = createConnection(paths.endpoint);
             var received = Buffer.alloc(0);
+            var timeout = CONTROL_TIMEOUT_MS;
+            if (operation === 'stop') { timeout = STOP_TIMEOUT_MS; }
             var timer = setTimeout(function () {
                 socket.destroy(new Error('The velora service did not respond. Try again.'));
-            }, CONTROL_TIMEOUT_MS);
+            }, timeout);
             socket.on('error', reject);
             socket.once('close', function () {
                 clearTimeout(timer);
@@ -55,11 +58,27 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
                     }
                     if (response.state === 'stopped' && operation === 'stop') {
                         resolve({ state: 'stopped' });
-                    } else if (response.state === 'running' && 'pid' in response && response.pid === pid) {
-                        resolve({ state: 'running', pid });
-                    } else {
+                        return;
+                    }
+                    if (!('pid' in response) || response.pid !== pid) {
                         throw new Error('The service response does not match the running instance.');
                     }
+                    if (response.state === 'starting') {
+                        resolve({ state: 'starting', pid });
+                        return;
+                    }
+                    if (response.state === 'failed' && 'message' in response && typeof response.message === 'string' &&
+                        response.message.length <= 512 && !/[\x00-\x1f\x7f-\x9f]/.test(response.message)) {
+                        resolve({ state: 'failed', pid, message: response.message });
+                        return;
+                    }
+                    if (response.state === 'running' && 'model' in response && typeof response.model === 'string' &&
+                        /^[a-z0-9_-]{2,64}$/.test(response.model) && 'engineVersion' in response && typeof response.engineVersion === 'string' &&
+                        /^\d+\.\d+\.\d+$/.test(response.engineVersion)) {
+                        resolve({ state: 'running', pid, model: response.model, engineVersion: response.engineVersion });
+                        return;
+                    }
+                    throw new Error('Invalid service response.');
                 } catch (error) {
                     reject(error);
                 } finally {
