@@ -65,8 +65,10 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     }
     screen += '  ' + style('─'.repeat(width), 'divider') + '\n\n';
     screen += content;
+    // Inquirer adds a row when the prompt ends with an empty line.
+    if (screen.endsWith('\n')) { screen += '  '; }
     var bottom = '';
-    if (error) { bottom = style(error, 'Error'); }
+    if (error) { bottom = style(error, 'Error') + '\n'; }
     var contentRows = screen.split('\n').length;
     var errorRows = 0;
     if (error) {
