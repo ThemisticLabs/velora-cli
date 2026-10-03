@@ -3,7 +3,7 @@ import { spawn } from 'bun';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'back', 'engine', 'unreadable', 'twice'])('inline update permissions: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'back', 'engine', 'unreadable', 'twice', 'setup-repair-cli', 'setup-repair-engine'])('inline update permissions: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var initialFrame = '';
@@ -32,6 +32,24 @@ test.skipIf(process.platform === 'win32').each(['allow', 'disable', 'cancel', 'b
                     return;
                 }
                 terminal.write(' \u001b[B\u001b[B\u001b[B\u001b[B\r');
+                return;
+            }
+            if (phase === 0 && frame.includes('Save and continue')) {
+                initialFrame = stripVTControlCharacters(output);
+                expect(initialFrame).toContain('Unavailable');
+                phase++;
+                if (scenario === 'setup-repair-cli') { terminal.write('\u001b[B\u001b[B\u001b[B \u001b[B\u001b[B\r'); }
+                if (scenario === 'setup-repair-engine') { terminal.write('\u001b[B \u001b[B\u001b[B\u001b[B\u001b[B\r'); }
+                return;
+            }
+            if (phase === 1 && frame.includes('Preferences reloaded.')) {
+                phase++;
+                terminal.write('\r');
+                return;
+            }
+            if (phase === 1 && scenario === 'unreadable' && frame.includes('Check cli-updates.json, then select Save to retry.')) {
+                phase++;
+                terminal.write('\u001b');
                 return;
             }
             if (phase === 1 && scenario === 'twice' && frame.includes('Saved.')) {

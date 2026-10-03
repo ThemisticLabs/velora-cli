@@ -15,13 +15,39 @@ try {
     await mkdir(join(directory, 'models', model.id), { recursive: true });
     await writeFile(cliPath, original);
     await writeFile(enginePath, original);
+    var repairing = scenario === 'setup-repair-cli' || scenario === 'setup-repair-engine';
+    var switchesShown = 0;
+    if (repairing) {
+        var repairPath = cliPath;
+        if (scenario === 'setup-repair-engine') { repairPath = enginePath; }
+        await writeFile(repairPath, '{broken');
+        var switchList = (await import('../../src/terminal/switch-list.js')).default;
+        mock.module('../../src/terminal/switch-list.js', function () { return { default: async function (config: Parameters<typeof switchList>[0]) {
+            switchesShown++;
+            if (switchesShown === 1) {
+                await writeFile(repairPath, JSON.stringify({ checkAutomatically: true, installAutomatically: true }));
+            }
+            return switchList(config);
+        } }; });
+    }
     if (scenario === 'unreadable') {
         await writeFile(cliPath, '{broken');
     }
-    await (await import('../../src/menu/update-settings.js')).default();
+    var result = await (await import('../../src/menu/update-settings.js')).default({ setup: repairing });
     var cli = await readFile(cliPath, 'utf8');
     var engine = await readFile(enginePath, 'utf8');
-    if (scenario === 'unreadable') {
+    if (repairing) {
+        assert.equal(result, true);
+        assert.equal(switchesShown, 2);
+        var repaired = cli;
+        var other = engine;
+        if (scenario === 'setup-repair-engine') {
+            repaired = engine;
+            other = cli;
+        }
+        assert.deepEqual(JSON.parse(repaired), { checkAutomatically: true, installAutomatically: true });
+        assert.deepEqual(JSON.parse(other), { checkAutomatically: false, installAutomatically: false });
+    } else if (scenario === 'unreadable') {
         assert.equal(cli, '{broken');
     } else if (scenario === 'disable') {
         assert.deepEqual(JSON.parse(cli), { checkAutomatically: false, installAutomatically: false });
@@ -32,10 +58,12 @@ try {
     } else {
         assert.equal(cli, original);
     }
-    if (scenario === 'engine' || scenario === 'unreadable') {
-        assert.deepEqual(JSON.parse(engine), { checkAutomatically: false, installAutomatically: false });
-    } else {
-        assert.equal(engine, original);
+    if (!repairing) {
+        if (scenario === 'engine' || scenario === 'unreadable') {
+            assert.deepEqual(JSON.parse(engine), { checkAutomatically: false, installAutomatically: false });
+        } else {
+            assert.equal(engine, original);
+        }
     }
     process.stdout.write('Permissions verified.\n');
 } finally {

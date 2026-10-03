@@ -21,7 +21,7 @@ type SwitchOptions = {
     saveLabel: string;
     initialValue?: string;
     feedback?: string;
-    feedbackTone?: 'muted' | 'OK' | 'Error';
+    feedbackTone?: 'muted' | 'OK' | 'Warning' | 'Error';
 };
 
 export default async function switchList(config: SwitchOptions): Promise<SwitchRow[] | null> {
@@ -34,7 +34,10 @@ export default async function switchList(config: SwitchOptions): Promise<SwitchR
         var selected = useListNavigation({ values, initialValue: config.initialValue, activateWithSpace: true,
             onBack: function () { done(null); },
             onSelect: function (value) {
-                if (value === 'save') { done(draft); return; }
+                if (value === 'save') {
+                    done(draft);
+                    return;
+                }
                 var index = values.indexOf(value);
                 var row = draft[index]!;
                 if (row.unavailable) { return; }
@@ -57,7 +60,10 @@ export default async function switchList(config: SwitchOptions): Promise<SwitchR
         var rows: ListRow[] = [];
         var hint = config.feedback || '';
         var hintTone: 'muted' | 'OK' | 'Warning' | 'Error' = config.feedbackTone || 'muted';
-        if (changed) { hint = ''; hintTone = 'muted'; }
+        if (changed) {
+            hint = '';
+            hintTone = 'muted';
+        }
         for (var row of draft) {
             var state = 'Not set';
             if (row.enabled === true) { state = 'On'; }
@@ -70,12 +76,17 @@ export default async function switchList(config: SwitchOptions): Promise<SwitchR
             for (var required of draft) {
                 if (required.value === row.requires && !required.enabled) { hint = 'Enable ' + required.name.toLowerCase() + ' first.'; }
             }
-            if (row.unavailable) { hint = row.unavailable; hintTone = 'Warning'; }
+            if (row.unavailable) {
+                hint = row.unavailable;
+                hintTone = 'Warning';
+            }
         }
         var dimensions = setupDimensions();
-        var output = renderList({ rows, columns: [{ title: '' }, { title: '', width: 12 }],
+        var STATUS_COLUMN_WIDTH = 12;
+        var HINT_ROWS = 1;
+        var output = renderList({ rows, columns: [{ title: '' }, { title: '', width: STATUS_COLUMN_WIDTH }],
             actions: [{ name: config.saveLabel, value: 'save' }], selected,
-            width: dimensions.contentWidth, height: dimensions.contentRows - 1 });
+            width: dimensions.contentWidth, height: dimensions.contentRows - HINT_ROWS });
         output += '  ' + style(hint.slice(0, dimensions.contentWidth), hintTone);
         return useSetupScreen(output);
     });

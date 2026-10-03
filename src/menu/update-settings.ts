@@ -7,39 +7,43 @@ type Scope = { name: string; engine?: boolean; saved: CliUpdatePreferences; read
 
 export default async function updateSettings(options: { setup?: boolean } = {}): Promise<boolean> {
     var scopes: Scope[] = [
-        { name: 'velora', saved: { checkAutomatically: null, installAutomatically: null }, readable: true },
-        { name: 'Engine', engine: true, saved: { checkAutomatically: null, installAutomatically: null }, readable: true }
+        { name: 'velora', saved: { checkAutomatically: null, installAutomatically: null }, readable: false },
+        { name: 'Engine', engine: true, saved: { checkAutomatically: null, installAutomatically: null }, readable: false }
     ];
-    for (var scope of scopes) {
-        try {
-            if (scope.engine) {
-                scope.saved = await engineUpdatePreferences() || scope.saved;
-            } else {
-                scope.saved = await cliUpdatePreferences() || scope.saved;
-            }
-        } catch {
-            scope.readable = false;
-        }
-    }
-    var feedbackTone: 'muted' | 'OK' | 'Error' = 'muted';
+    var feedbackTone: 'muted' | 'OK' | 'Warning' | 'Error' = 'muted';
     var feedback = '';
     var initialValue = 'velora:checkAutomatically';
     if (options.setup) { initialValue = 'save'; }
     var pending: CliUpdatePreferences[] = [];
-    for (var scope of scopes) {
-        var preference = { ...scope.saved };
-        if (options.setup) {
-            preference.checkAutomatically = preference.checkAutomatically === true;
-            preference.installAutomatically = preference.installAutomatically === true;
-        }
-        pending.push(preference);
-    }
     var rows: { scopeIndex: number; field: keyof CliUpdatePreferences; label: string }[] = [];
     for (var scopeIndex = 0; scopeIndex < scopes.length; scopeIndex++) {
         rows.push({ scopeIndex, field: 'checkAutomatically', label: 'Automatic checks' });
         rows.push({ scopeIndex, field: 'installAutomatically', label: 'Automatic installation' });
     }
     while (true) {
+        for (var index = 0; index < scopes.length; index++) {
+            var scope = scopes[index]!;
+            if (scope.readable) { continue; }
+            try {
+                if (scope.engine) {
+                    scope.saved = await engineUpdatePreferences() || scope.saved;
+                } else {
+                    scope.saved = await cliUpdatePreferences() || scope.saved;
+                }
+                if (pending[index]) {
+                    feedback = 'Preferences reloaded. Review, then save.';
+                    feedbackTone = 'OK';
+                }
+                pending[index] = { ...scope.saved };
+                if (options.setup) {
+                    pending[index]!.checkAutomatically = pending[index]!.checkAutomatically === true;
+                    pending[index]!.installAutomatically = pending[index]!.installAutomatically === true;
+                }
+                scope.readable = true;
+            } catch {
+                if (!pending[index]) { pending[index] = { ...scope.saved }; }
+            }
+        }
         var title = 'Settings / Update permissions';
         if (options.setup) { title = 'Setup 2 of 5 / Automatic updates'; }
         var saveLabel = 'Save changes';
@@ -85,7 +89,7 @@ export default async function updateSettings(options: { setup?: boolean } = {}):
             }
             try {
                 if (scope.engine) {
-                    await engineUpdatePreferences({ checkAutomatically: next.checkAutomatically === true, installAutomatically: next.installAutomatically === true });
+                    await engineUpdatePreferences(next);
                 } else {
                     await cliUpdatePreferences(next);
                 }
@@ -99,7 +103,16 @@ export default async function updateSettings(options: { setup?: boolean } = {}):
             }
         }
         var allReadable = true;
-        for (var scope of scopes) { allReadable = allReadable && scope.readable; }
+        for (var scope of scopes) {
+            if (scope.readable) { continue; }
+            allReadable = false;
+            if (feedbackTone === 'Error') { break; }
+            var filename = 'cli-updates.json';
+            if (scope.engine) { filename = 'engine-updates.json'; }
+            feedback = 'Check ' + filename + ', then select Save to retry.';
+            feedbackTone = 'Warning';
+            break;
+        }
         if (options.setup && allReadable && feedbackTone !== 'Error') { return true; }
     }
 }
