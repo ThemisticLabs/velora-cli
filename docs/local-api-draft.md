@@ -97,6 +97,7 @@ Agreed statuses:
 | --- | --- |
 | `413` | HTTP body or serialized engine request is too large |
 | `429` | Another anonymization request is being processed; include `Retry-After` |
+| `503` | The engine crashes during processing; return a readable error if the client is still connected |
 
 Before implementation, finish the status and code list for malformed JSON, invalid fields, missing or revoked API keys, unavailable engine or model, license failure, unsupported content type, unknown routes and request timeout.
 
@@ -180,9 +181,15 @@ Autostart is not implemented. For the macOS menubar, a user-login service is the
 
 These are agreed requirements, not implemented behavior.
 
+## Failures during a request
+
+If the engine crashes during anonymization, return HTTP `503` with the agreed error shape when the client is still connected. Do not expose raw engine exceptions or return an incomplete result. Report the engine failure through service status so the interactive CLI does not continue to show it as ready. Recovery requires a manual restart.
+
+If the HTTP client disconnects, discard its result. Do not interrupt the shared engine process solely because that client disconnected. Keep the engine busy until processing actually finishes or fails; another request must not begin while that work is still running. An explicit service Stop still waits for that work, even though its client has disconnected.
+
 ## Remaining decisions and implementation checks
 
-1. Choose the Stop waiting duration, inference timeout and busy-response retry delay. Define what happens when an HTTP client disconnects or the engine fails during a request.
+1. Choose the Stop waiting duration, inference timeout and busy-response retry delay. Define timeout recovery separately from client disconnection.
 2. Define visible starting, ready, busy, stopping and failed states, including startup failure feedback. Decide pause behavior separately.
 3. Define recovery if loading another model fails and how selected-model persistence relates to the model actually loaded by the service.
 4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
