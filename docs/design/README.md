@@ -7,3 +7,5 @@ The current direction follows Manu's supplied Codex menubar reference: one compa
 The original TC logo comes from Themistic Gallery `assets/brand/themistic-tc-white.svg`. Arrow and settings icons are the existing Gallery Lucide assets; their license is embedded in the HTML. Ultramarine accents retain the Gallery palette. System typography, monochrome buttons in dark mode and the wider popover radius intentionally follow the supplied native-app reference rather than the earlier web-card proposals.
 
 Light/dark themes and Running, Stopped, Starting, Stopping and Failed are simulated. Start/Stop in the actual menubar still requires implementation. These previews do not establish native rendering or service integration.
+
+The approved controls are implemented in `src/assets/menu-bar.markup` and presented through AppKit NSPopover and WebKit. This HTML remains a simulated design reference. Native behavior and terminal configuration are verified separately; opening this preview does not control the service.

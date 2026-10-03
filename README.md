@@ -59,7 +59,7 @@ curl http://127.0.0.1:8001/anonymize \
 
 The response contains text and, when requested, mapping with original values, types and input occurrences. Positions count Unicode code points, including one position per emoji. The complete JSON body may contain at most 1.6 MiB. One authorized request is processed at a time; busy requests receive 429 with Retry-After. Keys are checked on every request. Browser access is blocked. API keys separate application access; they do not encrypt requests or responses. Processing is local, but engine license checks may use the network.
 
-Stop waits for active processing and response completion before closing the engine. A disconnected client does not cancel inference. See [the API contract](docs/local-api-draft.md) for validation, deadlines and errors. Service-owned menubar and autostart are not connected yet.
+Stop waits for active processing and response completion before closing the engine. A disconnected client does not cancel inference. See [the API contract](docs/local-api-draft.md) for validation, deadlines and errors. The macOS menubar controls the same service. Operating-system autostart is not registered yet.
 
 ## Application keys
 
@@ -67,7 +67,9 @@ Open **API keys** in the main menu for the key table. Choose **Add API key** to 
 
 API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` and a recovery copy with restricted file permissions. Plaintext keys are never saved. Both copies carry a revision and checksum; the latest valid revision is used if one copy is damaged. If both are unreadable, changes are refused. This is a file store, not a database. Names and notes are not encrypted. License keys remain in the system credential store. Creating an application key does not start the HTTP service.
 
-On macOS, the interactive menu displays the existing TC logo as a monochrome menu bar icon. It has no menu or click actions and disappears when the CLI closes. It indicates that the CLI is open, not that an API service is running. No autostart is registered.
+On macOS, opening the interactive CLI or starting the headless service creates one independent TC menu bar item. Its popover shows the service status and Start/Stop, Open velora and Settings. The logo opens themistic.com. Closing the CLI or stopping the service leaves these controls available.
+
+Open velora reuses the registered interactive terminal session. Settings opens the same session on its settings page; a running installation finishes before navigation. Without a session, the configured shell-script handler opens the terminal with its normal shell configuration and starts velora. Ghostty and Apple Terminal support exact session reuse. Terminal automation may require macOS permission. No autostart is registered.
 
 ## Setup
 

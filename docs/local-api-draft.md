@@ -1,6 +1,6 @@
 # Local API plan
 
-HTTP contract, first implementation and remaining lifecycle work, 3 October 2026. The independent service now loads the selected model and serves POST /anonymize through the configured loopback port. API-key management, saved port settings and an engine inference check are available. Interactive Start/Stop is connected; service-owned menubar and operating-system autostart are not connected yet.
+HTTP contract, first implementation and remaining lifecycle work, 3 October 2026. The independent service now loads the selected model and serves POST /anonymize through the configured loopback port. API-key management, saved port settings and an engine inference check are available. Interactive Start/Stop is connected; macOS menubar controls are connected; operating-system autostart is not registered yet.
 
 ## Local access
 
@@ -145,7 +145,7 @@ The script reads the saved license from the system credential store, uses the se
 
 Opening `velora` connects the interactive session to the existing velora service, if one is running. Otherwise the main menu shows **Start**. Opening the menu alone does not start the API. Start launches the independent service, which binds the configured local port and loads the selected model into one engine process. Keep that process ready for subsequent requests instead of loading the model for every request.
 
-Once startup succeeds, the same action becomes **Stop**. Stop shuts down the service, including its API, engine and menubar helper, while keeping the interactive menu open. The action returns to **Start** after shutdown completes. Ctrl+C closes only the interactive session. It does not stop an already running service or cancel its active request. Closing the terminal also leaves the independent service running.
+Once startup succeeds, the same action becomes **Stop**. Stop shuts down the service, including its API and engine, while keeping the interactive menu open. The action returns to **Start** after shutdown completes. Ctrl+C closes only the interactive session. It does not stop an already running service or cancel its active request. Closing the terminal also leaves the independent service running.
 
 The interactive CLI controls the same service used by headless startup. It must not own the service lifetime or create another engine when attaching. The implementation will be built in small steps: service ownership and local control, API startup and shutdown, interactive controls, menubar controls, then operating-system autostart.
 
@@ -164,11 +164,11 @@ The macOS menubar menu includes **Open velora**.
 - When an interactive session opens, check whether the velora API service is already running. Connect to the existing velora instance rather than starting a second API listener or engine. An occupied port alone is not proof that velora owns it.
 - Concurrent starts must be coordinated, including simultaneous clicks on **Open velora**. Validate session ownership and process liveness rather than trusting a stale PID file.
 
-The service owns the menubar helper. Its menu offers **Open velora** and **Stop**, so users can reopen the interactive CLI or stop the headless service. Explicit Stop drains the active request, then closes the API, engine and menubar helper. Restarting after service shutdown is available through the interactive CLI or a headless terminal command.
+The independent menubar helper shows service status above Start/Stop, followed by Open velora and Settings. The TC logo opens https://themistic.com. Stop drains processing and closes the API and engine; the helper stays available so Start can launch the service again.
 
-The current helper still has only an icon, no menu actions, and closes with the CLI. Moving its ownership to the service is planned work, not existing behavior.
+Open velora authenticates the existing interactive session through a private Unix socket and focuses its exact Ghostty surface or Apple Terminal tab. Settings requests the settings page in that session. Navigation waits for an active installation or write to finish. Without a registered session, the configured shell-script handler launches a normal terminal window and starts the CLI. The terminal uses its own shell configuration and color environment. Unsupported terminal handlers report an opening failure instead of silently choosing another application.
 
-Terminal selection and exact tab activation need a small macOS compatibility check. Do not assume macOS provides a universal default-terminal preference or that activating a terminal application selects the correct tab. Resolve the user's configured launch handler and support explicit terminal selection only if discovery is unavailable. That fallback is a proposal, not an approved additional setting.
+No operating-system autostart is registered.
 
 ## Headless startup and autostart
 
@@ -182,7 +182,7 @@ velora serve status
 velora serve stop
 ```
 
-Start now opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages. Its local API binds before model loading; port conflicts fail without loading an engine. Model-load failure releases the HTTP port. Ready reports the actual bound port. Stop closes the listener to new connections, waits for active processing and response completion, then closes the engine. Private status stays reachable and reports stopping during that wait. Start/Stop in the interactive menu uses the same service control and displays its current status. Ctrl+C closes only the interactive session and cancels its control wait. Service-owned menubar and autostart are still planned.
+Start now opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages. Its local API binds before model loading; port conflicts fail without loading an engine. Model-load failure releases the HTTP port. Ready reports the actual bound port. Stop closes the listener to new connections, waits for active processing and response completion, then closes the engine. Private status stays reachable and reports stopping during that wait. Start/Stop in the interactive menu uses the same service control and displays its current status. Ctrl+C closes only the interactive session and cancels its control wait. The independent macOS menubar controls the same service and remains available after Stop. Autostart is still planned.
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 

@@ -235,9 +235,13 @@ Selection prompts explicitly enable Escape with `back: true`; back navigation is
 
 ## macOS menu bar
 
-`system/menu-bar.ts` embeds the existing SVG asset and uses macOS's bundled JavaScript for Automation runtime to create a native AppKit status item. Like Backbone's tray implementation, it sets a monochrome template image sized for the menu bar. Backbone's Tauri builder is coupled to its desktop application and is not imported into the Bun CLI. The existing TC SVG is reused directly; no separate icon artwork or Tauri runtime is added.
+`system/menu-bar.ts` launches one detached `--menubar-worker` per storage directory. The existing directory lease prevents duplicate helpers. The worker uses the same `service-control.ts` as the CLI and keeps status polling separate from serialized button actions. Closing the CLI or stopping the service does not close the menubar.
 
-The helper has no menu or actions. Its lifetime belongs to the interactive CLI: normal cleanup terminates it, and a native parent-process check removes it if the CLI disappears unexpectedly. It does not represent service health, persist after exit or register autostart. Help, version and standalone Doctor do not start it. Native initialization and helper lifetime were checked on the development Mac. Visible placement has not been verified in a screenshot.
+`assets/menu-bar.jxa` uses bundled AppKit and WebKit to display an NSPopover. `menu-bar.markup` contains the approved compact controls, the existing TC logo and Gallery icons. Web content cannot make network requests, load remote resources or navigate to arbitrary pages. Only the four fixed actions reach the worker. Native assets are embedded in compiled releases and materialized in a private temporary directory; no compiler or downloaded UI runtime is needed.
+
+`interactive-session.ts` registers the exact Ghostty surface ID or Apple Terminal tty through a private Unix socket. A random bearer token and mode 0600 protect the endpoint; a directory lease coordinates session ownership and stale socket recovery. `open-interactive.ts` resolves the configured shell-script handler. It focuses an authenticated existing session or starts the CLI in a normal terminal window. The helper's noninteractive `NO_COLOR` and `TERM` values are not inherited by the new terminal. Session startup remains serialized while registration is pending.
+
+Settings requests interrupt idle selection prompts through `interactive-navigation.ts`. The main menu consumes the request and opens Settings. Active downloads, credential operations and popups complete before navigation, so a menubar click does not cancel writes. Help, version and standalone Doctor do not launch the helper. Operating-system autostart is not implemented.
 
 
 ## Signed CLI installation and recovery
