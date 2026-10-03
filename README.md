@@ -40,6 +40,8 @@ The menu shows the selected model and current service state, followed by **Start
 
 Deleting a model removes its local package. The shared engine, its update permissions, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic velora installation is available with explicit consent. Automatic engine installation is not connected.
 
+screenshot settings
+
 ## Independent service
 
 The independent service process can be started, checked and stopped:
@@ -70,6 +72,8 @@ Stop waits for active processing and response completion before closing the engi
 ## Application keys
 
 Open **API keys** in the main menu for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key appears immediately in the popup and is copied to the clipboard automatically. It stays visible until you close the popup, including when copying fails. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.
+
+screenshot api tabelle
 
 API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` and a recovery copy with restricted file permissions. Plaintext keys are never saved. Both copies carry a revision and checksum; the latest valid revision is used if one copy is damaged. If both are unreadable, changes are refused. This is a file store, not a database. Names and notes are not encrypted. License keys remain in the system credential store. Creating an application key does not start the HTTP service.
 
