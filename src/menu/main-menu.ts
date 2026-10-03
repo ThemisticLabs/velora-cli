@@ -1,3 +1,5 @@
+import interactiveSession from '../system/interactive-session.js';
+import navigation from '../terminal/interactive-navigation.js';
 import { cliUpdatePending } from '../updates/install-cli-update.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import settingsMenu from './settings-menu.js';
@@ -29,6 +31,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
     var RESTORE_TERMINAL = '\u001b[?25h\u001b[?1049l';
     var failure = '';
     var tray: Awaited<ReturnType<typeof menuBar>> | undefined;
+    var session: Awaited<ReturnType<typeof interactiveSession>> | undefined;
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
     try {
         tray = await menuBar();
@@ -69,12 +72,16 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
             }
             // Update availability never prevents access to settings.
         }
-        if (initialPage === 'settings') {
-            await settingsMenu();
-            if (cliUpdatePending) { return; }
-        }
+        session = await interactiveSession('register').catch(function () { return null; });
+        if (initialPage === 'settings') { navigation.settings = true; }
         while (true) {
             try {
+                if (navigation.settings) {
+                    navigation.settings = false;
+                    navigation.controller = new AbortController();
+                    await settingsMenu();
+                    if (cliUpdatePending) { return; }
+                }
                 var models = await installedModels({ operation: 'list' });
                 var selected: InstalledModel | undefined = undefined;
                 for (var model of models) {
@@ -155,6 +162,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
                 await settingsMenu();
                 if (cliUpdatePending) { return; }
             } catch (error) {
+                if (navigation.settings) { continue; }
                 if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
                     throw error;
                 }
@@ -174,7 +182,9 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
             failure = 'Could not open velora. Try again or run velora doctor.';
         }
     } finally {
-        tray?.close();
+        if (session && 'close' in session) { await session.close().catch(function () {}); }
+        navigation.settings = false;
+        navigation.controller = new AbortController();
         process.stdout.write(RESTORE_TERMINAL);
         if (cliUpdatePending) { process.stdout.write('velora update prepared. Start velora again in a moment.\n'); }
         if (tray && !tray.available) { process.stdout.write('Could not display the macOS menu bar icon.\n'); }

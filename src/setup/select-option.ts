@@ -1,3 +1,4 @@
+import navigation from '../terminal/interactive-navigation.js';
 import renderList, { type ListColumn } from '../terminal/render-list.js';
 import useListNavigation from '../terminal/use-list-navigation.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
@@ -16,7 +17,7 @@ type Selection = {
     choices: { name: string; value: string; cells?: string[]; description?: string; documentationPath?: string }[];
 };
 
-export default createPrompt<string, Selection>(function (config, done) {
+var prompt = createPrompt<string, Selection>(function (config, done) {
     var [updated, setUpdated] = useState<Pick<Selection, 'message' | 'choices'> | undefined>();
     useEffect(function () {
         if (!config.refresh) { return; }
@@ -90,3 +91,10 @@ export default createPrompt<string, Selection>(function (config, done) {
     if (content.endsWith('\n')) { content = content.slice(0, -1); }
     return useSetupScreen(content, '', false, documentationPath);
 });
+
+export default async function select(config: Selection, context?: Parameters<typeof prompt>[1]): Promise<string> {
+    if (navigation.settings) { throw new Error('OpenSettings'); }
+    var signal = navigation.controller.signal;
+    if (context?.signal) { signal = AbortSignal.any([signal, context.signal]); }
+    return prompt(config, { ...context, signal });
+}

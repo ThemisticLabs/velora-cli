@@ -1,0 +1,68 @@
+ObjC.import('AppKit');
+ObjC.import('WebKit');
+ObjC.import('Foundation');
+ObjC.bindFunction('kill', ['int', ['int', 'int']]);
+
+function run(args) {
+    var owner = Number(args[0]);
+    var statusPath = args[1];
+    var html = ObjC.unwrap($.NSString.stringWithContentsOfFileEncodingError(args[2], $.NSUTF8StringEncoding, null));
+    var image = $.NSImage.alloc.initWithContentsOfFile(args[3]);
+    if (image.isNil()) { throw new Error('Cannot load velora icon'); }
+    var app = $.NSApplication.sharedApplication;
+    app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
+    app.finishLaunching;
+    var popover = $.NSPopover.alloc.init;
+    popover.setContentSize($.NSMakeSize(332, 338));
+    popover.setBehavior($.NSPopoverBehaviorTransient);
+    var configuration = $.WKWebViewConfiguration.alloc.init;
+    configuration.setWebsiteDataStore($.WKWebsiteDataStore.nonPersistentDataStore);
+    ObjC.registerSubclass({
+        name: 'VeloraMenuActions',
+        superclass: 'NSObject',
+        methods: {
+            'togglePopover:': {
+                types: ['void', ['id']],
+                implementation: function (sender) {
+                    if (popover.isShown) { popover.performClose(sender); return; }
+                    app.activateIgnoringOtherApps(true);
+                    popover.showRelativeToRectOfViewPreferredEdge(item.button.bounds, item.button, $.NSMinYEdge);
+                }
+            },
+            'userContentController:didReceiveScriptMessage:': {
+                types: ['void', ['id', 'id']],
+                implementation: function (controller, message) {
+                    var action = ObjC.unwrap(message.body);
+                    if (!['service', 'open', 'settings', 'website'].includes(action)) { return; }
+                    $.NSFileHandle.fileHandleWithStandardOutput.writeData($(action + '\n').dataUsingEncoding($.NSUTF8StringEncoding));
+                    if (action !== 'service') { popover.performClose(null); }
+                }
+            }
+        }
+    });
+    var actions = $.VeloraMenuActions.alloc.init;
+    configuration.userContentController.addScriptMessageHandlerName(actions, 'velora');
+    var web = $.WKWebView.alloc.initWithFrameConfiguration($.NSMakeRect(0, 0, 332, 338), configuration);
+    web.loadHTMLStringBaseURL(html, $.NSURL.URLWithString('about:blank'));
+    var controller = $.NSViewController.alloc.init;
+    controller.setView(web);
+    popover.setContentViewController(controller);
+    image.setSize($.NSMakeSize(22, 18));
+    image.setTemplate(true);
+    var item = $.NSStatusBar.systemStatusBar.statusItemWithLength(26);
+    item.button.setImage(image);
+    item.button.setToolTip('velora');
+    item.button.setTarget(actions);
+    item.button.setAction('togglePopover:');
+    $.NSFileHandle.fileHandleWithStandardOutput.writeData($('ready\n').dataUsingEncoding($.NSUTF8StringEncoding));
+    var previous = '';
+    while ($.kill(owner, 0) === 0) {
+        $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.2));
+        var value = $.NSString.stringWithContentsOfFileEncodingError(statusPath, $.NSUTF8StringEncoding, null);
+        if (value.isNil()) { continue; }
+        var status = ObjC.unwrap(value);
+        if (web.isLoading || status === previous) { continue; }
+        web.evaluateJavaScriptCompletionHandler('renderStatus(' + JSON.stringify(JSON.parse(status)) + ')', function () {});
+        previous = status;
+    }
+}

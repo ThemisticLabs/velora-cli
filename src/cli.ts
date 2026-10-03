@@ -13,7 +13,13 @@ import style from './terminal/style.js';
 import header from './terminal/header.js';
 import serviceCommand from './commands/service-command.js';
 import serviceWorker from './service/service-worker.js';
+import menuBarWorker from './system/menu-bar-worker.js';
 
+if (process.argv[2] === '--menubar-worker' && process.argv[3]) {
+    try { await menuBarWorker(process.argv[3]); }
+    catch { process.exitCode = 1; }
+    process.exit(process.exitCode || 0);
+}
 if (process.argv[2] === '--service-worker' && process.argv[3]) {
     try {
         await serviceWorker(process.argv[3]);
