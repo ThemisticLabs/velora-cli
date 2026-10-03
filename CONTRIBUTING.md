@@ -4,7 +4,7 @@ Help make local anonymization easier to set up and use. Clear bug reports, thoug
 
 ## Start with the current state
 
-velora is in early development. The CLI supports help, version output, command suggestions, saved licenses and verified model installation. The service and local API are not implemented yet.
+velora is in early development. The CLI supports guided setup, saved licenses, verified engine and model installation, application API keys, and interactive service controls. A headless local API is available. Native platform acceptance and release distribution are still being completed.
 
 Use Bun 1.3.14 or newer for development. Users of the compiled CLI do not need Bun or Node.js installed:
 
@@ -27,6 +27,8 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the current modules, setup lifecycle
 velora-cli/
   src/
     cli.ts          CLI entry point
+    api/            Local API settings, keys and request handling
+    service/        Independent API service and control
     commands/       Doctor and license commands
     menu/           Main menu and settings
     models/         Installed model selection and deletion
