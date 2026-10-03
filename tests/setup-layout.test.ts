@@ -6,10 +6,13 @@ test('each screen sets its documentation target and resets a previous custom foo
     expect(setupLayout.tone).toBe('Error');
     expect(setupLayout.footer).toBe('Enter Save · Esc Back');
     expect(setupLayout.documentationPath).toBe('/velora/license-api/');
+    expect(setupLayout.action?.label).toBe('Get license key');
+    expect(setupLayout.action?.key).toBe('f2');
     setSetupLayout('Models', '', '/velora/models');
     expect(setupLayout.footer).toBe('↑/↓ Move · Enter Select · Esc Back · Ctrl+C Quit');
     expect(setupLayout.documentationPath).toBe('/velora/models');
     expect(setupLayout.tone).toBe('muted');
+    expect(setupLayout.action).toBeUndefined();
     setSetupLayout('Setup');
     expect(setupLayout.detail).toBe('');
     expect(setupLayout.documentationPath).toBe('/velora/setup');

@@ -3,7 +3,7 @@ import { spawn } from 'bun';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32')('lowercase input reveals each newly typed letter', async function () {
+test.skipIf(process.platform === 'win32').each(['typing', 'purchase'])('license input and footer shortcuts: %s', async function (scenario) {
     var stage = 0;
     var output = '';
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/license-input.ts', import.meta.url))], {
@@ -15,11 +15,15 @@ test.skipIf(process.platform === 'win32')('lowercase input reveals each newly ty
                 terminal.write('a');
             } else if (stage === 1 && output.includes('License key: A')) {
                 stage++;
+                if (scenario === 'purchase') { terminal.write('\u001bOQ'); return; }
                 terminal.write('b');
-            } else if (stage === 2 && output.includes('License key: * B')) {
+            } else if (stage === 2 && scenario === 'purchase' && output.includes('License purchases are not available yet.')) {
+                stage++;
+                terminal.write('b');
+            } else if ((stage === 2 || stage === 3 && scenario === 'purchase') && output.includes('License key: * B')) {
                 stage++;
                 terminal.write('c');
-            } else if (stage === 3 && output.includes('License key: * * C')) {
+            } else if ((stage === 3 || stage === 4 && scenario === 'purchase') && output.includes('License key: * * C')) {
                 stage++;
                 terminal.write('\r');
             }
@@ -29,7 +33,10 @@ test.skipIf(process.platform === 'win32')('lowercase input reveals each newly ty
     var timeout = setTimeout(function () { child.kill(); }, TEST_TIMEOUT_MS);
     try {
         expect(await child.exited, 'Input stage: ' + stage).toBe(0);
-        expect(stage).toBe(4);
+        var expectedStage = 4;
+        if (scenario === 'purchase') { expectedStage = 5; }
+        expect(stage).toBe(expectedStage);
+        expect(output).toContain('F2 Get license key');
         expect(output).toContain('Input verified.');
     } finally {
         clearTimeout(timeout);

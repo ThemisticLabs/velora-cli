@@ -1,7 +1,7 @@
 import licenseInput from '../../src/setup/license-input.js';
 import setSetupLayout from '../../src/terminal/set-setup-layout.js';
 
-setSetupLayout('Enter your license.', '', '/velora/setup', 'Enter Continue · Ctrl+C Cancel');
+setSetupLayout('Enter your license.', '', '/velora/license-api/', 'Enter Continue · Ctrl+C Cancel');
 process.stdout.write('\u001b[?1049h');
 try {
     var value = await licenseInput({});

@@ -22,6 +22,7 @@ export default createPrompt<string, Record<string, never>>(function (_config, do
     }, [value, revealedIndex]);
 
     useKeypress(function (key, terminal) {
+        if (key.name === 'f1' || key.name === 'f2') { terminal.line = value; return; }
         if (key.name === 'escape') {
             done('');
             return;
