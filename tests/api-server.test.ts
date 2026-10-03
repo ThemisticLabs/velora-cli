@@ -79,7 +79,7 @@ test.each(['known length', 'chunked'])('body limits return 413 without running i
         });
         expect(status).toBe(413);
         expect(calls).toBe(0);
-        var response = await fetch(context.url, { method: 'POST', headers: context.headers, body: '{"text":"ok"}' });
+        var response = await fetch(context.url, { method: 'POST', headers: context.headers, body: '{"text":"ok"}', keepalive: false });
         expect(response.status).toBe(503);
         expect(calls).toBe(1);
     } finally { await context.close(); }
