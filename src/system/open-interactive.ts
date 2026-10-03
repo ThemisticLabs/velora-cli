@@ -23,13 +23,18 @@ export default async function openInteractive(page: 'open' | 'settings', directo
     if (page === 'settings') { command += ' settings'; }
     var script = `
 ObjC.import('CoreServices');
+ObjC.import('AppKit');
 var handler = $.LSCopyDefaultRoleHandlerForContentType($('com.apple.terminal.shell-script'), $.kLSRolesAll);
 var terminal = ObjC.unwrap(ObjC.castRefToObject(handler));
 var command = ${JSON.stringify(command)};
 if (terminal === 'com.mitchellh.ghostty') {
+    var wasRunning = $.NSRunningApplication.runningApplicationsWithBundleIdentifier('com.mitchellh.ghostty').count > 0;
     var app = Application('Ghostty');
     app.activate();
-    var window = app.newWindow();
+    var windows = app.windows();
+    var window;
+    if (!wasRunning && windows.length) { window = windows[0]; }
+    else { window = app.newWindow(); }
     var surface = window.terminals()[0];
     app.inputText(command, {to: surface});
     app.sendKey('enter', {to: surface});
