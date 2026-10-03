@@ -1,6 +1,6 @@
 # Local API plan
 
-Agreed HTTP contract and remaining lifecycle decisions, 3 October 2026. The HTTP server and persistent inference service are not implemented. API-key management, saved port settings and an engine inference check are available.
+Agreed HTTP contract and remaining lifecycle decisions, 3 October 2026. The HTTP server, persistent inference service and operating-system autostart are not implemented. API-key management, saved port settings and an engine inference check are available.
 
 ## Local access
 
@@ -126,17 +126,17 @@ The script reads the saved license from the system credential store, uses the se
 
 ## Interactive start and stop
 
-Opening `velora` shows the main menu with a **Start** action. The API does not start automatically when the menu opens. Start binds the configured local port and loads the selected model into one engine process. Keep that process ready for subsequent requests instead of loading the model for every request.
+Opening `velora` connects the interactive session to the existing velora service, if one is running. Otherwise the main menu shows **Start**. Opening the menu alone does not start the API. Start launches the independent service, which binds the configured local port and loads the selected model into one engine process. Keep that process ready for subsequent requests instead of loading the model for every request.
 
-Once startup succeeds, the same action becomes **Stop**. Stop shuts down the API and engine while keeping the interactive menu open. The action returns to **Start** after shutdown completes. Ctrl+C closes the entire interactive session, including the API and engine.
+Once startup succeeds, the same action becomes **Stop**. Stop shuts down the service, including its API, engine and menubar helper, while keeping the interactive menu open. The action returns to **Start** after shutdown completes. Ctrl+C closes only the interactive session. It does not stop an already running service or cancel its active request. Closing the terminal also leaves the independent service running.
 
-The first implementation is controlled through the interactive CLI. A separate `velora serve` command is not required for this step. Background service registration and optional autostart come later.
+The interactive CLI controls the same service used by headless startup. It must not own the service lifetime or create another engine when attaching. The implementation will be built in small steps: service ownership and local control, API startup and shutdown, interactive controls, menubar controls, then operating-system autostart.
 
 ## Stop during an active request
 
 Stop stops accepting new anonymization work and lets the active request finish. After its response completes, shut down the listener and engine and return the menu action to **Start**. Show a stopping state while waiting; do not claim that shutdown has completed early.
 
-Ctrl+C closes the API, engine and interactive CLI. Whether it cancels an active request immediately or uses the same graceful drain still needs an explicit decision. A shutdown deadline also remains to be chosen so a stuck engine cannot prevent exit indefinitely.
+Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. A deadline for explicit service shutdown remains to be chosen so a stuck engine cannot prevent Stop indefinitely.
 
 ## Menubar: Open velora
 
@@ -147,19 +147,38 @@ The macOS menubar menu includes **Open velora**.
 - When an interactive session opens, check whether the velora API service is already running. Connect to the existing velora instance rather than starting a second API listener or engine. An occupied port alone is not proof that velora owns it.
 - Concurrent starts must be coordinated, including simultaneous clicks on **Open velora**. Validate session ownership and process liveness rather than trusting a stale PID file.
 
-The current menubar helper has an icon but no menu actions. Its lifetime is tied to the interactive CLI, and it closes when that CLI exits. Opening velora when no interactive session exists therefore requires the future service or another agreed owner to keep the menubar helper alive. The API service and interactive session have separate lifetimes; document those lifetimes before implementing a background service.
+The service owns the menubar helper. Its menu offers **Open velora** and **Stop**, so users can reopen the interactive CLI or stop the headless service. Explicit Stop drains the active request, then closes the API, engine and menubar helper. Restarting after service shutdown is available through the interactive CLI or a headless terminal command.
+
+The current helper still has only an icon, no menu actions, and closes with the CLI. Moving its ownership to the service is planned work, not existing behavior.
 
 Terminal selection and exact tab activation need a small macOS compatibility check. Do not assume macOS provides a universal default-terminal preference or that activating a terminal application selects the correct tab. Resolve the user's configured launch handler and support explicit terminal selection only if discovery is unavailable. That fallback is a proposal, not an approved additional setting.
+
+## Headless startup and autostart
+
+The service runs independently of a terminal. A headless start command must return only after service startup succeeds or report a startup failure. Users can then close the terminal without stopping the service. Running the command when velora is already running must not start another instance.
+
+Provisional command spelling for review:
+
+```sh
+velora serve start --headless
+```
+
+The requirement is agreed; the exact command spelling is not final. Do not add multiple synonymous commands before choosing one.
+
+Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
+
+Autostart is not implemented. For the macOS menubar, a user-login service is the proposed first approach; system boot before login has different UI and credential availability. Choose that boundary explicitly before registration. Explicit Stop must not be immediately undone by an automatic restart policy. Whether autostart stays enabled for the next login after a manual Stop still needs a decision.
 
 ## Next planning step: active requests and lifecycle changes
 
 The following are proposals for discussion, not approved behavior:
 
-1. Define Ctrl+C behavior during an active request and a shutdown deadline. Define what happens when an HTTP client disconnects, the engine crashes or a request times out.
+1. Define the explicit Stop deadline and what happens when an HTTP client disconnects, the engine crashes or a request times out. Ctrl+C in the interactive CLI leaves the service and active requests running.
 2. Define visible starting, ready, busy, stopping and failed states, including feedback when startup fails. Decide pause behavior separately.
 3. Define model switching: finish or cancel active work, load the next model, and retain the previous selection if loading fails.
 4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
 5. Decide whether a saved port change restarts the API immediately or requires an explicit restart.
-6. Define which process owns the API, interactive-session discovery and menubar helper, including how the CLI attaches to an existing service. Verify configured terminal discovery and exact tab activation on macOS.
+6. Design local service control and interactive-session discovery. The service owns the API, engine and menubar; the CLI attaches to it. Verify configured terminal discovery and exact tab activation on macOS.
+7. Choose the final headless command and autostart event. Decide next-login behavior after manual Stop and crash-restart behavior.
 
-Resolve the offset unit, browser access, validation details, error statuses, retry delay and timeout before implementing the endpoint. Background service registration and optional autostart follow after the local API works and its behavior has been tested.
+Resolve the offset unit, browser access, validation details, error statuses, retry delay and timeout before implementing the endpoint. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.
