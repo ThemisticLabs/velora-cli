@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { chmod, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createConnection } from 'node:net';
 import dataDirectory from './data-directory.js';
 import directoryLock from './directory-lock.js';
 import navigation from '../terminal/interactive-navigation.js';
@@ -12,17 +13,31 @@ export default async function interactiveSession(operation: 'register' | 'open' 
     var directoryId = createHash('sha256').update(directory).digest('hex').slice(0, 16);
     var endpoint = '/tmp/velora-interactive-' + process.getuid!() + '-' + directoryId + '.sock';
     var recordPath = join(directory, 'interactive-session.json');
+    var SESSION_TIMEOUT_MS = 2000;
     if (operation !== 'register') {
         try {
             var record = JSON.parse(await readFile(recordPath, 'utf8'));
             if (typeof record.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(record.token)) { throw new Error('Invalid interactive session information.'); }
             var response = await fetch('http://localhost/' + operation, { unix: endpoint,
-                headers: { authorization: 'Bearer ' + record.token }, signal: AbortSignal.timeout(2000) });
+                headers: { authorization: 'Bearer ' + record.token }, signal: AbortSignal.timeout(SESSION_TIMEOUT_MS) });
             if (!response.ok) { throw new Error('The existing session rejected the request.'); }
             var target = await response.json() as InteractiveTarget;
             if (!['Ghostty', 'Terminal'].includes(target.application) || typeof target.id !== 'string' || !target.id) { throw new Error('Invalid interactive terminal target.'); }
             return target;
         } catch (error) {
+            if (error instanceof Error && 'code' in error && error.code === 'FailedToOpenSocket') {
+                // Bun hides the Unix socket error; recover it before treating a session as stale.
+                try {
+                    await new Promise<void>(function (resolve, reject) {
+                        var socket = createConnection(endpoint);
+                        socket.setTimeout(SESSION_TIMEOUT_MS, function () { socket.destroy(new Error('The interactive session did not respond.')); });
+                        socket.once('error', reject);
+                        socket.once('connect', function () { socket.destroy(); resolve(); });
+                    });
+                } catch (connectionError) {
+                    error = connectionError;
+                }
+            }
             if (error instanceof Error && 'code' in error && ['ENOENT', 'ECONNREFUSED'].includes(String(error.code))) { return null; }
             if (error instanceof Error && 'code' in error && error.code === 'ENOTDIR') { return null; }
             throw new Error('The existing velora session did not respond. Check its terminal before opening another session.');

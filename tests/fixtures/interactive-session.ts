@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 
 var directory = await mkdtemp(join(tmpdir(), 'velora-interactive-test-'));
 var scenario = process.argv[2];
@@ -35,6 +36,24 @@ try {
             assert.equal(navigation.settings, false);
         }
     } finally { await registration.close(); }
+    if (scenario === 'stale') {
+        var directoryId = createHash('sha256').update(directory).digest('hex').slice(0, 16);
+        var endpoint = '/tmp/velora-interactive-' + process.getuid!() + '-' + directoryId + '.sock';
+        var stale = originalSpawn([process.execPath, '-e', 'Bun.serve({unix: process.argv[1], fetch: function () {return new Response();}}); console.log("ready");', endpoint], { stdout: 'pipe', stderr: 'pipe' });
+        try {
+            var reader = stale.stdout.getReader();
+            await reader.read();
+            reader.releaseLock();
+            stale.kill('SIGKILL');
+            await stale.exited;
+            await Bun.write(join(directory, 'interactive-session.json'), JSON.stringify({ token: 'A'.repeat(43) }));
+            assert.equal(await session('open', directory), null);
+            assert.equal(await session('settings', directory), null);
+        } finally {
+            stale.kill();
+            await unlink(endpoint).catch(function () {});
+        }
+    }
     assert.equal(await session('open', directory), null);
 } finally {
     Bun.spawn = originalSpawn;
