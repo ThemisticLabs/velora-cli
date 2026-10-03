@@ -58,12 +58,17 @@ export default createPrompt<string, Selection>(function (config, done) {
     }
     var MESSAGE_ROWS = content.split('\n').length - 1;
     var DESCRIPTION_ROWS = 0;
+    var detail = '';
+    if (description && config.actions?.length) {
+        detail = description;
+        description = '';
+    }
     if (description) {
         DESCRIPTION_ROWS = 1;
     }
     if (values.length || config.emptyMessage) {
         content += renderList({ rows, columns: config.columns, actions: config.actions, selected,
-            width, height: setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS, emptyMessage: config.emptyMessage });
+            width, height: setupDimensions().contentRows - MESSAGE_ROWS - DESCRIPTION_ROWS, emptyMessage: config.emptyMessage, detail });
     }
     content += '  ' + style(description.slice(0, width), 'muted');
     return useSetupScreen(content, '', false, documentationPath);

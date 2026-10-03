@@ -11,6 +11,7 @@ type ListOptions = {
     width: number;
     height: number;
     emptyMessage?: string;
+    detail?: string;
 };
 
 export default function renderList(config: ListOptions): string {
@@ -100,7 +101,9 @@ export default function renderList(config: ListOptions): string {
     if (actions.length) {
         actionRows = actions.length + 1;
     }
-    var capacity = Math.max(1, height - headingRows - actionRows - SCROLL_HINT_ROWS);
+    var detailRows = 0;
+    if (config.detail) { detailRows = 1; }
+    var capacity = Math.max(1, height - headingRows - actionRows - SCROLL_HINT_ROWS - detailRows);
     var anchor = 0;
     for (var index = 0; index < blocks.length; index++) {
         if (blocks[index]!.value === selected) {
@@ -139,6 +142,9 @@ export default function renderList(config: ListOptions): string {
         hint = config.emptyMessage ?? 'No entries.';
     }
     output += '  ' + style(hint.slice(0, width), 'muted') + '\n';
+    if (config.detail) {
+        output += '  ' + style(config.detail.slice(0, width), 'muted') + '\n';
+    }
     if (actions.length) {
         output += '\n';
         for (var action of actions) {

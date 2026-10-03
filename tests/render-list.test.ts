@@ -37,3 +37,15 @@ test('empty lists retain their actions and explain the empty state', function ()
     expect(output).toContain('› Go back');
     expect(output).not.toContain('More below');
 });
+
+
+test('selected row details sit above list actions with a blank line between them', function () {
+    var output = stripVTControlCharacters(renderList({
+        rows: [{ value: 'editor', cells: ['Editor', 'Short note'] }],
+        columns: [{ title: 'Name' }, { title: 'Note' }], selected: 'editor', width: 56, height: 12,
+        detail: 'Selected application note.', actions: [{ name: 'Add API key', value: 'add' }]
+    }));
+    expect(output).toContain('Selected application note.\n\n    Add API key');
+    expect(output.indexOf('Selected application note.')).toBeLessThan(output.indexOf('Add API key'));
+    expect(output.split('\n').length - 1).toBeLessThanOrEqual(12);
+});

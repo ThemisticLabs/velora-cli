@@ -28,9 +28,13 @@ export default async function manageApiKeys(directory?: string, copy = copyClipb
         var selected = await select({ back: true, message: '', initialValue, choices, columns, actions, emptyMessage: 'No API keys yet.' });
         if (selected === 'back') { return; }
         initialValue = selected;
+        var detail = '';
+        for (var choice of choices) {
+            if (choice.value === selected) { detail = choice.description; }
+        }
         var background = function () {
             var dimensions = setupDimensions();
-            return renderList({ rows, columns, actions, selected, width: dimensions.contentWidth, height: dimensions.contentRows });
+            return renderList({ rows, columns, actions, selected, width: dimensions.contentWidth, height: dimensions.contentRows, detail });
         };
         if (selected === 'add') {
             await popup({ title: 'Add API key', description: 'Name the application and add an optional note.', background,
