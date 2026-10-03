@@ -8,5 +8,6 @@ coverage/
 .DS_Store
 .env
 /test.js
+/test.py
 .env.*
 !.env.example
