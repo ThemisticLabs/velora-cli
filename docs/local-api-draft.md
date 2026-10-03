@@ -124,15 +124,22 @@ bun run scripts/check-inference.ts /path/to/installed/data
 
 The script reads the saved license from the system credential store, uses the selected installed model and cached verified engine, downloads no packages and closes the engine process afterwards. Input is fixed synthetic text. License verification can contact the license server.
 
-## Next planning step: service lifecycle
+## Interactive start and stop
+
+Opening `velora` shows the main menu with a **Start** action. The API does not start automatically when the menu opens. Start binds the configured local port and loads the selected model into one engine process. Keep that process ready for subsequent requests instead of loading the model for every request.
+
+Once startup succeeds, the same action becomes **Stop**. Stop shuts down the API and engine while keeping the interactive menu open. The action returns to **Start** after shutdown completes. Ctrl+C closes the entire interactive session, including the API and engine.
+
+The first implementation is controlled through the interactive CLI. A separate `velora serve` command is not required for this step. Background service registration and optional autostart come later.
+
+## Next planning step: active requests and lifecycle changes
 
 The following are proposals for discussion, not approved behavior:
 
-1. Decide how users start the API during the first implementation and whether it stops when the CLI closes. Build the foreground API before adding an operating-system service.
-2. Load the selected model once and keep one engine process ready for requests. Define visible states for starting, ready, busy, paused, stopped and failed.
-3. Decide what pause and stop do to an active request. Define what happens when an HTTP client disconnects, the engine crashes or a request times out.
-4. Define model switching: finish or cancel active work, load the next model, and retain the previous selection if loading fails.
-5. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
-6. Decide whether a saved port change restarts the API immediately or requires an explicit restart.
+1. Decide whether Stop and Ctrl+C finish an active request or cancel it. Define what happens when an HTTP client disconnects, the engine crashes or a request times out.
+2. Define visible starting, ready, busy, stopping and failed states, including feedback when startup fails. Decide pause behavior separately.
+3. Define model switching: finish or cancel active work, load the next model, and retain the previous selection if loading fails.
+4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
+5. Decide whether a saved port change restarts the API immediately or requires an explicit restart.
 
 Resolve the offset unit, browser access, validation details, error statuses, retry delay and timeout before implementing the endpoint. Background service registration and optional autostart follow after the local API works and its behavior has been tested.
