@@ -2,7 +2,7 @@ import style from './style.js';
 
 export type ListRow = { value: string; cells: string[]; group?: string; section?: string };
 export type ListColumn = { title: string; width?: number };
-type ListAction = { value: string; name: string };
+type ListAction = { value: string; name: string; primary?: boolean };
 type ListOptions = {
     rows: ListRow[];
     columns?: ListColumn[];
@@ -169,6 +169,12 @@ export default function renderList(config: ListOptions): string {
             var label = '  ' + action.name;
             if (action.value === selected) {
                 label = style('› ' + action.name, 'accent');
+            }
+            if (action.primary) {
+                var button = '[ ' + action.name + ' ]';
+                var marker = '  ';
+                if (action.value === selected) { marker = '› '; }
+                label = marker + style(style(button, 'strong'), 'accent');
             }
             output += '  ' + label + '\n';
         }

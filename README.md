@@ -28,7 +28,7 @@ The CLI and its models are distributed separately. The shared engine downloads l
 
 ## Main menu
 
-Run `velora` to open the menu. First setup begins with an application API key, automatic update choices and start at login, followed by a short interactive guide. License setup and model installation come last. Finished introductory steps are saved in `setup.json`, so closing an unfinished setup does not repeat them. `velora setup` reviews these choices without deleting existing keys or preferences. Keys use the same creation popup as the main menu: the new key is shown immediately and copied when the clipboard is available.
+Run `velora` to open the menu. First setup begins with an application API key, automatic update choices and start at login, followed by a short interactive guide covering the macOS menu bar and terminal controls. License setup and model installation come last. Finished introductory steps are saved in `setup.json`, so closing an unfinished setup does not repeat them. `velora setup` reviews these choices without deleting existing keys or preferences. Keys use the same creation popup as the main menu: the new key is shown immediately and copied when the clipboard is available.
 
 On macOS, **Start at login** registers a user LaunchAgent for `velora serve start --headless`. It takes effect at the next login and does not start the service during setup. A saved license and installed model are required to start the API. Change this later under **Settings → Start at login**. Windows and Linux autostart are not implemented yet.
 
@@ -101,7 +101,7 @@ Storage uses Bun's native secrets API: Keychain on macOS, Credential Manager on 
 
 Setup collects velora and shared engine update permissions before license setup and model installation. Choices are saved in `<data>/cli-updates.json` and `<data>/engine-updates.json`. Settings can change this independently of the selected model. Earlier per-model preferences are not treated as consent for the shared engine. Automatic installation remains unavailable; its saved permission is for future use.
 
-The introductory setup asks whether velora may check GitHub for new versions on startup and install signed releases automatically. Checks and installation start Off. The engine has its own rows. Save changes confirms the choices; Esc discards unsaved edits. Startup never asks these questions ahead of the setup.
+The introductory setup asks whether velora may check GitHub for new versions on startup and install signed releases automatically. Checks and installation start Off. The engine has its own rows. Save and continue confirms setup choices; Save changes applies them in Settings. Esc discards unsaved edits. Startup never asks these questions ahead of the setup.
 
 The choices are saved in `cli-updates.json` in the platform data directory, separately from engine permissions. Only explicit consent enables the check on subsequent interactive launches, with a 1.5-second request timeout. Use Settings → Update permissions to change these choices, then select Save changes. Unreadable or invalid preferences disable checks.
 

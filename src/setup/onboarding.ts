@@ -38,6 +38,7 @@ export default async function onboarding(options: { review?: boolean } = {}): Pr
             var pages = [
                 { title: 'Start and stop', text: 'Choose Start in the main menu to load your model and open the local API. Stop finishes the active request, then unloads the model.' },
                 { title: 'Your applications', text: 'Manage access under API keys. Use a different key for each app. Settings contains models, licenses, updates and the local API port.' },
+                { title: 'The macOS menu bar', text: 'Click the velora icon to see service status. Start/Stop controls the service. Open velora opens the CLI. Settings opens its settings. The power button quits velora and stops the service.' },
                 { title: 'Keep it running', text: 'Ctrl+C closes this interactive session. The service keeps running. Use velora serve start --headless to start it without keeping a terminal open.' },
                 { title: 'Find your way', text: 'Use arrow keys and Enter to select. Esc returns to the previous page. F1 opens documentation. Next, add your license and download a model.' }
             ];

@@ -56,12 +56,12 @@ try {
     var onboarding = (await import('../../src/setup/onboarding.js')).default;
     assert.equal(await onboarding({ review: scenario === 'review' }), scenario !== 'exit');
     if (scenario === 'done' || scenario === 'exit') { assert.deepEqual(events, []); }
-    if (scenario === 'resume') { assert.deepEqual(events, ['autostart', 'tour', 'tour', 'tour', 'tour']); }
-    if (scenario === 'existing') { assert.deepEqual(events, ['updates', 'autostart', 'tour', 'tour', 'tour', 'tour']); }
-    if (scenario === 'new' || scenario === 'review') { assert.deepEqual(events, ['key', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour']); }
-    if (scenario === 'back') { assert.deepEqual(events, ['key', 'updates', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour']); }
-    if (scenario === 'progress-error') { assert.deepEqual(events, ['storage', 'key', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour']); }
-    if (scenario === 'save-error') { assert.deepEqual(events, ['key', 'storage', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour']); }
+    if (scenario === 'resume') { assert.deepEqual(events, ['autostart', 'tour', 'tour', 'tour', 'tour', 'tour']); }
+    if (scenario === 'existing') { assert.deepEqual(events, ['updates', 'autostart', 'tour', 'tour', 'tour', 'tour', 'tour']); }
+    if (scenario === 'new' || scenario === 'review') { assert.deepEqual(events, ['key', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour', 'tour']); }
+    if (scenario === 'back') { assert.deepEqual(events, ['key', 'updates', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour', 'tour']); }
+    if (scenario === 'progress-error') { assert.deepEqual(events, ['storage', 'key', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour', 'tour']); }
+    if (scenario === 'save-error') { assert.deepEqual(events, ['key', 'storage', 'updates', 'autostart', 'tour', 'tour', 'tour', 'tour', 'tour']); }
     if (scenario === 'cancel-popup') { assert.equal(popupCalls, 2); }
     if (scenario !== 'exit') { assert.equal(await progress(), 4); }
     process.stdout.write('Onboarding verified.\n');

@@ -51,7 +51,13 @@ export default async function updateSettings(options: { setup?: boolean } = {}):
     while (true) {
         var title = 'Settings / Update permissions';
         if (options.setup) { title = 'Setup 2 of 5 / Automatic updates'; }
-        setSetupLayout(title, 'Save applies changes. Esc discards unsaved edits.', '/velora/updates', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit');
+        var saveLabel = 'Save changes';
+        var description = 'Save applies changes. Esc discards unsaved edits.';
+        if (options.setup) {
+            saveLabel = 'Save and continue';
+            description = 'Choose your preferences, then select Save and continue.';
+        }
+        setSetupLayout(title, description, '/velora/updates', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit');
         var edit = createPrompt<CliUpdatePreferences[] | null, Record<string, never>>(function (_config, done) {
             var [draft, setDraft] = useState(pending);
             var selected = useListNavigation({ values, activateWithSpace: true, initialValue: values[selectedIndex],
@@ -102,7 +108,7 @@ export default async function updateSettings(options: { setup?: boolean } = {}):
                 listRows.push(listRow);
             }
             var output = renderList({ rows: listRows, columns: [{ title: '' }, { title: '', width: 12 }],
-                actions: [{ name: 'Save changes', value: 'save' }], selected, width,
+                actions: [{ name: saveLabel, value: 'save', primary: true }], selected, width,
                 height: setupDimensions().contentRows - 1 });
             var hint = feedback;
             var hintTone: 'muted' | 'OK' | 'Warning' | 'Error' = feedbackTone;

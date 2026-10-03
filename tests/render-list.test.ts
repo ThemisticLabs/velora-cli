@@ -64,3 +64,18 @@ test('list actions stay fixed for empty, short and full lists with changing deta
         }
     }
 });
+
+
+test('primary list actions remain visible and fixed without color or selection', function () {
+    for (var selected of ['checks', 'save']) {
+        var output = stripVTControlCharacters(renderList({
+            rows: [{ value: 'checks', cells: ['Automatic checks', 'Off'] }],
+            selected, width: 56, height: 12,
+            actions: [{ name: 'Save and continue', value: 'save', primary: true }]
+        }));
+        var lines = output.split('\n');
+        expect(lines.length - 1).toBe(12);
+        expect(lines[11]).toContain('[ Save and continue ]');
+        if (selected === 'save') { expect(lines[11]).toContain('› [ Save and continue ]'); }
+    }
+});
