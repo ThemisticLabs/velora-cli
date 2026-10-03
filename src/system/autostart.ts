@@ -6,8 +6,11 @@ import { IS_COMPILED } from './build-mode.js';
 import syncDirectory from './sync-directory.js';
 
 export default async function autostart(enabled?: boolean, home = homedir(), platform = process.platform): Promise<{ supported: boolean; enabled: boolean }> {
-    if (platform !== 'darwin') { return { supported: false, enabled: false }; }
+    if (platform !== 'darwin') {
+        return { supported: false, enabled: false };
+    }
     var LABEL = 'com.themistic.velora';
+    var HEADLESS_COMMAND = ['serve', 'start', '--headless'];
     var directory = join(home, 'Library', 'LaunchAgents');
     var path = join(directory, LABEL + '.plist');
     try {
@@ -16,25 +19,54 @@ export default async function autostart(enabled?: boolean, home = homedir(), pla
         var file = await lstat(path);
         var MAX_PLIST_BYTES = 16 * 1024;
         if (!file.isFile() || file.size > MAX_PLIST_BYTES) { throw new Error('Invalid velora login item.'); }
-        var plist = await readFile(path, 'utf8');
-        if (!plist.includes('<string>' + LABEL + '</string>')) { throw new Error('Unexpected login item.'); }
+        var parser = Bun.spawn(['/usr/bin/plutil', '-convert', 'json', '-o', '-', '--', '-'], {
+            stdin: await readFile(path), stdout: 'pipe', stderr: 'ignore'
+        });
+        var json = await new Response(parser.stdout).text();
+        if (await parser.exited !== 0) { throw new Error('Invalid velora login item.'); }
+        var stored: unknown = JSON.parse(json);
+        if (!stored || typeof stored !== 'object' || !('Label' in stored) || stored.Label !== LABEL ||
+            !('RunAtLoad' in stored) || stored.RunAtLoad !== true ||
+            !('ProgramArguments' in stored) || !Array.isArray(stored.ProgramArguments) || stored.ProgramArguments.length <= HEADLESS_COMMAND.length) {
+            throw new Error('Unexpected login item.');
+        }
+        var argumentsList: unknown[] = stored.ProgramArguments;
+        for (var argumentValue of argumentsList) {
+            if (typeof argumentValue !== 'string' || !argumentValue || argumentValue.includes('\0')) {
+                throw new Error('Invalid login command.');
+            }
+        }
+        var commandOffset = argumentsList.length - HEADLESS_COMMAND.length;
+        for (var index = 0; index < HEADLESS_COMMAND.length; index++) {
+            if (argumentsList[commandOffset + index] !== HEADLESS_COMMAND[index]) {
+                throw new Error('Unexpected login command.');
+            }
+        }
         var installed = true;
     } catch (error) {
-        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT' &&
+            'path' in error && (error.path === directory || error.path === path))) {
             throw new Error('Could not read the velora login item. Check Library/LaunchAgents.');
         }
         installed = false;
     }
-    if (enabled === undefined) { return { supported: true, enabled: installed }; }
+    if (enabled === undefined) {
+        return { supported: true, enabled: installed };
+    }
     if (!enabled) {
-        if (installed) { await unlink(path); await syncDirectory(directory); }
+        if (installed) {
+            await unlink(path);
+            await syncDirectory(directory);
+        }
         return { supported: true, enabled: false };
     }
     await mkdir(directory, { recursive: true, mode: 0o700 });
     if ((await lstat(directory)).isSymbolicLink()) { throw new Error('Login item storage must not be a symbolic link.'); }
     var args = [process.execPath];
-    if (!IS_COMPILED) { args.push('run', fileURLToPath(new URL('../cli.ts', import.meta.url))); }
-    args.push('serve', 'start', '--headless');
+    if (!IS_COMPILED) {
+        args.push('run', fileURLToPath(new URL('../cli.ts', import.meta.url)));
+    }
+    args.push(...HEADLESS_COMMAND);
     var argumentsXml = '';
     for (var argument of args) {
         argumentsXml += '        <string>' + argument.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;') + '</string>\n';
@@ -49,9 +81,16 @@ export default async function autostart(enabled?: boolean, home = homedir(), pla
     var temporary = await mkdtemp(join(directory, '.velora-login-'));
     try {
         var output = await open(join(temporary, 'agent.plist'), 'wx', 0o600);
-        try { await output.writeFile(contents); await output.sync(); } finally { await output.close(); }
+        try {
+            await output.writeFile(contents);
+            await output.sync();
+        } finally {
+            await output.close();
+        }
         await rename(join(temporary, 'agent.plist'), path);
         await syncDirectory(directory);
-    } finally { await rm(temporary, { recursive: true, force: true }); }
+    } finally {
+        await rm(temporary, { recursive: true, force: true });
+    }
     return { supported: true, enabled: true };
 }

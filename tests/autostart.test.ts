@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import autostart from '../src/system/autostart.js';
 
-test('macOS login setup uses the normal headless command without starting it', async function () {
+test.skipIf(process.platform !== 'darwin')('macOS login setup uses the normal headless command without starting it', async function () {
     var home = await mkdtemp(join(tmpdir(), 'velora-login-'));
     try {
         expect(await autostart(undefined, home, 'darwin')).toEqual({ supported: true, enabled: false });
@@ -37,7 +37,7 @@ test('unavailable platforms do not register an ineffective login item', async fu
     } finally { await rm(home, { recursive: true, force: true }); }
 });
 
-test('unexpected login files and linked directories are kept intact', async function () {
+test.skipIf(process.platform !== 'darwin')('unexpected login files and linked directories are kept intact', async function () {
     var home = await mkdtemp(join(tmpdir(), 'velora-login-invalid-'));
     try {
         var directory = join(home, 'Library', 'LaunchAgents');
@@ -54,4 +54,24 @@ test('unexpected login files and linked directories are kept intact', async func
         await expect(autostart(false, linkedHome, 'darwin')).rejects.toThrow('Could not read');
         expect(await readFile(path, 'utf8')).toBe('unrelated content');
     } finally { await rm(home, { recursive: true, force: true }); }
+});
+
+test.skipIf(process.platform !== 'darwin').each(['malformed', 'wrong-label', 'wrong-command', 'disabled'])('invalid macOS login items are not reported active: %s', async function (scenario) {
+    var home = await mkdtemp(join(tmpdir(), 'velora-login-corrupt-'));
+    try {
+        await autostart(true, home, 'darwin');
+        var path = join(home, 'Library', 'LaunchAgents', 'com.themistic.velora.plist');
+        var contents = await readFile(path, 'utf8');
+        if (scenario === 'malformed') { contents = '<plist><dict><string>com.themistic.velora</string>'; }
+        if (scenario === 'wrong-label') { contents = contents.replace('<key>Label</key><string>com.themistic.velora</string>', '<key>Label</key><string>other.agent</string><key>Comment</key><string>com.themistic.velora</string>'); }
+        if (scenario === 'wrong-command') { contents = contents.replace('<string>--headless</string>', '<string>--help</string>'); }
+        if (scenario === 'disabled') { contents = contents.replace('<key>RunAtLoad</key><true/>', '<key>RunAtLoad</key><false/>'); }
+        await writeFile(path, contents);
+        await expect(autostart(undefined, home, 'darwin')).rejects.toThrow('Could not read');
+        await expect(autostart(true, home, 'darwin')).rejects.toThrow('Could not read');
+        await expect(autostart(false, home, 'darwin')).rejects.toThrow('Could not read');
+        expect(await readFile(path, 'utf8')).toBe(contents);
+    } finally {
+        await rm(home, { recursive: true, force: true });
+    }
 });
