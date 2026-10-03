@@ -1,0 +1,1 @@
+export var RELEASE_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEASk8cOCuSGKPl0JKb+V7dtyeseOMXMH+i4W8uwrKGiHA=\n-----END PUBLIC KEY-----\n";

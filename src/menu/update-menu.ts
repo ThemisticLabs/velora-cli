@@ -3,6 +3,7 @@ import useListNavigation from '../terminal/use-list-navigation.js';
 import { createPrompt, useEffect, useState } from '@inquirer/core';
 import packageInfo from '../../package.json' with { type: 'json' };
 import cliUpdate, { updateCheckStatus, availableVersion } from '../updates/cli-update.js';
+import installCliUpdate from '../updates/install-cli-update.js';
 import engineUpdate, { lastEngineCheck } from '../updates/engine-update.js';
 import downloadFailure from '../downloads/download-failure.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
@@ -24,7 +25,7 @@ export default async function updateMenu(): Promise<void> {
         if (lastEngineCheck?.current) { initialEngine = 'Up to date'; }
         if (lastEngineCheck?.available) { initialEngine = lastEngineCheck.available; }
         var task: Promise<void> | undefined;
-        var prompt = createPrompt<'install-engine' | undefined, Record<string, never>>(function (_config, done) {
+        var prompt = createPrompt<'install-cli' | 'install-engine' | undefined, Record<string, never>>(function (_config, done) {
             var [checking, setChecking] = useState('');
             var [cliVersion, setCliVersion] = useState(initialCli);
             var [engineVersion, setEngineVersion] = useState(initialEngine);
@@ -95,6 +96,7 @@ export default async function updateMenu(): Promise<void> {
             var rows = [{ value: 'cli', cells: ['velora', packageInfo.version, cliVersion] }];
             rows.push({ value: 'engine', cells: ['Engine', installedEngine, engineVersion] });
             var selected = useListNavigation({ values, disabled: Boolean(checking), onSelect: function (value) {
+                if (value === 'cli' && availableVersion) { done('install-cli'); return; }
                 if (value === 'engine' && lastEngineCheck?.available) {
                     done('install-engine');
                     return;
@@ -141,6 +143,24 @@ export default async function updateMenu(): Promise<void> {
             await task;
         }
         if (!action) { return; }
+        if (action === 'install-cli') {
+            if (!availableVersion) { continue; }
+            var cliRelease = availableVersion;
+            setSetupLayout('Update velora to ' + cliRelease + '?', 'velora closes to install. Your settings and keys stay in place.', '/velora/updates', 'Enter Install · Esc Back · Ctrl+C Quit');
+            var installChoice = await select({ back: true, message: '', choices: [{ name: 'Install velora update', value: 'install' }] });
+            if (installChoice === 'back') { continue; }
+            setSetupLayout('Updating velora…', '', '/velora/updates', 'Ctrl+C Cancel');
+            try {
+                await runTerminalTask(function (signal, onProgress) { return installCliUpdate(cliRelease, signal, onProgress); });
+                return;
+            } catch (error) {
+                if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) { throw error; }
+                var message = downloadFailure(error, 'Could not update velora. Your current version was kept. Try again.');
+                setSetupLayout('velora update unsuccessful.', message, '/velora/updates', 'Esc Back · Ctrl+C Quit', 'Error');
+                await select({ back: true, message: '', choices: [] });
+            }
+            continue;
+        }
         if (!lastEngineCheck?.available) { continue; }
         var version = lastEngineCheck.available;
         setSetupLayout('Update engine to ' + version + '?', 'Models and license settings stay in place.', '/velora/updates', 'Enter Install · Esc Back · Ctrl+C Quit');

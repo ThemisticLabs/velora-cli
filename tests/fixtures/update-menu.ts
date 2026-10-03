@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 var scenario = process.argv[2];
 var cliCalls = 0;
 var engineInstalls = 0;
+var cliInstalls = 0;
 var cached: { installed: string; available?: string; current?: boolean; message: string } | null = null;
 if (scenario === 'cached' || scenario === 'install-engine' || scenario === 'install-error') {
     cached = { installed: '0.4.2', available: '0.4.3', message: 'Update available.' };
@@ -14,11 +15,18 @@ mock.module('../../src/updates/cli-update.js', function () {
     if (scenario === 'current-cli') { status = 'current'; }
     if (scenario === 'offline-cli') { status = 'unavailable'; }
     var version: string | null = null;
-    if (cached) { version = '2.0.0'; }
+    if (cached || scenario === 'install-cli' || scenario === 'cli-install-error') { version = '2.0.0'; }
     return { availableVersion: version, updateCheckStatus: status, default: async function () {
         cliCalls++;
         if (scenario === 'current-cli' || scenario === 'offline-cli') { return null; }
         return '2.0.0';
+    } };
+});
+mock.module('../../src/updates/install-cli-update.js', function () {
+    return { cliUpdatePending: false, default: async function (version: string) {
+        assert.equal(version, '2.0.0');
+        cliInstalls++;
+        if (scenario === 'cli-install-error') { throw Object.assign(new Error('Private storage diagnostic'), { code: 'ENOSPC' }); }
     } };
 });
 mock.module('../../src/updates/engine-update.js', function () {
@@ -46,6 +54,7 @@ mock.module('../../src/updates/engine-update.js', function () {
 var showUpdates = (await import('../../src/menu/update-menu.js')).default;
 await showUpdates();
 assert.equal(cliCalls, Number(scenario === 'cli' || scenario === 'no-model' || scenario === 'current-cli' || scenario === 'offline-cli'));
+assert.equal(cliInstalls, Number(scenario === 'install-cli' || scenario === 'cli-install-error'));
 assert.equal(cancelled, scenario === 'cancel');
 assert.equal(engineInstalls, Number(scenario === 'install-engine' || scenario === 'install-error'));
 process.stdout.write('Updates verified.\n');

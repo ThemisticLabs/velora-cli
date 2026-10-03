@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
 
+import selfTest from './updates/self-test.js';
+import applyCliUpdate from './updates/apply-cli-update.js';
+import recoverCliUpdate from './updates/recover-cli-update.js';
 import packageInfo from '../package.json' with { type: 'json' };
 import { Command } from 'commander';
 import startupUpdate from './updates/startup-update.js';
@@ -9,12 +12,36 @@ import doctor from './commands/doctor.js';
 import style from './terminal/style.js';
 import header from './terminal/header.js';
 
+if (process.argv[2] === '--self-test') {
+    try { await selfTest(process.argv[3]); }
+    catch { process.stderr.write('velora self-test failed. Saved data was not changed.\n'); process.exit(1); }
+    process.exit(0);
+}
+if (process.argv[2] === '--finish-update' && process.argv[3]) {
+    try { await applyCliUpdate(process.argv[3], process.argv[4] === '--restore'); }
+    catch { process.exit(1); }
+    process.exit(0);
+}
+if (process.stdin.isTTY && process.stdout.isTTY) {
+    try {
+        var recovery = await recoverCliUpdate();
+        if (recovery.message) { process.stdout.write(recovery.message + '\n'); }
+        if (recovery.stop) { process.exit(0); }
+    } catch {
+        process.stdout.write('Could not read update recovery information. Keep any update backups and check executable directory permissions.\n');
+        process.exit(0);
+    }
+}
+
 if (process.stdin.isTTY && process.stdout.isTTY) {
     var startupController = new AbortController();
     var cancelStartup = function () { startupController.abort(); };
     process.once('SIGINT', cancelStartup);
     try {
-        await startupUpdate(startupController.signal);
+        if (await startupUpdate(startupController.signal)) {
+            process.stdout.write('velora update prepared. Start velora again in a moment.\n');
+            process.exit(0);
+        }
     } catch (error) {
         if (!(error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) && !startupController.signal.aborted) {
             throw error;

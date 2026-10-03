@@ -23,14 +23,14 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                     return;
                 }
                 if (scenario === 'api-keys') {
-                    terminal.write('\u001b[B\r');
+                    terminal.write('\r');
                     return;
                 }
                 if (scenario === 'resize') {
                     terminal.resize(40, 10);
                     return;
                 }
-                terminal.write('\r');
+                terminal.write('\u001b[B\r');
                 return;
             }
             if (scenario === 'api-keys' && phase === 1 && frame.includes('Selected model:')) {

@@ -1,3 +1,4 @@
+import { cliUpdatePending } from '../updates/install-cli-update.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import settingsMenu from './settings-menu.js';
 import setup from '../setup/setup.js';
@@ -82,14 +83,15 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 }
                 setSetupLayout(title, '', '/velora', FOOTER);
                 var choice = await select({ message: '', choices: [
-                    { name: 'Settings', value: 'settings' },
-                    { name: 'API keys', value: 'keys' }
+                    { name: 'API keys', value: 'keys' },
+                    { name: 'Settings', value: 'settings' }
                 ] });
                 if (choice === 'keys') {
                     await manageApiKeys();
                     continue;
                 }
                 await settingsMenu();
+                if (cliUpdatePending) { return; }
             } catch (error) {
                 if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
                     throw error;
@@ -112,6 +114,7 @@ export default async function mainMenu(startSetup = false): Promise<void> {
     } finally {
         tray?.close();
         process.stdout.write(RESTORE_TERMINAL);
+        if (cliUpdatePending) { process.stdout.write('velora update prepared. Start velora again in a moment.\n'); }
         if (tray && !tray.available) { process.stdout.write('Could not display the macOS menu bar icon.\n'); }
         if (failure) {
             process.stdout.write(failure + '\n');

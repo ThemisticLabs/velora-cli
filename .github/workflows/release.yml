@@ -34,6 +34,10 @@ jobs:
           path: dist/release
           merge-multiple: true
       - run: bun run release:manifest
+      - name: Sign release metadata
+        run: bun run scripts/release-sign.ts
+        env:
+          VELORA_RELEASE_SIGNING_KEY: ${{ secrets.VELORA_RELEASE_SIGNING_KEY }}
       - name: Create and publish release
         env:
           GH_TOKEN: ${{ github.token }}

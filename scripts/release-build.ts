@@ -16,7 +16,7 @@ if (!selected) {
 var directory = resolve('dist', 'release');
 await mkdir(directory, { recursive: true });
 var executable = resolve(directory, selected.asset);
-var build = Bun.spawn([process.execPath, 'build', 'src/cli.ts', '--compile', '--target=' + selected.target,
+var build = Bun.spawn([process.execPath, 'build', 'src/cli.ts', '--compile', '--define', 'VELORA_COMPILED=true', '--target=' + selected.target,
     '--outfile', executable, '--no-compile-autoload-dotenv', '--no-compile-autoload-bunfig'], {
     stdout: 'inherit', stderr: 'inherit'
 });

@@ -80,9 +80,28 @@ test.each(['yes', 'no', 'manual', 'saved yes', 'saved no', 'legacy yes', 'invali
             expect(prompts).toEqual([]);
         }
         if (scenario === 'legacy yes') {
-            expect(prompts[0]).toBe('Allow automatic installation when available?');
+            expect(prompts[0]).toBe('Allow automatic velora updates?');
         }
     } finally {
         await rm(root, { recursive: true, force: true });
     }
+});
+
+test.each(['install', 'manual', 'failure', 'cancel'])('startup installs only with saved consent: %s', async function (scenario) {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-auto-install-'));
+    try {
+        await writeFile(join(directory, 'cli-updates.json'), JSON.stringify({ checkAutomatically: true, installAutomatically: scenario !== 'manual' }));
+        var controller = new AbortController();
+        var installed = '';
+        var completed = await startupUpdate(controller.signal, directory, async function () { throw new Error('Unexpected prompt'); }, async function () { return '1.0.0'; }, async function (version) {
+            installed = version;
+            if (scenario === 'failure') { throw new Error('Download failed'); }
+            if (scenario === 'cancel') { controller.abort(); controller.signal.throwIfAborted(); }
+        }).catch(function (error) { if (scenario !== 'cancel') { throw error; } return 'cancelled'; });
+        if (scenario === 'manual') { expect(installed).toBe(''); }
+        else { expect(installed).toBe('1.0.0'); }
+        if (scenario === 'install') { expect(completed).toBe(true); }
+        if (scenario === 'cancel') { expect(completed).toBe('cancelled'); }
+        if (scenario === 'failure') { expect(completed).toBeUndefined(); }
+    } finally { await rm(directory, { recursive: true, force: true }); }
 });

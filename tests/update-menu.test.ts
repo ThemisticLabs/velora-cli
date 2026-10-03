@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import packageInfo from '../package.json' with { type: 'json' };
 
-test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-model', 'current-cli', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine', 'install-error'])('update versions terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-model', 'current-cli', 'current-engine', 'offline-cli', 'broken-engine', 'cached', 'install-engine', 'install-error', 'install-cli', 'cli-install-error'])('update versions terminal: %s', async function (scenario) {
     var output = '';
     var coloredOutput = '';
     var phase = 0;
@@ -16,6 +16,13 @@ test.skipIf(process.platform === 'win32').each(['cli', 'engine', 'cancel', 'no-m
             coloredOutput += raw;
             var frame = stripVTControlCharacters(raw);
             output = stripVTControlCharacters(coloredOutput);
+            if (scenario === 'install-cli' || scenario === 'cli-install-error') {
+                if (phase === 0 && frame.includes('2.0.0')) { phase++; terminal.write('\r'); }
+                else if (phase === 1 && frame.includes('Update velora to')) { phase++; terminal.write('\r'); }
+                else if (phase === 2 && frame.includes('velora update unsuccessful.')) { phase++; terminal.write('\u001b'); }
+                else if (phase === 3 && frame.includes('Settings / Updates')) { phase++; terminal.write('\u001b'); }
+                return;
+            }
             if (scenario === 'cached' || scenario === 'install-engine' || scenario === 'install-error') {
                 if (phase === 0 && frame.includes('0.4.3')) {
                     phase++;

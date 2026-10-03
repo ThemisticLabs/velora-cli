@@ -4,8 +4,10 @@ import selectOption from '../setup/select-option.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import style from '../terminal/style.js';
 import cliUpdate from './cli-update.js';
+import runTerminalTask from '../terminal/run-terminal-task.js';
+import installCliUpdate from './install-cli-update.js';
 
-export default async function startupUpdate(signal: AbortSignal, directory = dataDirectory(), choose = selectOption, check = cliUpdate): Promise<void> {
+export default async function startupUpdate(signal: AbortSignal, directory = dataDirectory(), choose = selectOption, check = cliUpdate, install = installCliUpdate): Promise<boolean | void> {
     try {
         var preferences = await cliUpdatePreferences(undefined, directory);
     } catch {
@@ -33,9 +35,9 @@ export default async function startupUpdate(signal: AbortSignal, directory = dat
             }
             installAutomatically = false;
             if (allowed) {
-                setSetupLayout('Automatic velora updates', 'Save your choice. Automatic installation is coming later.', '/velora/updates', '↑/↓ Move · Enter Select · Ctrl+C Cancel');
+                setSetupLayout('Automatic velora updates', 'Install verified velora releases automatically. Your saved data stays in place.', '/velora/updates', '↑/↓ Move · Enter Select · Ctrl+C Cancel');
                 var installation = await choose({
-                    message: 'Allow automatic installation when available?',
+                    message: 'Allow automatic velora updates?',
                     choices: [
                         { name: 'No, install manually', value: 'no' },
                         { name: 'Yes, allow automatic installation', value: 'yes' }
@@ -63,5 +65,20 @@ export default async function startupUpdate(signal: AbortSignal, directory = dat
     if (!allowed || signal.aborted) {
         return;
     }
-    await check(undefined, undefined, signal);
+    var version = await check(undefined, undefined, signal);
+    if (!version || !installAutomatically) { return; }
+    var releaseVersion = version;
+    try {
+        if (install === installCliUpdate && process.stdout.isTTY) {
+            process.stdout.write('\u001b[?1049h');
+            try {
+                setSetupLayout('Updating velora…', '', '/velora/updates', 'Ctrl+C Cancel');
+                await runTerminalTask(function (taskSignal, progress) { return install(releaseVersion, AbortSignal.any([signal, taskSignal]), progress); });
+            } finally { process.stdout.write('\u001b[?25h\u001b[?1049l'); }
+        } else { await install(version, signal); }
+        return true;
+    } catch (error) {
+        if (signal.aborted || error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) { throw error; }
+        process.stdout.write(style('Could not install the velora update. Your current version was kept. Check Settings / Updates.', 'Warning') + '\n');
+    }
 }

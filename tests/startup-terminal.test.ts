@@ -18,7 +18,7 @@ test.skipIf(process.platform === 'win32').each(['yes', 'no', 'cancel'])('startup
                     cols: 90, rows: 30,
                     data: function (terminal, data) {
                         output += Buffer.from(data).toString('utf8');
-                        if (sent && !answeredInstallation && output.includes('Allow automatic installation when available?')) {
+                        if (sent && !answeredInstallation && output.includes('Allow automatic velora updates?')) {
                             answeredInstallation = true;
                             terminal.write('\r');
                         }

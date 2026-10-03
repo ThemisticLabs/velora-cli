@@ -1,3 +1,4 @@
+import { cliUpdatePending } from '../updates/install-cli-update.js';
 import updateMenu from './update-menu.js';
 import select from '../setup/select-option.js';
 import licenseInput from '../setup/license-input.js';
@@ -59,7 +60,7 @@ export default async function settingsMenu(): Promise<void> {
         }
         if (choice === 'updates') {
             await updateMenu();
-
+            if (cliUpdatePending) { return; }
         }
     }
 }

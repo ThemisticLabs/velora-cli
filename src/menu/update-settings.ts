@@ -104,7 +104,8 @@ export default async function updateSettings(): Promise<void> {
                 var row = rows[index]!;
                 hint = 'Check GitHub when velora starts.';
                 if (row.field === 'installAutomatically') {
-                    hint = 'Automatic installation is not available yet.';
+                    hint = 'Install signed velora releases on startup. Restart to use the new version.';
+                    if (scopes[row.scopeIndex]!.engine) { hint = 'Automatic engine installation is not available yet.'; }
                     if (!draft[row.scopeIndex]!.checkAutomatically) {
                         hint = 'Enable automatic checks first.';
                     }
