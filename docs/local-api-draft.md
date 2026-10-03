@@ -136,7 +136,7 @@ The interactive CLI controls the same service used by headless startup. It must 
 
 Stop stops accepting new anonymization work and lets the active request finish. After its response completes, shut down the listener and engine and return the menu action to **Start**. Show a stopping state while waiting; do not claim that shutdown has completed early.
 
-Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. A deadline for explicit service shutdown remains to be chosen so a stuck engine cannot prevent Stop indefinitely.
+Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. If graceful Stop exceeds its waiting deadline, offer an explicit forced Stop. Never automatically cancel the active request merely because the Stop deadline passed. The waiting duration still needs to be chosen.
 
 ## Menubar: Open velora
 
@@ -167,18 +167,26 @@ The requirement is agreed; the exact command spelling is not final. Do not add m
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 
-Autostart is not implemented. For the macOS menubar, a user-login service is the proposed first approach; system boot before login has different UI and credential availability. Choose that boundary explicitly before registration. Explicit Stop must not be immediately undone by an automatic restart policy. Whether autostart stays enabled for the next login after a manual Stop still needs a decision.
+Autostart is not implemented. For the macOS menubar, a user-login service is the proposed first approach; system boot before login has different UI and credential availability. Choose that boundary explicitly before registration. Manual Stop leaves autostart enabled for the next login. It must not immediately restart the service in the current session.
 
-## Next planning step: active requests and lifecycle changes
+## Agreed lifecycle behavior
 
-The following are proposals for discussion, not approved behavior:
+- Model changes wait for the active anonymization request to finish before switching models. Requests must not race with model loading.
+- Changing the port saves the setting and offers a service restart. Saving alone must not silently restart the running service.
+- A crashed service reports a failure and requires a manual restart. Do not create an automatic restart loop.
+- Manual Stop keeps autostart enabled for the next login.
+- If Stop takes too long, offer a forced Stop that requires an explicit user action. Do not automatically abandon the active request.
+- Interactive CLI and menubar controls use the same local service-control implementation. Do not introduce a second public TCP port for management.
 
-1. Define the explicit Stop deadline and what happens when an HTTP client disconnects, the engine crashes or a request times out. Ctrl+C in the interactive CLI leaves the service and active requests running.
-2. Define visible starting, ready, busy, stopping and failed states, including feedback when startup fails. Decide pause behavior separately.
-3. Define model switching: finish or cancel active work, load the next model, and retain the previous selection if loading fails.
+These are agreed requirements, not implemented behavior.
+
+## Remaining decisions and implementation checks
+
+1. Choose the Stop waiting duration, inference timeout and busy-response retry delay. Define what happens when an HTTP client disconnects or the engine fails during a request.
+2. Define visible starting, ready, busy, stopping and failed states, including startup failure feedback. Decide pause behavior separately.
+3. Define recovery if loading another model fails and how selected-model persistence relates to the model actually loaded by the service.
 4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
-5. Decide whether a saved port change restarts the API immediately or requires an explicit restart.
-6. Design local service control and interactive-session discovery. The service owns the API, engine and menubar; the CLI attaches to it. Verify configured terminal discovery and exact tab activation on macOS.
-7. Choose the final headless command and autostart event. Decide next-login behavior after manual Stop and crash-restart behavior.
+5. Design local service control and interactive-session discovery. Verify configured terminal discovery and exact tab activation on macOS.
+6. Choose the final headless command and autostart event.
 
-Resolve the offset unit, browser access, validation details, error statuses, retry delay and timeout before implementing the endpoint. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.
+Resolve the offset unit, browser access, validation details and remaining error statuses before implementing the endpoint. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.
