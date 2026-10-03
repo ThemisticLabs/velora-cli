@@ -34,7 +34,7 @@ The menu shows the selected model, **API keys**, then **Settings**. Settings let
 
 Deleting a model removes its local package. The shared engine, its update permissions, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic velora installation is available with explicit consent. Automatic engine installation is not connected.
 
-## Service foundation
+## Independent service
 
 The independent service process can be started, checked and stopped:
 
@@ -44,7 +44,9 @@ velora serve status
 velora serve stop
 ```
 
-The service survives closing the terminal. Repeated starts reuse the same running instance. This first step provides private local control only; it does not expose the HTTP API, load an inference model or register autostart. The interactive Start/Stop action and service-owned menubar are not connected yet.
+The service survives closing the terminal. Start reads the saved license, reuses the verified installed engine and loads the selected installed model once. It reports ready only after the engine confirms the model and engine version. Repeated starts reuse that instance. Startup does not download packages; complete setup and select an installed model first. Status distinguishes starting, ready and failed. An engine crash requires an explicit stop and restart. Stop unloads the model and closes the engine.
+
+The HTTP API, interactive Start/Stop action, service-owned menubar and autostart are not connected yet.
 
 ## Application keys
 

@@ -4,7 +4,7 @@ This document describes the current implementation. Read [CODINGSTYLE.md](CODING
 
 ## Current scope
 
-velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It runs temporary engine operations for setup and diagnostics and manages local application keys. It provides an independent service process with local start, status and stop controls. It does not expose an HTTP API or register an operating-system service.
+velora is a TypeScript CLI built with Bun. It supports help, version output, command suggestions, and an interactive setup. It checks license access with the Themistic server. It bootstraps a verified standalone engine and uses its local process to list and install models. The engine owns device identity and device-bound requests. It runs temporary engine operations for setup and diagnostics and manages local application keys. It provides an independent service process with local start, status and stop controls and a persistent engine session for the selected model. It does not expose an HTTP API or register an operating-system service.
 
 Setup sends the entered key over HTTPS for a signed read-only access check and displays expiry, occupied device slots, and entitled model IDs. It persists verified keys in the system credential store. Selecting a public model opens an availability notice with a way back to the access selection.
 
@@ -50,7 +50,7 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | `src/assets/SOURCES.md` | Record asset provenance. |
 | `tests/cli.test.mjs` | Test the compiled CLI through child processes. |
 
-Each implementation module has one callable public entry point. The command entry file runs directly, without a `main()` wrapper. The engine bridge lives in `src/engine/`; it opens a bounded JSON-Lines session for each operation and closes the child afterward.
+Each implementation module has one callable public entry point. The command entry file runs directly, without a `main()` wrapper. The engine bridge lives in `src/engine/`; it uses bounded JSON-Lines sessions. Setup and diagnostics close their temporary sessions afterward. The independent service retains its session until Stop.
 
 ## Command flow
 
@@ -255,16 +255,20 @@ A durable journal beside the executable records prepared, installing, installed,
 Native compiled helper tests cover installation, failed installed-binary tests, interrupted installation, changed targets, signed metadata rejection and preservation of data. The current local run verifies the development host only; the native CI matrix must verify Windows and Linux before release.
 
 
-## Independent service foundation
+## Independent service and engine lifetime
 
-`service/service-control.ts` owns start, status and stop. The compiled CLI starts itself with an internal worker argument; development runs start the source with Bun. The child is detached with no inherited terminal streams. Start waits for an authenticated status response before reporting success. Concurrent starters may launch workers, but only one worker acquires `.service.lock`; all starters discover the same surviving instance. A failed or timed-out launch terminates only the child it created.
+`service/service-control.ts` owns start, status and stop. The compiled CLI starts itself with an internal worker argument; development runs start the source with Bun. The child is detached with no inherited terminal streams. Start waits for an authenticated ready response after the selected model loads before reporting success. Concurrent starters may launch workers, but only one worker acquires `.service.lock`; all starters discover the same surviving instance. A failed or timed-out launch terminates only the child it created.
 
 `service/service-worker.ts` owns the lifetime and uses the existing directory lock. It publishes `service.json` atomically with a PID and a fresh 32-byte control token. That token is separate from application API keys and is never sent through command arguments or displayed. POSIX record files use `0600`. Process death permits a later worker to reclaim the stale lease. User data is not deleted to recover a service.
 
 `service/service-paths.ts` names the record, lease and control endpoint. macOS/Linux use a Unix socket inside an owner-checked `0700` temporary directory; the socket uses `0600`. Its name is derived from the resolved data directory to avoid long home-directory socket paths. Windows uses a named pipe. The persisted token authenticates status and stop commands on both transports. Control does not open a TCP port. This is a same-user control channel, not a boundary against malicious code already running as that user.
 
-`service/service-request.ts` bounds control records and messages and applies a response timeout. It validates the returned instance PID. Missing records or records whose process has exited mean stopped; invalid records or an unreachable live process fail closed. Stop acknowledges completion after closing the listener and releasing service ownership. There is no engine workload to drain in this first step.
+`service/service-request.ts` bounds control records and messages and applies a response timeout. It validates the returned instance PID. Missing records or records whose process has exited mean stopped; invalid records or an unreachable live process fail closed. Status distinguishes starting, running and failed and validates the model ID and engine version in a running response. Stop acknowledges completion after shutting down the engine, closing the listener and releasing service ownership. A Stop during startup aborts model loading and waits for process cleanup; a pending credential read does not prevent cancellation.
 
 `commands/service-command.ts` provides `velora serve start --headless`, `velora serve status` and `velora serve stop`. Output states that the HTTP API is not connected. Tests use isolated storage and include concurrent starts, a launcher exiting before later control, SIGKILL recovery, rejected unauthenticated control and a compiled worker without Bun on PATH. Native Windows/Linux behavior still requires their CI jobs.
 
-Engine loading, HTTP requests, interactive attachment, the Start/Stop menu action, menubar ownership, operating-system autostart and coordination with binary updates remain subsequent steps. The existing menu still owns its icon helper. No readiness response claims that a model or HTTP API is available.
+`service/service-engine.ts` reads the selected installed model and the saved license, then opens the verified cached engine with `installedOnly`. It does not bootstrap downloads. It sends one `load` request and checks the returned model ID and engine version before publishing readiness. The session stays open for subsequent operations; Stop sends `shutdown` and closes the child even if shutdown fails. Unexpected engine exit changes service status to failed and requires manual Stop and restart. Startup has a two-minute limit, which is cleared after loading so it cannot terminate an otherwise healthy persistent session.
+
+Protocol tests use a compiled synthetic engine child and isolated storage. They cover a retained session, repeated starts without reloading, shutdown, engine exit, cancellation during a credential prompt, missing prerequisites and mismatched load responses. They do not evaluate real model weights or inference quality.
+
+HTTP requests, interactive attachment, the Start/Stop menu action, menubar ownership, operating-system autostart and coordination with binary updates remain subsequent steps. The existing menu still owns its icon helper. Ready confirms model loading, not HTTP API availability.

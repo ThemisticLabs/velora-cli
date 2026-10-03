@@ -166,7 +166,7 @@ velora serve status
 velora serve stop
 ```
 
-These commands control only the service foundation so far. They do not start inference or expose the HTTP API. Start/Stop in the interactive menu, service-owned menubar and autostart are still planned.
+Start now opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages or expose the HTTP API. Start/Stop in the interactive menu, service-owned menubar and autostart are still planned.
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 
