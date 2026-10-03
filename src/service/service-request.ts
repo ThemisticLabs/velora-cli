@@ -6,7 +6,8 @@ import servicePaths, { CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, MAX_STATUS_MESSAGE
 export type ServiceStatus = { state: 'running'; pid: number; model: string; engineVersion: string; port: number } |
     { state: 'starting' | 'stopping'; pid: number } | { state: 'failed'; pid: number; message: string } | { state: 'stopped' };
 
-export default async function serviceRequest(operation: 'status' | 'stop', directory: string): Promise<ServiceStatus> {
+export default async function serviceRequest(operation: 'status' | 'stop', directory: string, signal?: AbortSignal): Promise<ServiceStatus> {
+    signal?.throwIfAborted();
     var paths = servicePaths(directory);
     try {
         var file = await lstat(paths.record);
@@ -29,7 +30,10 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
     var pid = record.pid;
     try {
         return await new Promise<ServiceStatus>(function (resolve, reject) {
+            signal?.throwIfAborted();
             var socket = createConnection(paths.endpoint);
+            var cancel = function () { socket.destroy(new Error('Service status wait cancelled.')); };
+            signal?.addEventListener('abort', cancel, { once: true });
             var received = Buffer.alloc(0);
             var timeout = CONTROL_TIMEOUT_MS;
             if (operation === 'stop') { timeout = STOP_TIMEOUT_MS; }
@@ -39,6 +43,7 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
             socket.on('error', reject);
             socket.once('close', function () {
                 clearTimeout(timer);
+                signal?.removeEventListener('abort', cancel);
                 reject(new Error('The service connection closed before its response.'));
             });
             socket.once('connect', function () {
@@ -89,6 +94,7 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
             });
         });
     } catch (error) {
+        signal?.throwIfAborted();
         try {
             process.kill(pid, 0);
         } catch (processError) {

@@ -32,7 +32,7 @@ test('an occupied configured port fails before any engine load', async function 
     }
 }, 10000);
 
-test('service Stop reports stopping and waits for inference before engine shutdown', async function () {
+test.each(['wait', 'close interactive'])('service Stop drains inference when controlling session chooses to %s', async function (scenario) {
     var directory = await mkdtemp(join(tmpdir(), 'velora-api-drain-'));
     var key = await apiKeys({ operation: 'create', name: 'Fixture app', note: '' }, directory);
     var enter: () => void;
@@ -51,13 +51,20 @@ test('service Stop reports stopping and waits for inference before engine shutdo
             headers: { Authorization: 'Bearer ' + key.key, 'Content-Type': 'application/json' }, body: '{"text":"hello"}' });
         await entered;
         var stopped = false;
-        var stopping = serviceControl('stop', directory).then(function (result) { stopped = true; return result; });
+        var controller = new AbortController();
+        var stopping = serviceControl('stop', directory, undefined, controller.signal).then(function (result) { stopped = true; return result; });
         await waitFor(directory, 'stopping');
         expect(stopped).toBe(false);
         expect(engineClosed).toBe(false);
+        if (scenario === 'close interactive') {
+            controller.abort();
+            await expect(stopping).rejects.toThrow();
+            expect((await serviceControl('status', directory)).state).toBe('stopping');
+            expect(engineClosed).toBe(false);
+        }
         release!({ placeholder_text: 'hello', mapping: {} });
         expect(await (await response).json()).toEqual({ text: 'hello' });
-        expect(await stopping).toEqual({ state: 'stopped' });
+        if (scenario === 'wait') { expect(await stopping).toEqual({ state: 'stopped' }); }
         await worker;
         expect(engineClosed).toBe(true);
     } finally {

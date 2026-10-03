@@ -1,12 +1,13 @@
 import renderList, { type ListColumn } from '../terminal/render-list.js';
 import useListNavigation from '../terminal/use-list-navigation.js';
 import setupDimensions from '../terminal/setup-dimensions.js';
-import { createPrompt } from '@inquirer/core';
+import { createPrompt, useEffect, useState } from '@inquirer/core';
 import useSetupScreen from '../terminal/use-setup-screen.js';
 import style from '../terminal/style.js';
 
 type Selection = {
     message: string;
+    refresh?: (signal: AbortSignal) => Promise<Pick<Selection, 'message' | 'choices'>>;
     back?: boolean;
     initialValue?: string;
     columns?: ListColumn[];
@@ -16,10 +17,31 @@ type Selection = {
 };
 
 export default createPrompt<string, Selection>(function (config, done) {
+    var [updated, setUpdated] = useState<Pick<Selection, 'message' | 'choices'> | undefined>();
+    useEffect(function () {
+        if (!config.refresh) { return; }
+        var controller = new AbortController();
+        var REFRESH_INTERVAL_MS = 1000;
+        var timer: ReturnType<typeof setTimeout>;
+        var refresh = async function () {
+            try {
+                var update = await config.refresh!(controller.signal);
+                if (!controller.signal.aborted) { setUpdated(update); }
+            } catch {
+                // The last confirmed menu remains visible if refresh is interrupted.
+            } finally {
+                if (!controller.signal.aborted) { timer = setTimeout(refresh, REFRESH_INTERVAL_MS); }
+            }
+        };
+        timer = setTimeout(refresh, REFRESH_INTERVAL_MS);
+        return function () { controller.abort(); clearTimeout(timer); };
+    }, []);
+    var choices = updated?.choices || config.choices;
+    var message = updated?.message ?? config.message;
     var values: string[] = [];
     var rows = [];
     var hasDescriptions = false;
-    for (var choice of config.choices) {
+    for (var choice of choices) {
         hasDescriptions = hasDescriptions || choice.description !== undefined;
         values.push(choice.value);
         rows.push({ value: choice.value, cells: choice.cells || [choice.name] });
@@ -36,8 +58,8 @@ export default createPrompt<string, Selection>(function (config, done) {
     });
     var width = setupDimensions().contentWidth;
     var content = '';
-    if (config.message) {
-        for (var line of config.message.split('\n')) {
+    if (message) {
+        for (var line of message.split('\n')) {
             while (line.length > width) {
                 var endOfLine = line.lastIndexOf(' ', width);
                 if (endOfLine < 1) {
@@ -52,7 +74,7 @@ export default createPrompt<string, Selection>(function (config, done) {
     }
     var description = '';
     var documentationPath: string | undefined;
-    for (var choice of config.choices) {
+    for (var choice of choices) {
         if (choice.value === selected) {
             description = choice.description || '';
             documentationPath = choice.documentationPath;

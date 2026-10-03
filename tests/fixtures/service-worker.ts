@@ -5,6 +5,7 @@ import serviceWorker from '../../src/service/service-worker.js';
 
 var directory = process.argv[2]!;
 await serviceWorker(directory, async function () {
+    if (await Bun.file(join(directory, 'delay-engine')).exists()) { await Bun.sleep(400); }
     var resolveExit: () => void;
     var exited = new Promise<void>(function (resolve) { resolveExit = resolve; });
     return {

@@ -32,7 +32,7 @@ if (process.argv[2] === '--finish-update' && process.argv[3]) {
     catch { process.exit(1); }
     process.exit(0);
 }
-var interactiveMenuStart = process.argv.length === 2 || process.argv.length === 3 && process.argv[2] === 'setup';
+var interactiveMenuStart = process.argv.length === 2 || process.argv.length === 3 && ['setup', 'settings'].includes(process.argv[2]!);
 if (interactiveMenuStart && process.stdin.isTTY && process.stdout.isTTY) {
     try {
         var recovery = await recoverCliUpdate();
@@ -89,7 +89,7 @@ program.helpOption('-h, --help', 'Show available commands');
 program.addHelpCommand(false);
 program.showSuggestionAfterError();
 program.showHelpAfterError('\nRun velora --help to see available commands.');
-program.addHelpText('after', '\nThe local API is not available yet.\n');
+program.addHelpText('after', '\nRun velora serve start --headless to start the local API.\n');
 
 program.command('help')
     .description('Show available commands')
@@ -101,6 +101,10 @@ program.command('setup')
     .description('Set up license access and install a model')
     .action(function () { return mainMenu(true); });
 
+program.command('settings')
+    .description('Open settings in the interactive CLI')
+    .action(function () { return mainMenu(false, 'settings'); });
+
 program.command('doctor')
     .description('Check your system, global command, storage, local API port, server connection and saved license')
     .action(function () {
@@ -108,7 +112,7 @@ program.command('doctor')
     });
 
 var serve = program.command('serve')
-    .description('Control the independent local service; the HTTP API is not connected yet');
+    .description('Control the independent local API service');
 serve.command('start')
     .description('Start the independent service')
     .requiredOption('--headless', 'Keep the service running after this terminal closes')

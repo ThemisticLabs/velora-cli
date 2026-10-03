@@ -12,8 +12,9 @@ import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimens
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import menuBar from '../system/menu-bar.js';
 import manageApiKeys from './api-keys.js';
+import serviceControl from '../service/service-control.js';
 
-export default async function mainMenu(startSetup = false): Promise<void> {
+export default async function mainMenu(startSetup = false, initialPage: 'main' | 'settings' = 'main'): Promise<void> {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
         process.stderr.write('Setup needs an interactive terminal. Run velora setup in your terminal.\n');
         process.exitCode = 1;
@@ -68,6 +69,10 @@ export default async function mainMenu(startSetup = false): Promise<void> {
             }
             // Update availability never prevents access to settings.
         }
+        if (initialPage === 'settings') {
+            await settingsMenu();
+            if (cliUpdatePending) { return; }
+        }
         while (true) {
             try {
                 var models = await installedModels({ operation: 'list' });
@@ -81,11 +86,68 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 if (selected) {
                     title = 'Selected model: ' + selected.name;
                 }
+                var refreshService = async function (signal: AbortSignal) {
+                    var message = 'Service stopped.';
+                    var action = 'Start';
+                    try {
+                        var status = await serviceControl('status', undefined, undefined, signal);
+                        if (status.state === 'running') {
+                            message = 'Running · ' + status.model + ' · http://127.0.0.1:' + status.port;
+                            action = 'Stop';
+                        }
+                        if (status.state === 'starting') {
+                            message = 'Starting. Loading the selected model.';
+                            action = 'Stop';
+                        }
+                        if (status.state === 'stopping') {
+                            message = 'Stopping. Waiting for the active request to finish.';
+                            action = 'Check status';
+                        }
+                        if (status.state === 'failed') {
+                            message = 'Service failed. ' + status.message;
+                            action = 'Stop';
+                        }
+                    } catch {
+                        signal.throwIfAborted();
+                        message = 'Service unavailable. Run velora serve status to check it.';
+                        action = 'Check status';
+                    }
+                    return { message, choices: [
+                        { name: action, value: 'service' },
+                        { name: 'API keys', value: 'keys' },
+                        { name: 'Settings', value: 'settings' }
+                    ] };
+                };
+                setSetupLayout('Checking service…', '', '/velora', FOOTER);
+                var options = await runTerminalTask(function (signal) { return refreshService(signal); });
                 setSetupLayout(title, '', '/velora', FOOTER);
-                var choice = await select({ message: '', choices: [
-                    { name: 'API keys', value: 'keys' },
-                    { name: 'Settings', value: 'settings' }
-                ] });
+                var choice = await select({ ...options, refresh: refreshService });
+                if (choice === 'service') {
+                    try {
+                        var status = await runTerminalTask(function (signal) { return serviceControl('status', undefined, undefined, signal); });
+                        if (status.state === 'stopping') { continue; }
+                        var operation: 'start' | 'stop' = 'stop';
+                        if (status.state === 'stopped') { operation = 'start'; }
+                        var heading = 'Stopping service…';
+                        var detail = 'Waiting for the active request to finish.';
+                        if (operation === 'start') {
+                            heading = 'Starting service…';
+                            detail = 'Loading the selected model.';
+                        }
+                        setSetupLayout(heading, '', '/velora', 'Ctrl+C Close');
+                        await runTerminalTask(function (signal, progress) {
+                            progress({ downloaded: 0, total: 0, message: detail });
+                            return serviceControl(operation, undefined, undefined, signal);
+                        });
+                    } catch (error) {
+                        if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) { throw error; }
+                        var message = 'Could not control the service. Run velora doctor and try again.';
+                        if (error instanceof Error) { message = error.message; }
+                        setSetupLayout('Service', '', '/velora', 'Esc Back · Ctrl+C Close', 'Error');
+                        await select({ back: true, message, choices: [] });
+                    }
+                    continue;
+                }
                 if (choice === 'keys') {
                     await manageApiKeys();
                     continue;

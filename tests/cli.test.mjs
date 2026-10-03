@@ -18,7 +18,8 @@ test('help works from another directory through every supported form', function 
         var result = spawnSync(CLI_PATH, args, { cwd: tmpdir(), encoding: 'utf8' });
         assert.equal(result.status, 0);
         assert.match(stripVTControlCharacters(result.stdout), /Usage: velora/);
-        assert.match(result.stdout, /not available yet/);
+        assert.match(result.stdout, /serve start --headless/);
+        assert.doesNotMatch(result.stdout, /not available yet|not connected yet/);
         assert.equal(result.stderr, '');
     }
 });
@@ -128,7 +129,7 @@ test('license commands are discoverable and never accept a key as an argument', 
     }
 });
 
-test('service commands expose the headless lifecycle without claiming an API', function () {
+test('service commands expose the headless API lifecycle', function () {
     for (var args of [['serve'], ['serve', 'start', '--help'], ['serve', 'status', '--help'], ['serve', 'stop', '--help']]) {
         var result = spawnSync(CLI_PATH, args, { cwd: tmpdir(), encoding: 'utf8' });
         assert.equal(result.status, 0);
@@ -137,4 +138,14 @@ test('service commands expose the headless lifecycle without claiming an API', f
     var result = spawnSync(CLI_PATH, ['serve', 'start'], { cwd: tmpdir(), encoding: 'utf8' });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /--headless/);
+});
+
+
+test('settings has a direct interactive entry point and safe command help', function () {
+    var help = spawnSync(CLI_PATH, ['settings', '--help'], { encoding: 'utf8' });
+    assert.equal(help.status, 0);
+    assert.match(stripVTControlCharacters(help.stdout), /Usage: velora settings/);
+    var piped = spawnSync(CLI_PATH, ['settings'], { encoding: 'utf8' });
+    assert.equal(piped.status, 1);
+    assert.match(piped.stderr, /interactive terminal/);
 });

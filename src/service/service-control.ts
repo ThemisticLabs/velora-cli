@@ -7,12 +7,13 @@ import servicePaths, { LAUNCH_TIMEOUT_MS, START_TIMEOUT_MS } from './service-pat
 
 export type ServiceLaunch = (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 
-export default async function serviceControl(operation: 'start' | 'status' | 'stop', directory = dataDirectory(), launch: ServiceLaunch = spawn): Promise<ServiceStatus> {
+export default async function serviceControl(operation: 'start' | 'status' | 'stop', directory = dataDirectory(), launch: ServiceLaunch = spawn, signal?: AbortSignal): Promise<ServiceStatus> {
+    signal?.throwIfAborted();
     var paths = servicePaths(directory);
     if (operation !== 'start') {
-        return serviceRequest(operation, paths.directory);
+        return serviceRequest(operation, paths.directory, signal);
     }
-    var status = await serviceRequest('status', paths.directory);
+    var status = await serviceRequest('status', paths.directory, signal);
     if (status.state === 'running') { return status; }
     if (status.state === 'stopping') { throw new Error('The service is stopping. Wait for it to finish before starting again.'); }
     if (status.state === 'failed') {
@@ -36,10 +37,11 @@ export default async function serviceControl(operation: 'start' | 'status' | 'st
     var START_POLL_MS = 50;
     try {
         while (Date.now() < deadline) {
+            signal?.throwIfAborted();
             if (launchFailed) {
                 throw new Error('Could not launch the velora service. Check executable permissions.');
             }
-            status = await serviceRequest('status', paths.directory);
+            status = await serviceRequest('status', paths.directory, signal);
             if (status.state === 'running') { return status; }
             if (status.state === 'stopping') { throw new Error('The service is stopping. Wait for it to finish before starting again.'); }
             if (status.state === 'failed') { throw new Error(status.message); }
@@ -54,7 +56,8 @@ export default async function serviceControl(operation: 'start' | 'status' | 'st
         }
         throw new Error('The velora service could not start. Check storage and executable permissions, then try again.');
     } catch (error) {
-        child?.kill();
+        // Closing the interactive session must not stop the independent service.
+        if (!signal?.aborted) { child?.kill(); }
         throw error;
     }
 }

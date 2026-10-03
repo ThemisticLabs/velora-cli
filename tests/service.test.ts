@@ -176,3 +176,32 @@ test('start aborts promptly when the observed service stops during startup', asy
         await rm(directory, { recursive: true, force: true });
     }
 }, 2000);
+
+
+test('closing an interactive startup wait leaves its detached service running', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-service-close-'));
+    var paths = servicePaths(directory);
+    await writeFile(join(directory, 'delay-engine'), 'fixture');
+    var controller = new AbortController();
+    var starting = serviceControl('start', directory, fixtureLaunch, controller.signal);
+    var cancelled = starting.catch(function (error: unknown) { return error; });
+    try {
+        var deadline = Date.now() + 5000;
+        while ((await serviceControl('status', directory)).state !== 'starting') {
+            if (Date.now() > deadline) { throw new Error('Service did not start'); }
+            await Bun.sleep(20);
+        }
+        controller.abort();
+        expect(await cancelled).toBe(controller.signal.reason);
+        await Bun.sleep(500);
+        var status = await serviceControl('status', directory);
+        expect(status.state).toBe('running');
+        expect(await Bun.file(join(directory, 'engine-closed')).exists()).toBe(false);
+    } finally {
+        controller.abort();
+        await cancelled;
+        await serviceControl('stop', directory);
+        await rm(directory, { recursive: true, force: true });
+        await rm(paths.runtime, { recursive: true, force: true });
+    }
+}, 10000);

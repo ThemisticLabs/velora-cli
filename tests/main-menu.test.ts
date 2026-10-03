@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor', 'api-keys'])('main menu terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor', 'api-keys', 'service-start', 'service-running', 'service-failure', 'service-external', 'service-close-loading', 'settings-entry'])('main menu terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var recoverySent = false;
@@ -16,24 +16,50 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                 terminal.write('\u001b[B\u001b[B\r');
                 return;
             }
+            if (scenario === 'settings-entry') {
+                if (phase === 0 && frame.includes('Change license')) { phase++; terminal.write('\u001b'); return; }
+                if (phase === 1 && frame.includes('Selected model:')) { phase++; terminal.write('\u0003'); }
+                return;
+            }
             if (phase === 0 && frame.includes('Selected model: Skira 7 Alpha')) {
                 phase++;
                 if (scenario === 'first' || scenario === 'returning' || scenario === 'skip-license') {
                     terminal.write('\u0003');
                     return;
                 }
+                if (scenario.startsWith('service-')) {
+                    if (scenario !== 'service-external') { terminal.write('\r'); }
+                    return;
+                }
                 if (scenario === 'api-keys') {
-                    terminal.write('\r');
+                    terminal.write('\u001b[B\r');
                     return;
                 }
                 if (scenario === 'resize') {
                     terminal.resize(40, 10);
                     return;
                 }
-                terminal.write('\u001b[B\r');
+                terminal.write('\u001b[B\u001b[B\r');
                 return;
             }
-            if (scenario === 'api-keys' && phase === 1 && frame.includes('Selected model:')) {
+            if (scenario.startsWith('service-')) {
+                if (scenario === 'service-close-loading' && frame.includes('Starting service…')) { terminal.write('\u0003'); return; }
+                if (scenario === 'service-failure' && frame.includes('Port 8001 is already in use')) { terminal.write('\u0003'); return; }
+                if (scenario === 'service-external' && frame.includes('Running ·')) { terminal.write('\u0003'); return; }
+                if (phase === 1 && frame.includes('Running ·')) {
+                    phase++;
+                    terminal.write('\r');
+                    return;
+                }
+                if (phase === 1 && scenario === 'service-running' && frame.includes('Service stopped.')) { terminal.write('\u0003'); return; }
+                if (phase === 2 && frame.includes('Service stopped.')) { terminal.write('\u0003'); }
+                return;
+            }
+            if (scenario === 'api-keys' && phase === 1 && frame.includes('Checking service…')) {
+                phase++;
+                return;
+            }
+            if (scenario === 'api-keys' && phase === 2 && frame.includes('Selected model:')) {
                 phase++;
                 terminal.write('\u0003');
                 return;
