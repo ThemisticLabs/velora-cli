@@ -9,6 +9,7 @@ export default async function menuBar(): Promise<{ available: boolean; close: ()
 ObjC.import('AppKit');
 var app = $.NSApplication.sharedApplication;
 app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
+app.finishLaunching;
 var data = $.NSData.alloc.initWithBase64EncodedStringOptions('${encodedIcon}', 0);
 var image = $.NSImage.alloc.initWithData(data);
 if (image.isNil()) { throw new Error('Cannot load velora icon'); }
