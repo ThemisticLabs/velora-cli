@@ -7,16 +7,25 @@ import select from './select-option.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 
 export default async function onboarding(options: { review?: boolean } = {}): Promise<boolean> {
+    var API_KEY_STEP = 0;
+    var UPDATE_PERMISSIONS_STEP = 1;
+    var AUTOSTART_STEP = 2;
+    var USAGE_GUIDE_STEP = 3;
     while (true) {
-        try { var step = await setupProgress(); break; }
+        try {
+            var step = await setupProgress();
+            break;
+        }
         catch {
             if (!await retryStorage('Setup progress unavailable.', 'Check setup.json and storage access.')) { return false; }
         }
     }
-    if (options.review) { step = 0; }
+    if (options.review) { step = API_KEY_STEP; }
     while (step < INTRO_STEPS) {
-        if (step === 0) {
-            try { var keys = await apiKeys({ operation: 'list' }); }
+        if (step === API_KEY_STEP) {
+            try {
+                var keys = await apiKeys({ operation: 'list' });
+            }
             catch {
                 if (!await retryStorage('API keys unavailable.', 'Check API key storage and file permissions.')) { return false; }
                 continue;
@@ -32,9 +41,15 @@ export default async function onboarding(options: { review?: boolean } = {}): Pr
                 if (!await manageApiKeys(undefined, undefined, { createOnly: true })) { continue; }
             }
         }
-        if (step === 1 && !await updateSettings({ setup: true })) { step--; continue; }
-        if (step === 2 && !await autostartSettings({ setup: true })) { step--; continue; }
-        if (step === 3) {
+        if (step === UPDATE_PERMISSIONS_STEP && !await updateSettings({ setup: true })) {
+            step--;
+            continue;
+        }
+        if (step === AUTOSTART_STEP && !await autostartSettings({ setup: true })) {
+            step--;
+            continue;
+        }
+        if (step === USAGE_GUIDE_STEP) {
             var pages = [
                 { title: 'Start and stop', text: 'Choose Start in the main menu to load your model and open the local API. Stop finishes the active request, then unloads the model.' },
                 { title: 'Your applications', text: 'Manage access under API keys. Use a different key for each app. Settings contains models, licenses, updates and the local API port.' },
@@ -54,11 +69,17 @@ export default async function onboarding(options: { review?: boolean } = {}): Pr
                 else { page++; }
                 if (page < 0) { break; }
             }
-            if (page < 0) { step--; continue; }
+            if (page < 0) {
+                step--;
+                continue;
+            }
         }
         step++;
         while (true) {
-            try { await setupProgress(step); break; }
+            try {
+                await setupProgress(step);
+                break;
+            }
             catch {
                 if (!await retryStorage('Could not save setup progress.', 'Your completed changes remain saved. Check setup.json and storage access.')) { return false; }
             }

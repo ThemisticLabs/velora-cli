@@ -10,11 +10,20 @@ export default async function licensePurchase(): Promise<string> {
     }
     var command = 'xdg-open';
     var args = [target.href];
-    if (process.platform === 'darwin') { command = 'open'; args = ['-a', 'Safari', target.href]; }
-    if (process.platform === 'win32') { command = 'rundll32.exe'; args = ['url.dll,FileProtocolHandler', target.href]; }
+    if (process.platform === 'darwin') {
+        command = 'open';
+        args = ['-a', 'Safari', target.href];
+    }
+    if (process.platform === 'win32') {
+        command = 'rundll32.exe';
+        args = ['url.dll,FileProtocolHandler', target.href];
+    }
     return new Promise(function (resolve) {
         execFile(command, args, { timeout: 10000, windowsHide: true }, function (error) {
-            if (error) { resolve('Could not open browser. Press F2 to retry.'); return; }
+            if (error) {
+                resolve('Could not open browser. Press F2 to retry.');
+                return;
+            }
             resolve('License purchase opened in your browser.');
         });
     });

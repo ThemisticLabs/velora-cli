@@ -30,9 +30,16 @@ export default async function setupProgress(step?: number, directory = dataDirec
     var temporary = await mkdtemp(join(directory, '.setup-'));
     try {
         var output = await open(join(temporary, 'setup.json'), 'wx', 0o600);
-        try { await output.writeFile(JSON.stringify({ step }) + '\n'); await output.sync(); } finally { await output.close(); }
+        try {
+            await output.writeFile(JSON.stringify({ step }) + '\n');
+            await output.sync();
+        } finally {
+            await output.close();
+        }
         await rename(join(temporary, 'setup.json'), path);
         await syncDirectory(directory);
-    } finally { await rm(temporary, { recursive: true, force: true }); }
+    } finally {
+        await rm(temporary, { recursive: true, force: true });
+    }
     return step;
 }

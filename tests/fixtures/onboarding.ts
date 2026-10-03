@@ -9,7 +9,6 @@ var scenario = process.argv[2];
 var events: string[] = [];
 var popupCalls = 0;
 var updateCalls = 0;
-var tourCalls = 0;
 mock.module('../../src/system/data-directory.js', function () { return { default: function () { return directory; } }; });
 var apiKeys = (await import('../../src/api/api-keys.js')).default;
 var progress = (await import('../../src/setup/setup-progress.js')).default;
@@ -47,7 +46,7 @@ mock.module('../../src/setup/select-option.js', function () { return { default: 
             return 'retry';
         }
     }
-    if (config.message) { events.push('tour'); tourCalls++; return 'next'; }
+    if (config.message) { events.push('tour'); return 'next'; }
     if (scenario === 'exit') { return 'back'; }
     if (scenario === 'existing' || popupCalls > 0 && scenario !== 'cancel-popup') { return 'continue'; }
     return 'create';

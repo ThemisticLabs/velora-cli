@@ -26,7 +26,10 @@ export default async function autostartSettings(options: { setup?: boolean } = {
     }
     var saveLabel = 'Save changes';
     var initialValue = 'login';
-    if (options.setup) { saveLabel = 'Save and continue'; initialValue = 'save'; }
+    if (options.setup) {
+        saveLabel = 'Save and continue';
+        initialValue = 'save';
+    }
     var rows = [{ value: 'login', name: 'Start at login', enabled: saved.enabled,
         hint: 'Requires a saved license and an installed model.' }];
     var feedback = '';
