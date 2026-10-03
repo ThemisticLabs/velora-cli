@@ -31,7 +31,7 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
     }, [value, revealedIndex]);
 
     useKeypress(function (key, terminal) {
-        if (key.name === 'f1' || key.name === 'f2') { terminal.line = value; return; }
+        if (key.name === 'f1') { terminal.line = value; return; }
         if (key.name === 'escape') {
             done('');
             return;

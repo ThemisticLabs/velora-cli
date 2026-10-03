@@ -14,7 +14,6 @@ test.skipIf(process.platform === 'win32').each([20, 30])('footer stays fixed thr
             var offset = raw.lastIndexOf('\u001b[H\u001b[2J');
             var frame = stripVTControlCharacters(raw.slice(offset));
             var hint = 'Press F1 to open documentation';
-            if (frame.includes('F2 Get license key')) { hint = 'F1 Documentation · F2 Get license key'; }
             var end = frame.indexOf(hint);
             if (end === -1 || offset === lastFrame) { return; }
             lastFrame = offset;
@@ -35,5 +34,6 @@ test.skipIf(process.platform === 'win32').each([20, 30])('footer stays fixed thr
         expect(await child.exited, stripVTControlCharacters(raw)).toBe(0);
         expect(stages).toEqual(new Set(['opening', 'checking', 'progress', 'error', 'overflow', 'menu']));
         expect(raw).toContain('Footer verified.');
+        expect(raw).not.toContain('F2');
     } finally { clearTimeout(timeout); child.kill(); child.terminal?.close(); }
 });

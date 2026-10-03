@@ -32,7 +32,7 @@ Run `velora` to open the menu. First setup begins with an application API key, a
 
 On macOS, **Start at login** registers a user LaunchAgent for `velora serve start --headless`. It takes effect at the next login and does not start the service during setup. A saved license and installed model are required to start the API. Change this later under **Settings → Start at login**. Windows and Linux autostart are not implemented yet.
 
-License pages show **F2 Get license key** in the footer. Purchases are not available yet, so the action explains that without opening an invented purchase URL.
+License setup offers **Use a license**, **Get license**, then **Use a public model**. Purchases are not available yet; Get license shows that message, and Esc returns to the selection. When the purchase link is available, this option will open it in your browser.
 
 On later launches, velora checks the saved license before opening the menu. Expired, revoked or missing keys offer Change license and Check again. If verification is unavailable, you can still open the menu to manage settings; this does not grant model access.
 

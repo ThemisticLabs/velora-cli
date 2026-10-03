@@ -21,7 +21,7 @@ export default async function licensePurchase(): Promise<string> {
     return new Promise(function (resolve) {
         execFile(command, args, { timeout: 10000, windowsHide: true }, function (error) {
             if (error) {
-                resolve('Could not open browser. Press F2 to retry.');
+                resolve('Could not open browser. Try again.');
                 return;
             }
             resolve('License purchase opened in your browser.');

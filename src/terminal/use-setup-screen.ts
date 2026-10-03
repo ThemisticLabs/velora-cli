@@ -10,16 +10,6 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     var opening = useRef(false);
     var active = useRef(true);
     useKeypress(function (key) {
-        var action = setupLayout.action;
-        if (action && key.name === action.key && !opening.current) {
-            opening.current = true;
-            void action.onPress().then(function (message) {
-                if (active.current) { setDocumentationStatus(message); }
-            }).catch(function () {
-                if (active.current) { setDocumentationStatus('Could not open browser. Try again.'); }
-            }).finally(function () { opening.current = false; });
-            return;
-        }
         if (key.name !== 'f1' || opening.current) {
             return;
         }
@@ -92,9 +82,6 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     bottom += '\n'.repeat(padding);
     bottom += '  ' + style(footer.slice(0, width), 'muted');
     var documentationHint = documentationStatus || 'Press F1 to open documentation';
-    if (!documentationStatus && setupLayout.action) {
-        documentationHint = 'F1 Documentation · ' + setupLayout.action.key.toUpperCase() + ' ' + setupLayout.action.label;
-    }
     bottom += '\n  ' + style(documentationHint.slice(0, width), 'muted');
     return [screen, bottom];
 }

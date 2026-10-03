@@ -6,6 +6,9 @@ var choices = ['license', 'saved', 'download'];
 if (scenario === 'navigation') {
     choices = ['public', 'back', 'license', 'saved', 'retry', 'saved', 'back', 'download', 'license', 'saved'];
 }
+if (scenario === 'get-license') {
+    choices = ['purchase', 'back', 'license', 'saved', 'download'];
+}
 if (scenario === 'cancel-after-install') {
     choices = ['license', 'saved', 'download'];
 }
@@ -17,8 +20,18 @@ if (scenario === 'all-installed') {
 var checks = 0;
 var lists = 0;
 var downloads = 0;
+var purchaseMessages = 0;
 mock.module('../../src/setup/select-option.js', function () {
-    return { default: async function (config: { back?: boolean; choices: { value: string }[] }) {
+    return { default: async function (config: { back?: boolean; message: string; choices: { value: string }[] }) {
+        if (config.message === 'How would you like to begin?') {
+            var accessChoices = [];
+            for (var item of config.choices) { accessChoices.push(item.value); }
+            assert.deepEqual(accessChoices, ['license', 'purchase', 'public']);
+        }
+        if (config.message === 'License purchases are not available yet.') {
+            purchaseMessages++;
+            assert.equal(checks, 0);
+        }
         var choice = choices.shift();
         var found = choice === 'back' && config.back === true;
         for (var item of config.choices) {
@@ -93,5 +106,10 @@ if (scenario === 'all-installed') {
 if (scenario === 'navigation') {
     assert.equal(checks, 3);
     assert.equal(lists, 4);
+}
+if (scenario === 'get-license') {
+    assert.equal(purchaseMessages, 1);
+    assert.equal(checks, 1);
+    assert.equal(lists, 1);
 }
 process.stdout.write('Flow verified.\n');

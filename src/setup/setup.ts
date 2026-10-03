@@ -8,6 +8,7 @@ import downloadScreen from './download-screen.js';
 import modelList from './model-list.js';
 import licenseInput from './license-input.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
+import licensePurchase from '../system/license-purchase.js';
 
 export default async function setup(options: { modelsOnly?: boolean } = {}): Promise<boolean | undefined> {
     while (true) {
@@ -20,9 +21,15 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                 message: 'How would you like to begin?',
                 choices: [
                     { name: 'Use a license', value: 'license', description: 'Access licensed models with your Themistic key.' },
+                    { name: 'Get license', value: 'purchase', description: 'Open the Themistic license store.' },
                     { name: 'Use a public model', value: 'public', description: 'Start without a license. Public Veyra1 is coming later.' }
                 ]
             });
+        }
+        if (choice === 'purchase') {
+            setSetupLayout('Get license', '', '/velora/license-api/', 'Esc Back · Ctrl+C Quit');
+            await select({ back: true, message: await licensePurchase(), choices: [] });
+            continue;
         }
         if (choice === 'public') {
             setSetupLayout('Public models will be available soon.', 'Veyra1 is coming. You can use a license in the meantime.', '/velora/setup', 'Esc Back · Ctrl+C Quit');
