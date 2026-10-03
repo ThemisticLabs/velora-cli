@@ -271,7 +271,7 @@ Native compiled helper tests cover installation, failed installed-binary tests, 
 
 Protocol tests use a compiled synthetic engine child and isolated storage. They cover a retained session, repeated starts without reloading, shutdown, engine exit, cancellation during a credential prompt, missing prerequisites and mismatched load responses. They do not evaluate real model weights or inference quality.
 
-Interactive attachment, the Start/Stop menu action, menubar ownership, operating-system autostart and coordination with binary updates remain subsequent steps. The existing menu still owns its icon helper. Ready confirms model loading and a bound HTTP listener.
+The main menu uses service-control for Start/Stop and refreshes status through the shared selection prompt. Menu navigation remains usable while status refreshes; polls run sequentially and stop when leaving the prompt. Abort signals cancel control waits without stopping the independent worker or interrupting its active inference. `velora settings` opens Settings after the normal startup checks. Menubar ownership, operating-system autostart and coordination with binary updates remain subsequent steps. The existing menu still owns its icon helper. Ready confirms model loading and a bound HTTP listener.
 
 
 ## Local HTTP API
@@ -284,4 +284,4 @@ One processing slot covers body reading and prediction. A second request gets 42
 
 `api/anonymize-response.ts` validates engine output against Unicode code-point offsets and the original input. It checks occurrence values, non-overlap and the complete placeholder reconstruction. Different spellings grouped by the engine are split into separate placeholders without colliding with input placeholders or existing IDs. The HTTP result contains only text and optional mapping, with full placeholder keys and original, type and occurrences fields. These checks validate consistency, not the model's recognition quality.
 
-HTTP tests use real loopback listeners and isolated key stores, including exact-size and chunked bodies, Unicode, revocation, engine failures, client disconnect and draining. A service test runs HTTP prediction through a compiled synthetic engine child. Real model weights and native Windows/Linux HTTP behavior still need separate acceptance checks. Interactive controls, menubar ownership and autostart remain later steps.
+HTTP tests use real loopback listeners and isolated key stores, including exact-size and chunked bodies, Unicode, revocation, engine failures, client disconnect and draining. A service test runs HTTP prediction through a compiled synthetic engine child. Real model weights and native Windows/Linux HTTP behavior still need separate acceptance checks. Menubar ownership and autostart remain later steps.
