@@ -21,6 +21,9 @@ Compilation uses a cache inside the checkout so Bun's downloaded compiler runtim
 
 - `release.json`: schema version, package version, platform, architecture, byte size and SHA-256 for each executable.
 - `SHA256SUMS`: the same hashes in the standard checksum-file format.
+- `release.sig`: a detached Ed25519 signature over the exact manifest bytes.
+
+The publish job requires the `VELORA_RELEASE_SIGNING_KEY` repository secret, containing the Ed25519 PKCS8 private PEM. `scripts/release-sign.ts` derives its public key and refuses a key that differs from `src/updates/release-public-key.ts`. The private key stays outside the repository; keep a separate protected backup. A missing or mismatched key stops publication. To configure the secret, feed the protected file to `gh secret set VELORA_RELEASE_SIGNING_KEY --repo ThemisticLabs/velora-cli` through stdin. Never paste it into a command argument, commit or release asset.
 
 Metadata is written to temporary files and renamed into place. Existing output symlinks are replaced without writing to their targets.
 
@@ -44,7 +47,13 @@ These are raw executables. The pipeline does not install anything on a user's ma
 
 ## Updates
 
-Automatic startup checks require saved consent. Settings also provides an explicit manual check for GitHub's latest stable release. The stable asset names and manifest provide the delivery format for automatic installation. The installer is not connected yet; this pipeline alone does not replace the running CLI. GitHub also exposes SHA-256 digests for uploaded release assets.
+Automatic startup checks and automatic installation each require saved consent. The Updates menu can explicitly check and install the latest stable version. Prereleases do not enter the automatic update channel.
+
+The installer verifies `release.sig` with its compiled trust key, then checks the requested version, platform, byte count and SHA-256. It stages the binary beside the installed executable and runs its read-only self-test. The helper acknowledges readiness before velora closes; it waits for the old process, durably backs it up and atomically replaces it. A second self-test checks the installed binary. Failure restores the verified backup. Start velora again after installation. This works only for a compiled command in a writable directory; source runs are not overwritten. Bun does not manage these updates.
+
+The updater keeps its journal, candidate and backup beside the executable. User settings, API-key hashes, licenses, device identity and models are not replaced. A pending transaction is recovered on the next interactive launch. If restoration fails, keep the transaction directory and inspect its verified previous executable before restoring manually. An unrelated replacement is never automatically overwritten. A crash before the journal was created can leave a lock requiring inspection. Backups remain until manually reviewed; do not delete an active transaction.
+
+Rollback protects the executable, not hardware or user-data backups. File syncs and atomic replacement reduce interruption risk; they cannot guarantee against every disk failure. Native matrix tests are required before publication. Detached manifest signing is separate from Apple Developer ID, notarization and Windows Authenticode.
 
 For release integrity beyond checksums, enable immutable releases in the repository settings before publication. This is a repository setting, not something the workflow enables. The draft-first upload sequence supports it.
 
