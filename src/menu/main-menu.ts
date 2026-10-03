@@ -12,7 +12,6 @@ import licenseStore from '../license/license-store.js';
 import installedModels, { type InstalledModel } from '../models/installed-models.js';
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimensions.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
-import menuBar from '../system/menu-bar.js';
 import manageApiKeys from './api-keys.js';
 import serviceControl from '../service/service-control.js';
 
@@ -30,11 +29,9 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
     var ENTER_ALTERNATE_SCREEN = '\u001b[?1049h';
     var RESTORE_TERMINAL = '\u001b[?25h\u001b[?1049l';
     var failure = '';
-    var tray: Awaited<ReturnType<typeof menuBar>> | undefined;
     var session: Awaited<ReturnType<typeof interactiveSession>> | undefined;
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
     try {
-        tray = await menuBar();
         try {
             setSetupLayout('Opening velora…', '', '/velora', 'Ctrl+C Close');
             var savedLicense = await runTerminalTask(function () { return licenseStore({ operation: 'read' }); });
@@ -190,7 +187,6 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
         navigation.controller = new AbortController();
         process.stdout.write(RESTORE_TERMINAL);
         if (cliUpdatePending) { process.stdout.write('velora update prepared. Start velora again in a moment.\n'); }
-        if (tray && !tray.available) { process.stdout.write('Could not display the macOS menu bar icon.\n'); }
         if (failure) {
             process.stdout.write(failure + '\n');
         }

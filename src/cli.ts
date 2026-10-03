@@ -14,6 +14,7 @@ import header from './terminal/header.js';
 import serviceCommand from './commands/service-command.js';
 import serviceWorker from './service/service-worker.js';
 import menuBarWorker from './system/menu-bar-worker.js';
+import menuBar from './system/menu-bar.js';
 
 if (process.argv[2] === '--menubar-worker' && process.argv[3]) {
     try { await menuBarWorker(process.argv[3]); }
@@ -38,6 +39,13 @@ if (process.argv[2] === '--finish-update' && process.argv[3]) {
     catch { process.exit(1); }
     process.exit(0);
 }
+try {
+    var tray = await menuBar();
+    if (!tray.available) { process.stderr.write('Could not display the macOS menu bar icon.\n'); }
+} catch {
+    process.stderr.write('Could not display the macOS menu bar icon.\n');
+}
+
 var interactiveMenuStart = process.argv.length === 2 || process.argv.length === 3 && ['setup', 'settings'].includes(process.argv[2]!);
 if (interactiveMenuStart && process.stdin.isTTY && process.stdout.isTTY) {
     try {
