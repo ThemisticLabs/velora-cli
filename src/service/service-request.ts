@@ -1,9 +1,10 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { createConnection } from 'node:net';
+import { MAX_API_PORT } from '../api/api-settings.js';
 import servicePaths, { CONTROL_TIMEOUT_MS, MAX_CONTROL_BYTES, MAX_STATUS_MESSAGE_CHARACTERS, STOP_TIMEOUT_MS } from './service-paths.js';
 
-export type ServiceStatus = { state: 'running'; pid: number; model: string; engineVersion: string } |
-    { state: 'starting'; pid: number } | { state: 'failed'; pid: number; message: string } | { state: 'stopped' };
+export type ServiceStatus = { state: 'running'; pid: number; model: string; engineVersion: string; port: number } |
+    { state: 'starting' | 'stopping'; pid: number } | { state: 'failed'; pid: number; message: string } | { state: 'stopped' };
 
 export default async function serviceRequest(operation: 'status' | 'stop', directory: string): Promise<ServiceStatus> {
     var paths = servicePaths(directory);
@@ -63,8 +64,8 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
                     if (!('pid' in response) || response.pid !== pid) {
                         throw new Error('The service response does not match the running instance.');
                     }
-                    if (response.state === 'starting') {
-                        resolve({ state: 'starting', pid });
+                    if (response.state === 'starting' || response.state === 'stopping') {
+                        resolve({ state: response.state, pid });
                         return;
                     }
                     if (response.state === 'failed' && 'message' in response && typeof response.message === 'string' &&
@@ -74,8 +75,9 @@ export default async function serviceRequest(operation: 'status' | 'stop', direc
                     }
                     if (response.state === 'running' && 'model' in response && typeof response.model === 'string' &&
                         /^[a-z0-9_-]{2,64}$/.test(response.model) && 'engineVersion' in response && typeof response.engineVersion === 'string' &&
-                        /^\d+\.\d+\.\d+$/.test(response.engineVersion)) {
-                        resolve({ state: 'running', pid, model: response.model, engineVersion: response.engineVersion });
+                        /^\d+\.\d+\.\d+$/.test(response.engineVersion) && 'port' in response && typeof response.port === 'number' &&
+                        Number.isInteger(response.port) && response.port >= 1 && response.port <= MAX_API_PORT) {
+                        resolve({ state: 'running', pid, model: response.model, engineVersion: response.engineVersion, port: response.port });
                         return;
                     }
                     throw new Error('Invalid service response.');

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 export var CONTROL_TOKEN_BYTES = 32;
 export var MAX_CONTROL_BYTES = 4096;
 export var MAX_STATUS_MESSAGE_CHARACTERS = 512;
-export var STOP_TIMEOUT_MS = 35000;
+export var STOP_TIMEOUT_MS = 60000;
 export var CONTROL_TIMEOUT_MS = 5000;
 export var LAUNCH_TIMEOUT_MS = 10000;
 export var START_TIMEOUT_MS = 120000;

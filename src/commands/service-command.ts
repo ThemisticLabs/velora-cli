@@ -5,9 +5,10 @@ export default async function serviceCommand(operation: 'start' | 'status' | 'st
         var status = await serviceControl(operation);
         var message = 'velora service stopped.';
         if (status.state === 'running') {
-            message = 'velora service ready. Model ' + status.model + ' · Engine ' + status.engineVersion + '. The local API is not connected yet.';
+            message = 'velora service ready. Model ' + status.model + ' · Engine ' + status.engineVersion + '. Local API http://127.0.0.1:' + status.port + '.';
         }
         if (status.state === 'starting') { message = 'velora service starting. Loading the selected model.'; }
+        if (status.state === 'stopping') { message = 'velora service stopping. Waiting for the active request to finish.'; }
         if (status.state === 'failed') { message = 'velora service failed. ' + status.message; }
         process.stdout.write(message + '\n');
     } catch (error) {

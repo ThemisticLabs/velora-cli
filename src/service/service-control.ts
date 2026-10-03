@@ -14,6 +14,7 @@ export default async function serviceControl(operation: 'start' | 'status' | 'st
     }
     var status = await serviceRequest('status', paths.directory);
     if (status.state === 'running') { return status; }
+    if (status.state === 'stopping') { throw new Error('The service is stopping. Wait for it to finish before starting again.'); }
     if (status.state === 'failed') {
         throw new Error(status.message);
     }
@@ -40,6 +41,7 @@ export default async function serviceControl(operation: 'start' | 'status' | 'st
             }
             status = await serviceRequest('status', paths.directory);
             if (status.state === 'running') { return status; }
+            if (status.state === 'stopping') { throw new Error('The service is stopping. Wait for it to finish before starting again.'); }
             if (status.state === 'failed') { throw new Error(status.message); }
             if (status.state === 'stopped' && waitingForModel) {
                 throw new Error('The velora service was stopped during startup. Start it again when ready.');

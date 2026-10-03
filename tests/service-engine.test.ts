@@ -3,11 +3,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import serviceEngine from '../src/service/service-engine.js';
-import serviceWorker from '../src/service/service-worker.js';
+import runServiceWorker from '../src/service/service-worker.js';
 import serviceControl from '../src/service/service-control.js';
 import servicePaths from '../src/service/service-paths.js';
 import engineSession from '../src/engine/engine-session.js';
 import enginePackage from './fixtures/engine-package.js';
+import apiKeys from '../src/api/api-keys.js';
+import apiServer from '../src/api/api-server.js';
 import licenseStore from '../src/license/license-store.js';
 import type { InstalledModel } from '../src/models/installed-models.js';
 
@@ -60,14 +62,24 @@ test('service loads once, retains the real engine session and shuts it down', as
             if (Date.now() - started > 5000) { throw new Error('Engine did not become ready'); }
             await Bun.sleep(20);
         }
-        expect(await serviceControl('status', directory)).toEqual({ state: 'running', pid: process.pid, model: 'model-a', engineVersion: '0.4.1' });
+        expect(await serviceControl('status', directory)).toMatchObject({ state: 'running', pid: process.pid, model: 'model-a', engineVersion: '0.4.1' });
         expect(operations).toEqual(['load']);
-        expect(await serviceControl('start', directory)).toEqual({ state: 'running', pid: process.pid, model: 'model-a', engineVersion: '0.4.1' });
+        expect(await serviceControl('start', directory)).toMatchObject({ state: 'running', pid: process.pid, model: 'model-a', engineVersion: '0.4.1' });
         expect(operations).toEqual(['load']);
         expect(await ready?.request('models')).toEqual({ status: 'ok', models: [] });
+        var status = await serviceControl('status', directory);
+        if (status.state !== 'running') { throw new Error('Service is not ready'); }
+        var key = await apiKeys({ operation: 'create', name: 'Fixture HTTP app', note: '' }, directory);
+        var response = await fetch('http://127.0.0.1:' + status.port + '/anonymize', {
+            method: 'POST', headers: { Authorization: 'Bearer ' + key.key, 'Content-Type': 'application/json' }, body: '{"text":"Plain text."}'
+        });
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ text: 'Plain text.' });
+        await expect(ready!.request('predict', { text: 'a'.repeat(2 * 1024 ** 2) })).rejects.toThrow('size limit');
+        expect(await ready!.request('models')).toEqual({ status: 'ok', models: [] });
         await serviceControl('stop', directory);
         await worker;
-        expect(operations).toEqual(['load', 'models', 'shutdown']);
+        expect(operations).toEqual(['load', 'models', 'predict', 'predict', 'models', 'shutdown']);
         await connected?.exited;
     } finally {
         await serviceControl('stop', directory);
@@ -92,9 +104,17 @@ test('a live service reports an engine crash as failed until explicitly stopped'
             if (Date.now() - started > 5000) { throw new Error('Engine did not become ready'); }
             await Bun.sleep(20);
         }
+        var before = await serviceControl('status', directory);
+        if (before.state !== 'running') { throw new Error('Service is not ready'); }
+        var key = await apiKeys({ operation: 'create', name: 'Crash fixture app', note: '' }, directory);
         await expect(context!.request('fixture_exit')).rejects.toThrow('stopped');
         await context!.exited;
         expect((await serviceControl('status', directory)).state).toBe('failed');
+        var response = await fetch('http://127.0.0.1:' + before.port + '/anonymize', {
+            method: 'POST', headers: { Authorization: 'Bearer ' + key.key, 'Content-Type': 'application/json' }, body: '{"text":"hello"}'
+        });
+        expect(response.status).toBe(503);
+        expect(await response.json()).toMatchObject({ error: { code: 'service_unavailable' } });
         await expect(serviceControl('start', directory)).rejects.toThrow('Stop the service');
     } finally {
         await serviceControl('stop', directory);
@@ -200,3 +220,7 @@ test('credential store failures retain their safe recovery message in service st
         await rm(servicePaths(directory).runtime, { recursive: true, force: true });
     }
 }, 10000);
+
+function serviceWorker(directory: string, load: Parameters<typeof runServiceWorker>[1]) {
+    return runServiceWorker(directory, load, function (path, getEngine) { return apiServer(path, getEngine, 0); });
+}

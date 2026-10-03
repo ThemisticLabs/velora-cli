@@ -152,15 +152,14 @@ export default async function engineSession(license: string, signal: AbortSignal
         if (operation === 'install_model') {
             timeout = INSTALL_TIMEOUT_MS;
         }
-        var timer = setTimeout(function () { stop(new DownloadError('The engine took too long to respond. Try again.')); }, timeout);
+        var raw = JSON.stringify({ ...fields, id, operation }) + '\n';
+        if (Buffer.byteLength(raw) > MAX_RESPONSE_BYTES) {
+            throw new DownloadError('The engine request exceeds its size limit.', 'request_too_large');
+        }
+        var timer = setTimeout(function () { stop(new DownloadError('The engine took too long to respond. Try again.', 'engine_timeout')); }, timeout);
         try {
             return await new Promise<Record<string, unknown>>(function (resolve, reject) {
                 pending = { id, operation, downloaded: 0, resolve, reject };
-                var raw = JSON.stringify({ ...fields, id, operation }) + '\n';
-                if (Buffer.byteLength(raw) > MAX_RESPONSE_BYTES) {
-                    stop(new DownloadError('The engine request exceeds its size limit.'));
-                    return;
-                }
                 child.stdin.write(raw);
             });
         } finally {

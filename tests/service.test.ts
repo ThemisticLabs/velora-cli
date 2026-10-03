@@ -120,6 +120,12 @@ test('invalid control information fails closed', async function () {
 test('the compiled worker reports missing setup without reading credentials and rejects a second worker', async function () {
     var directory = await mkdtemp(join(tmpdir(), 'velora-service-native-'));
     var paths = servicePaths(directory);
+    var httpPort = createServer();
+    await new Promise<void>(function (resolve) { httpPort.listen(0, '127.0.0.1', resolve); });
+    var address = httpPort.address();
+    if (!address || typeof address === 'string') { throw new Error('Port unavailable'); }
+    await writeFile(join(directory, 'api.json'), JSON.stringify({ port: address.port }));
+    await new Promise<void>(function (resolve) { httpPort.close(function () { resolve(); }); });
     var worker = Bun.spawn([CLI_PATH, '--service-worker', directory], { cwd: tmpdir(), env: { ...process.env, PATH: '' }, stdout: 'pipe', stderr: 'pipe' });
     try {
         var started = Date.now();

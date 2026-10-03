@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import apiServer from '../../src/api/api-server.js';
 import serviceWorker from '../../src/service/service-worker.js';
 
 var directory = process.argv[2]!;
@@ -14,4 +15,4 @@ await serviceWorker(directory, async function () {
             resolveExit();
         }
     };
-});
+}, function (path, getEngine) { return apiServer(path, getEngine, 0); });
