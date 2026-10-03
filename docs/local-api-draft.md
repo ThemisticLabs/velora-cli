@@ -132,14 +132,34 @@ Once startup succeeds, the same action becomes **Stop**. Stop shuts down the API
 
 The first implementation is controlled through the interactive CLI. A separate `velora serve` command is not required for this step. Background service registration and optional autostart come later.
 
+## Stop during an active request
+
+Stop stops accepting new anonymization work and lets the active request finish. After its response completes, shut down the listener and engine and return the menu action to **Start**. Show a stopping state while waiting; do not claim that shutdown has completed early.
+
+Ctrl+C closes the API, engine and interactive CLI. Whether it cancels an active request immediately or uses the same graceful drain still needs an explicit decision. A shutdown deadline also remains to be chosen so a stuck engine cannot prevent exit indefinitely.
+
+## Menubar: Open velora
+
+The macOS menubar menu includes **Open velora**.
+
+- If an interactive velora session exists, bring its terminal tab or window to the foreground. Do not launch another session.
+- If no interactive session exists, open velora interactively in the user's configured terminal. Use Ghostty when that is the configured terminal; do not always force Apple Terminal.
+- When an interactive session opens, check whether the velora API service is already running. Connect to the existing velora instance rather than starting a second API listener or engine. An occupied port alone is not proof that velora owns it.
+- Concurrent starts must be coordinated, including simultaneous clicks on **Open velora**. Validate session ownership and process liveness rather than trusting a stale PID file.
+
+The current menubar helper has an icon but no menu actions. Its lifetime is tied to the interactive CLI, and it closes when that CLI exits. Opening velora when no interactive session exists therefore requires the future service or another agreed owner to keep the menubar helper alive. The API service and interactive session have separate lifetimes; document those lifetimes before implementing a background service.
+
+Terminal selection and exact tab activation need a small macOS compatibility check. Do not assume macOS provides a universal default-terminal preference or that activating a terminal application selects the correct tab. Resolve the user's configured launch handler and support explicit terminal selection only if discovery is unavailable. That fallback is a proposal, not an approved additional setting.
+
 ## Next planning step: active requests and lifecycle changes
 
 The following are proposals for discussion, not approved behavior:
 
-1. Decide whether Stop and Ctrl+C finish an active request or cancel it. Define what happens when an HTTP client disconnects, the engine crashes or a request times out.
+1. Define Ctrl+C behavior during an active request and a shutdown deadline. Define what happens when an HTTP client disconnects, the engine crashes or a request times out.
 2. Define visible starting, ready, busy, stopping and failed states, including feedback when startup fails. Decide pause behavior separately.
 3. Define model switching: finish or cancel active work, load the next model, and retain the previous selection if loading fails.
 4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
 5. Decide whether a saved port change restarts the API immediately or requires an explicit restart.
+6. Define which process owns the API, interactive-session discovery and menubar helper, including how the CLI attaches to an existing service. Verify configured terminal discovery and exact tab activation on macOS.
 
 Resolve the offset unit, browser access, validation details, error statuses, retry delay and timeout before implementing the endpoint. Background service registration and optional autostart follow after the local API works and its behavior has been tested.
