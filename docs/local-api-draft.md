@@ -1,6 +1,6 @@
 # Local API plan
 
-HTTP contract, first implementation and remaining lifecycle work, 3 October 2026. The independent service now loads the selected model and serves POST /anonymize through the configured loopback port. API-key management, saved port settings and an engine inference check are available. Interactive Start/Stop is connected; macOS menubar controls are connected; operating-system autostart is not registered yet.
+HTTP contract, first implementation and remaining lifecycle work, 3 October 2026. The independent service now loads the selected model and serves POST /anonymize through the configured loopback port. API-key management, saved port settings and an engine inference check are available. Interactive Start/Stop is connected; macOS menubar controls are connected; macOS start at login is registered only when the user enables it; Windows/Linux autostart remain unimplemented.
 
 ## Local access
 
@@ -186,7 +186,7 @@ Start now opens the verified cached engine and loads the selected installed mode
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 
-Autostart is not implemented. For the macOS menubar, a user-login service is the proposed first approach; system boot before login has different UI and credential availability. Choose that boundary explicitly before registration. Manual Stop leaves autostart enabled for the next login. It must not immediately restart the service in the current session.
+macOS start at login writes a user LaunchAgent after explicit selection in setup or Settings. It runs the public headless command at the next login, without immediately starting a service during registration. Windows/Linux registration and a complete logout/login acceptance check remain open. Manual Stop leaves autostart enabled for the next login. It must not immediately restart the service in the current session.
 
 ## Agreed lifecycle behavior
 

@@ -2,7 +2,7 @@
 
 Local anonymization for the tools you already use.
 
-> **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup, not a finished release. Verified engine downloads and engine-managed model installation are implemented; a headless local API is available. Interactive service controls and autostart are still being built.
+> **Actively developed and maintained by Themistic.** velora is in early development. This repository contains a working CLI foundation and an interactive setup, not a finished release. Verified engine downloads and engine-managed model installation are implemented; a headless local API is available. Interactive service controls and macOS start at login are available; platform acceptance and release distribution are still being completed.
 
 velora is an open-source CLI from Themistic, being built to run model families such as Skira and Veyra on your device and make them available through a local API.
 <img width="1179" height="761" alt="velora CLI development screenshot" src="https://github.com/user-attachments/assets/23185312-759a-44a4-94c8-f10075d08203" />
@@ -28,7 +28,13 @@ The CLI and its models are distributed separately. The shared engine downloads l
 
 ## Main menu
 
-Run `velora` to open the menu. On first use, it guides you through license setup and model installation. On later launches, velora checks the saved license before opening the menu. Expired, revoked or missing keys offer Change license and Check again. If verification is unavailable, you can still open the menu to manage settings; this does not grant model access.
+Run `velora` to open the menu. First setup begins with an application API key, automatic update choices and start at login, followed by a short interactive guide. License setup and model installation come last. Finished introductory steps are saved in `setup.json`, so closing an unfinished setup does not repeat them. `velora setup` reviews these choices without deleting existing keys or preferences. Keys use the same creation popup as the main menu: the new key is shown immediately and copied when the clipboard is available.
+
+On macOS, **Start at login** registers a user LaunchAgent for `velora serve start --headless`. It takes effect at the next login and does not start the service during setup. A saved license and installed model are required to start the API. Change this later under **Settings → Start at login**. Windows and Linux autostart are not implemented yet.
+
+License pages show **F2 Get license key** in the footer. Purchases are not available yet, so the action explains that without opening an invented purchase URL.
+
+On later launches, velora checks the saved license before opening the menu. Expired, revoked or missing keys offer Change license and Check again. If verification is unavailable, you can still open the menu to manage settings; this does not grant model access.
 
 The menu shows the selected model and current service state, followed by **Start** or **Stop**, **API keys**, then **Settings**. Service status refreshes while the main menu is open, including changes made from another terminal. Start uses the same independent service as `velora serve start --headless`; opening the menu does not start it. Stop waits for active requests. Ctrl+C closes only the interactive session, including during a service startup or shutdown wait. Use `velora settings` to open the settings page directly. Settings let you change your license, switch between installed models, install another model, delete a model after confirmation, edit update permissions, and check for velora and engine updates. Permissions are edited together with On/Off rows and an explicit Save changes action. Esc goes back and discards unsaved edits; Ctrl+C closes velora. Selection is saved locally. Installed-model lists show model versions. New model versions are separate choices, not updates to an installed model. Update checks show installed and available versions separately. Available shows `Not checked`, a newer version, `Up to date` after a successful check, or `Unavailable` when verification fails. The engine runs temporarily for license checks and installation. Selecting a model does not load it for inference.
 
@@ -59,7 +65,7 @@ curl http://127.0.0.1:8001/anonymize \
 
 The response contains text and, when requested, mapping with original values, types and input occurrences. Positions count Unicode code points, including one position per emoji. The complete JSON body may contain at most 1.6 MiB. One authorized request is processed at a time; busy requests receive 429 with Retry-After. Keys are checked on every request. Browser access is blocked. API keys separate application access; they do not encrypt requests or responses. Processing is local, but engine license checks may use the network.
 
-Stop waits for active processing and response completion before closing the engine. A disconnected client does not cancel inference. See [the API contract](docs/local-api-draft.md) for validation, deadlines and errors. The macOS menubar controls the same service. Operating-system autostart is not registered yet.
+Stop waits for active processing and response completion before closing the engine. A disconnected client does not cancel inference. See [the API contract](docs/local-api-draft.md) for validation, deadlines and errors. The macOS menubar controls the same service. macOS start at login can be enabled during setup or in Settings.
 
 ## Application keys
 
@@ -69,7 +75,7 @@ API keys identify applications and separate their access. They do not encrypt re
 
 On macOS, starting velora creates one independent TC menu bar item before the command runs, including headless service starts. Its popover shows the service status, Start/Stop and Open velora. Bottom icon buttons open Settings and quit velora. Quit stops the service, closes the interactive session and removes the menu bar item. A Finder/Spotlight launcher is not available yet; after quitting, run velora to reopen it. The logo opens themistic.com. Closing the CLI or stopping the service leaves these controls available.
 
-Open velora reuses the registered interactive terminal session. Settings opens the same session on its settings page; a running installation finishes before navigation. Without a session, the configured shell-script handler opens the terminal with its normal shell configuration and starts velora. Ghostty and Apple Terminal support exact session reuse. Terminal automation may require macOS permission. No autostart is registered.
+Open velora reuses the registered interactive terminal session. Settings opens the same session on its settings page; a running installation finishes before navigation. Without a session, the configured shell-script handler opens the terminal with its normal shell configuration and starts velora. Ghostty and Apple Terminal support exact session reuse. Terminal automation may require macOS permission. Start at login is registered only after the user enables it.
 
 ## Setup
 
@@ -85,7 +91,7 @@ Press F1 for documentation for the current step or selected model. Model and lic
 
 Run `velora doctor`, or `bun run start doctor` from the source checkout. It reports your system, checks whether the global command is in PATH, tests storage access and checks license-server reachability and validates your saved license through the installed engine. Missing licenses show a warning; invalid licenses show an error. Doctor also verifies the installed engine protocol, loads the selected model and runs a short synthetic inference request. It reports the engine and model versions, then closes its temporary engine session. Missing prerequisites appear as warnings instead of successful checks. Doctor does not download an engine or model.
 
-Checks that need attention include a next step. A completed report exits normally, even when a check needs attention. Read the individual results; exit code 0 does not mean every check passed. These checks do not verify engine or model readiness.
+Checks that need attention include a next step. A completed report exits normally, even when a check needs attention. Read the individual results; exit code 0 does not mean every check passed. Successful runtime checks verify this diagnostic engine session, not the readiness of a separately running service.
 
 ## Saved licenses and updates
 
@@ -93,9 +99,9 @@ Checks that need attention include a next step. A completed report exits normall
 
 Storage uses Bun's native secrets API: Keychain on macOS, Credential Manager on Windows, and a running Secret Service on Linux. There is no plaintext fallback. macOS may request permission to access the Keychain, particularly when moving between development and compiled executables.
 
-After a successful model download, setup asks once whether velora may check for shared engine updates at startup and saves the choice in `<data>/engine-updates.json`. Settings can change this independently of the selected model. Earlier per-model preferences are not treated as consent for the shared engine. Automatic installation remains unavailable; its saved permission is for future use.
+Setup collects velora and shared engine update permissions before license setup and model installation. Choices are saved in `<data>/cli-updates.json` and `<data>/engine-updates.json`. Settings can change this independently of the selected model. Earlier per-model preferences are not treated as consent for the shared engine. Automatic installation remains unavailable; its saved permission is for future use.
 
-The first interactive launch records a pending choice without contacting GitHub. On the second interactive launch, velora asks whether it may check GitHub for new versions on startup and, if allowed, whether it may install signed velora updates automatically. No is selected by default for both questions.
+The introductory setup asks whether velora may check GitHub for new versions on startup and install signed releases automatically. Checks and installation start Off. The engine has its own rows. Save changes confirms the choices; Esc discards unsaved edits. Startup never asks these questions ahead of the setup.
 
 The choices are saved in `cli-updates.json` in the platform data directory, separately from engine permissions. Only explicit consent enables the check on subsequent interactive launches, with a 1.5-second request timeout. Use Settings → Update permissions to change these choices, then select Save changes. Unreadable or invalid preferences disable checks.
 
