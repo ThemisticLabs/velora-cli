@@ -1,0 +1,10 @@
+export var MAX_MANIFEST_BYTES = 128 * 1024;
+export var SIGNATURE_BYTES = 64;
+export var MAX_BINARY_BYTES = 256 * 1024 ** 2;
+export var MAX_UPDATE_STATE_BYTES = 8192;
+export var MAX_HELPER_OUTPUT_BYTES = 1024;
+export var MAX_SETTINGS_BYTES = 1024 * 1024;
+export var UPDATE_WORKSPACE_PREFIX = '.velora-update-';
+export var UPDATE_PLAN_NAME = 'plan.json';
+export var UPDATE_LOCK_SUFFIX = '.update.lock';
+export var UPDATE_STATE_SUFFIX = '.update.json';

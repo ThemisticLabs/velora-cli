@@ -8,6 +8,8 @@ import releaseMetadata from '../src/updates/release-metadata.js';
 import launchUpdateWorker from '../src/updates/launch-update-worker.js';
 import updateState, { type UpdateState } from '../src/updates/update-state.js';
 import updateFile from '../src/updates/update-file.js';
+import directoryLock from '../src/system/directory-lock.js';
+import { lstat } from 'node:fs/promises';
 import selfTest from '../src/updates/self-test.js';
 import apiKeys from '../src/api/api-keys.js';
 
@@ -41,7 +43,7 @@ test.each(['signature', 'tampered', 'wrong-version', 'missing-platform', 'duplic
 test.each(['valid', 'bad-hash', 'bad-signature', 'bad-self-test', 'launch-failure', 'cancel'])('update preparation preserves the running binary and data: %s', async function (scenario) {
     var directory = await mkdtemp(join(root, 'prepare-'));
     var executable = join(directory, 'installed');
-    await writeFile(executable, 'original binary', { mode: 0o700 });
+    await writeFile(executable, 'original binary', { mode: 0o755 });
     executable = await realpath(executable);
     await writeFile(join(directory, 'user-data'), 'keep this');
     var bytes = await readFile(binary);
@@ -70,7 +72,7 @@ test.each(['valid', 'bad-hash', 'bad-signature', 'bad-self-test', 'launch-failur
             await installCliUpdate('1.0.0', controller.signal, undefined, options);
             expect(launched).toBe(true);
             expect((await updateState(executable))?.phase).toBe('prepared');
-            await expect(installCliUpdate('1.0.0', controller.signal, undefined, options)).rejects.toThrow('already installed or rejected');
+            await expect(installCliUpdate('1.0.0', controller.signal, undefined, options)).rejects.toThrow('Another operation');
         } else {
             await expect(installCliUpdate('1.0.0', controller.signal, undefined, options)).rejects.toThrow();
             expect(await updateState(executable)).toBeNull();
@@ -90,12 +92,13 @@ test.each(['install', 'rollback', 'interrupted', 'changed-target'])('compiled up
     if (process.platform === 'win32') { executable += '.exe'; }
     var candidate = join(workdir, 'candidate');
     if (process.platform === 'win32') { candidate += '.exe'; }
-    await writeFile(executable, 'original binary', { mode: 0o700 });
+    await writeFile(executable, 'original binary', { mode: 0o755 });
     await copyFile(binary, candidate);
     await chmod(candidate, 0o700);
     var parent = Bun.spawn([process.execPath, '-e', 'process.exit(0)'], { stdout: 'ignore', stderr: 'ignore' });
     await parent.exited;
-    var state: UpdateState = { phase: 'prepared', workdir, version: '1.0.0', previousVersion: '0.0.1', previousHash: await updateFile(executable), nextHash: await updateFile(candidate), target: executable, dataDirectory: directory, parentPid: parent.pid, workerPid: 0 };
+    var lease = await directoryLock({ operation: 'acquire', path: executable + '.update.lock' });
+    var state: UpdateState = { phase: 'prepared', workdir, version: '1.0.0', previousVersion: '0.0.1', previousHash: await updateFile(executable), nextHash: await updateFile(candidate), target: executable, dataDirectory: directory, parentPid: parent.pid, workerPid: 0, lockToken: lease.token };
     if (scenario === 'interrupted') {
         await updateFile(executable, join(workdir, 'previous'));
         await copyFile(candidate, executable);
@@ -105,7 +108,12 @@ test.each(['install', 'rollback', 'interrupted', 'changed-target'])('compiled up
     await updateState(executable, state);
     var plan = join(workdir, 'plan.json');
     await writeFile(plan, JSON.stringify(state));
-    await writeFile(executable + '.update.lock', plan);
+    if (scenario === 'interrupted') {
+        await directoryLock({ operation: 'release', path: executable + '.update.lock', lease });
+        lease = await directoryLock({ operation: 'acquire', path: executable + '.update.lock' });
+        state.lockToken = lease.token;
+        await updateState(executable, state);
+    }
     var args = [candidate, '--finish-update', plan];
     if (scenario === 'interrupted') { args.push('--restore'); }
     try {
@@ -125,7 +133,11 @@ test.each(['install', 'rollback', 'interrupted', 'changed-target'])('compiled up
             expect(result?.phase).toBe('restored');
             expect(await readFile(executable, 'utf8')).toBe('original binary');
         }
+        await directoryLock({ operation: 'release', path: executable + '.update.lock', lease });
         expect(await readdir(directory)).not.toContain('installed.update.lock');
+        if (process.platform !== 'win32' && scenario !== 'changed-target') {
+            expect((await lstat(executable)).mode & 0o777).toBe(0o755);
+        }
     } finally { await rm(directory, { recursive: true, force: true }); }
 }, 30000);
 
@@ -151,15 +163,15 @@ test('detached update helper acknowledges readiness and finishes after its paren
     var executable = join(directory, 'installed');
     var candidate = join(workdir, 'candidate');
     if (process.platform === 'win32') { executable += '.exe'; candidate += '.exe'; }
-    await writeFile(executable, 'original binary', { mode: 0o700 });
+    await writeFile(executable, 'original binary', { mode: 0o755 });
     await copyFile(binary, candidate);
     await chmod(candidate, 0o700);
     var parent = Bun.spawn([process.execPath, '-e', 'process.exit(0)'], { stdout: 'ignore', stderr: 'ignore' });
     await parent.exited;
-    var state: UpdateState = { phase: 'prepared', workdir, version: '1.0.0', previousVersion: '0.0.1', previousHash: await updateFile(executable), nextHash: await updateFile(candidate), target: executable, dataDirectory: directory, parentPid: parent.pid, workerPid: 0 };
+    var lease = await directoryLock({ operation: 'acquire', path: executable + '.update.lock' });
+    var state: UpdateState = { phase: 'prepared', workdir, version: '1.0.0', previousVersion: '0.0.1', previousHash: await updateFile(executable), nextHash: await updateFile(candidate), target: executable, dataDirectory: directory, parentPid: parent.pid, workerPid: 0, lockToken: lease.token };
     var plan = join(workdir, 'plan.json');
     await writeFile(plan, JSON.stringify(state));
-    await writeFile(executable + '.update.lock', plan);
     await updateState(executable, state);
     try {
         var pid = await launchUpdateWorker(candidate, plan);
@@ -177,4 +189,23 @@ test('detached update helper acknowledges readiness and finishes after its paren
         expect((await updateState(executable))?.phase).toBe('installed');
         expect(await readFile(join(workdir, 'previous'), 'utf8')).toBe('original binary');
     } finally { await rm(directory, { recursive: true, force: true }); }
+}, 30000);
+
+test('journal sync failure after publication removes the journal before its workspace', async function () {
+    var directory = await mkdtemp(join(root, 'journal-fault-'));
+    var executable = join(directory, 'installed');
+    await writeFile(executable, 'original binary', { mode: 0o755 });
+    await writeFile(join(directory, 'user-data'), 'keep this');
+    try {
+        var child = Bun.spawn([process.execPath, 'run', resolve('tests/fixtures/update-journal-failure.ts'), executable, directory, binary], { stdout: 'pipe', stderr: 'pipe' });
+        var output = await new Response(child.stdout).text();
+        var errors = await new Response(child.stderr).text();
+        expect(errors).toBe('');
+        expect(await child.exited).toBe(0);
+        expect(output).toBe('clean\n');
+        expect(await readFile(executable, 'utf8')).toBe('original binary');
+        expect(await readFile(join(directory, 'user-data'), 'utf8')).toBe('keep this');
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
 }, 30000);

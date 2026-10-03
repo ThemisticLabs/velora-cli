@@ -5,6 +5,7 @@ import apiSettings from '../api/api-settings.js';
 import cliUpdatePreferences from './cli-update-preferences.js';
 import packageInfo from '../../package.json' with { type: 'json' };
 import dataDirectory from '../system/data-directory.js';
+import { MAX_SETTINGS_BYTES } from './update-contract.js';
 
 export default async function selfTest(directory = dataDirectory()): Promise<void> {
     await apiKeys({ operation: 'list' }, directory);
@@ -14,11 +15,17 @@ export default async function selfTest(directory = dataDirectory()): Promise<voi
     try {
         var path = join(directory, 'selected-model.json');
         var file = await lstat(path);
-        if (!file.isFile() || file.size > 1024 * 1024) { throw new Error('Model selection is unreadable.'); }
+        if (!file.isFile() || file.size > MAX_SETTINGS_BYTES) {
+            throw new Error('Model selection is unreadable.');
+        }
         var selection: unknown = JSON.parse(await readFile(path, 'utf8'));
-        if (!selection || typeof selection !== 'object' || !('id' in selection) || typeof selection.id !== 'string') { throw new Error('Model selection is unreadable.'); }
+        if (!selection || typeof selection !== 'object' || !('id' in selection) || typeof selection.id !== 'string') {
+            throw new Error('Model selection is unreadable.');
+        }
     } catch (error) {
-        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) { throw error; }
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+            throw error;
+        }
     }
     process.stdout.write('velora self-test ' + packageInfo.version + '\n');
 }

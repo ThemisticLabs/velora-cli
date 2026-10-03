@@ -13,6 +13,9 @@ import updateProbe from './update-probe.js';
 import updateFile from './update-file.js';
 import updateState, { type UpdateState } from './update-state.js';
 import launchUpdateWorker from './launch-update-worker.js';
+import directoryLock from '../system/directory-lock.js';
+import updatePaths from './update-paths.js';
+import { MAX_MANIFEST_BYTES, SIGNATURE_BYTES, UPDATE_LOCK_SUFFIX, UPDATE_STATE_SUFFIX, UPDATE_WORKSPACE_PREFIX } from './update-contract.js';
 import type { EngineProgress } from '../engine/bootstrap-engine.js';
 
 export var cliUpdatePending = false;
@@ -29,24 +32,26 @@ export default async function installCliUpdate(version: string, signal: AbortSig
     var executable = await realpath(options.executable || process.execPath);
     var directory = options.directory || dataDirectory();
     if (!(await lstat(executable)).isFile()) { throw new DownloadError('The installed executable is unavailable.'); }
-    var existing = await updateState(executable);
-    if (existing && semver.order(version, existing.version) !== 1) {
-        throw new DownloadError('This release was already installed or rejected. Wait for a newer release.');
-    }
-    var lockPath = executable + '.update.lock';
-    try { var lock = await open(lockPath, 'wx', 0o600); }
-    catch { throw new DownloadError('Another update is prepared, or the executable directory is not writable.'); }
+    var lockPath = executable + UPDATE_LOCK_SUFFIX;
+    var lease = await directoryLock({ operation: 'acquire', path: lockPath });
     var workdir: string | undefined;
     var launched = false;
-    var stateSaved = false;
+    var existing: UpdateState | null | undefined;
     try {
-        workdir = await mkdtemp(join(dirname(executable), '.velora-update-'));
+        existing = await updateState(executable);
+        if (existing && !['installed', 'restored', 'failed'].includes(existing.phase)) {
+            throw new DownloadError('An interrupted update must be recovered before installing another version. Restart velora.');
+        }
+        if (existing && semver.order(version, existing.version) !== 1) {
+            throw new DownloadError('This release was already installed or rejected. Wait for a newer release.');
+        }
+        workdir = await mkdtemp(join(dirname(executable), UPDATE_WORKSPACE_PREFIX));
         var DOWNLOAD_TIMEOUT_MS = 300000;
         var timeout = AbortSignal.any([signal, AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS)]);
         var base = 'https://github.com/ThemisticLabs/velora-cli/releases/download/v' + version + '/';
         progress?.({ downloaded: 0, total: 0, message: 'Checking release signature…' });
-        var manifest = await readUpdateAsset(base + 'release.json', 128 * 1024, timeout, options.transport);
-        var signature = await readUpdateAsset(base + 'release.sig', 64, timeout, options.transport);
+        var manifest = await readUpdateAsset(base + 'release.json', MAX_MANIFEST_BYTES, timeout, options.transport);
+        var signature = await readUpdateAsset(base + 'release.sig', SIGNATURE_BYTES, timeout, options.transport);
         var asset = releaseMetadata(manifest, signature, version, process.platform, process.arch, options.publicKey);
         var bytes = await readUpdateAsset(base + asset.name, asset.size, timeout, options.transport, function (downloaded) {
             progress?.({ downloaded, total: asset.size, message: 'Downloading velora ' + version + '…' });
@@ -55,10 +60,15 @@ export default async function installCliUpdate(version: string, signal: AbortSig
             throw new DownloadError('The update checksum does not match. Your current version was kept.');
         }
         timeout.throwIfAborted();
-        var candidate = join(workdir, 'candidate');
-        if (process.platform === 'win32') { candidate += '.exe'; }
+        var paths = updatePaths(workdir);
+        var candidate = paths.candidate;
         var file = await open(candidate, 'wx', 0o700);
-        try { await file.writeFile(bytes); await file.sync(); } finally { await file.close(); }
+        try {
+            await file.writeFile(bytes);
+            await file.sync();
+        } finally {
+            await file.close();
+        }
         await chmod(candidate, 0o700);
         await syncDirectory(workdir);
         progress?.({ downloaded: asset.size, total: asset.size, message: 'Testing the new version and reading saved settings…' });
@@ -68,29 +78,39 @@ export default async function installCliUpdate(version: string, signal: AbortSig
         signal.throwIfAborted();
         var state: UpdateState = { phase: 'prepared', workdir, version, previousVersion: currentVersion,
             previousHash: await updateFile(executable), nextHash: asset.sha256, target: executable,
-            dataDirectory: directory, parentPid: process.pid, workerPid: 0 };
-        var planPath = join(workdir, 'plan.json');
+            dataDirectory: directory, parentPid: process.pid, workerPid: 0, lockToken: lease.token };
+        var planPath = paths.plan;
         var plan = await open(planPath, 'wx', 0o600);
-        try { await plan.writeFile(JSON.stringify(state) + '\n'); await plan.sync(); } finally { await plan.close(); }
-        await lock.writeFile(planPath);
-        await lock.sync();
+        try {
+            await plan.writeFile(JSON.stringify(state) + '\n');
+            await plan.sync();
+        } finally {
+            await plan.close();
+        }
         await syncDirectory(workdir);
         await updateState(executable, state);
-        stateSaved = true;
         var launch = options.launch || launchUpdateWorker;
         await launch(candidate, planPath);
         launched = true;
         cliUpdatePending = true;
     } finally {
-        await lock.close();
         if (!launched) {
-            if (stateSaved) {
-                if (existing) { await updateState(executable, existing); }
-                else { await rm(executable + '.update.json', { force: true }); }
+            try {
+                var saved = await updateState(executable);
+                if (saved && saved.workdir === workdir && saved.lockToken === lease.token) {
+                    if (existing) {
+                        await updateState(executable, existing);
+                    } else {
+                        await rm(executable + UPDATE_STATE_SUFFIX, { force: true });
+                        await syncDirectory(dirname(executable));
+                    }
+                }
+                if (workdir) {
+                    await rm(workdir, { recursive: true, force: true });
+                }
+            } finally {
+                await directoryLock({ operation: 'release', path: lockPath, lease });
             }
-            if (workdir) { await rm(workdir, { recursive: true, force: true }); }
-            await rm(lockPath, { force: true });
-            await syncDirectory(dirname(executable));
         }
     }
 }
