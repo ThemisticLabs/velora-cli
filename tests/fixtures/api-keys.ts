@@ -14,6 +14,7 @@ try {
     }
     await manageApiKeys(directory, async function (key) {
         copies++;
+        if (scenario === 'slow-clipboard') { await Bun.sleep(500); }
         assert.match(key, /^velora_[A-Za-z0-9_-]{43}$/);
         assert.equal((await apiKeys({ operation: 'verify', key }, directory)).authorized, true);
         if (scenario === 'clipboard-throws') { throw new Error('Clipboard unavailable'); }
@@ -22,7 +23,7 @@ try {
     var stored = await apiKeys({ operation: 'list' }, directory);
     if (scenario === 'cancel' || scenario === 'revoke') { assert.equal(stored.keys.length, 0); }
     else { assert.equal(stored.keys.length, 1); }
-    if (scenario === 'create' || scenario === 'required' || scenario === 'clipboard' || scenario === 'clipboard-throws' || scenario === 'resize') {
+    if (scenario === 'create' || scenario === 'slow-clipboard' || scenario === 'required' || scenario === 'clipboard' || scenario === 'clipboard-throws' || scenario === 'resize') {
         assert.equal(stored.keys[0]?.name, 'Editor');
         assert.equal(stored.keys[0]?.note, 'My local app');
         assert.equal(copies, 1);

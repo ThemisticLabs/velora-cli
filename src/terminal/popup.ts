@@ -11,7 +11,7 @@ type PopupOptions = {
     background: () => string;
     fields: { name: string; label: string; required?: boolean; maxLength: number }[];
     submit: string;
-    onSubmit: (values: Record<string, string>) => Promise<PopupResult>;
+    onSubmit: (values: Record<string, string>, showResult: (result: PopupResult) => void) => Promise<PopupResult>;
 };
 
 export default createPrompt<void, PopupOptions>(function (config, done) {
@@ -65,7 +65,9 @@ export default createPrompt<void, PopupOptions>(function (config, done) {
             submitting.current = true;
             setBusy(true);
             setError('');
-            void config.onSubmit(values).then(function (value) {
+            void config.onSubmit(values, function (value) {
+                if (active.current) { setResult(value); }
+            }).then(function (value) {
                 submitting.current = false;
                 if (active.current) { setResult(value); setBusy(false); }
             }).catch(function () {

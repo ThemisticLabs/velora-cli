@@ -3,7 +3,7 @@ import { spawn } from 'bun';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['create', 'required', 'clipboard', 'clipboard-throws', 'cancel', 'resize', 'revoke', 'cancel-revoke'])('API key table and popup: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['create', 'slow-clipboard', 'required', 'clipboard', 'clipboard-throws', 'cancel', 'resize', 'revoke', 'cancel-revoke'])('API key table and popup: %s', async function (scenario) {
     var output = '';
     var rawOutput = '';
     var decoder = new TextDecoder();
@@ -12,6 +12,7 @@ test.skipIf(process.platform === 'win32').each(['create', 'required', 'clipboard
     var terminalHeight = 20;
     var tableHeadingRow = -1;
     var checkedFrame = -1;
+    var keyShownBeforeCopy = false;
     var panelTop = -1;
     var panelBottom = -1;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/api-keys.ts', import.meta.url)), scenario], {
@@ -91,9 +92,14 @@ test.skipIf(process.platform === 'win32').each(['create', 'required', 'clipboard
                 terminal.write('\r\r');
                 return;
             }
+            if (phase === 4 && frame.includes('Key created.')) {
+                expect(frame).toMatch(/velora_[A-Za-z0-9_-]{43}/);
+                keyShownBeforeCopy = true;
+            }
             if ((phase === 3 || phase === 4) && (frame.includes('clipboard.') || frame.includes('Clipboard unavailable.') || frame.includes('API key revoked.'))) {
                 phase = 5;
-                if (scenario === 'clipboard' || scenario === 'clipboard-throws') { expect(frame).toMatch(/velora_[A-Za-z0-9_-]{43}/); }
+                if (scenario !== 'revoke') { expect(frame).toMatch(/velora_[A-Za-z0-9_-]{43}/); }
+                if (scenario === 'slow-clipboard') { expect(keyShownBeforeCopy).toBe(true); }
                 terminal.write('\r');
                 return;
             }

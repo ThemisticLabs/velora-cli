@@ -36,7 +36,7 @@ Deleting a model removes its local package. The shared engine, its update permis
 
 ## Application keys
 
-Open **API keys** in the main menu for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key is copied to the clipboard automatically. If copying fails, the popup displays the key so you can copy it before closing. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.
+Open **API keys** in the main menu for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key appears immediately in the popup and is copied to the clipboard automatically. It stays visible until you close the popup, including when copying fails. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.
 
 API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` with restricted file permissions. License keys remain in the system credential store. Creating an application key does not start the planned HTTP API.
 

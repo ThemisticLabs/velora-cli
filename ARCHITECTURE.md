@@ -230,7 +230,7 @@ Selection prompts explicitly enable Escape with `back: true`; back navigation is
 
 `menu/api-keys.ts` uses the existing shared list renderer for Name, Note and Created columns. Add and revoke use `terminal/popup.ts`, a reusable form prompt rendered over a dimmed table. Popup fields, submit action, busy state, result and errors share one implementation. Tab and arrow keys move between fields and the action, Enter advances or submits, and Esc cancels before submission or closes a result. Resizing recalculates the panel. Repeated submissions are blocked while saving.
 
-`system/copy-clipboard.ts` sends values through stdin to pbcopy on macOS, Set-Clipboard on Windows, or wl-copy/xclip on Linux. No key appears in process arguments. Copy failure displays the new key in the popup once; subsequent listing never returns plaintext. A native macOS copy/paste round trip was checked; native Windows/Linux helpers remain unverified. API keys separate application access and do not encrypt processing.
+`system/copy-clipboard.ts` sends values through stdin to pbcopy on macOS, Set-Clipboard on Windows, or wl-copy/xclip on Linux. No key appears in process arguments. The popup displays the new key immediately, before the clipboard operation completes, and keeps it visible until closed. Subsequent listing never returns plaintext. A native macOS copy/paste round trip was checked; native Windows/Linux helpers remain unverified. API keys separate application access and do not encrypt processing.
 
 ## macOS menu bar
 

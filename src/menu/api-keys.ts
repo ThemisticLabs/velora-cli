@@ -35,11 +35,12 @@ export default async function manageApiKeys(directory?: string, copy = copyClipb
         if (selected === 'add') {
             await popup({ title: 'Add API key', description: 'Name the application and add an optional note.', background,
                 fields: [{ name: 'name', label: 'Name', required: true, maxLength: MAX_KEY_NAME_LENGTH }, { name: 'note', label: 'Note', maxLength: MAX_KEY_NOTE_LENGTH }],
-                submit: 'Create key', onSubmit: async function (values) {
+                submit: 'Create key', onSubmit: async function (values, showResult) {
                     var created = await apiKeys({ operation: 'create', name: values.name || '', note: values.note || '' }, directory);
+                    showResult({ message: 'Key created.', secret: created.key });
                     var copied = false;
                     try { copied = await copy(created.key!); } catch {}
-                    if (copied) { return { message: 'Key created and copied to your clipboard.' }; }
+                    if (copied) { return { message: 'Key created and copied to your clipboard.', secret: created.key }; }
                     return { message: 'Clipboard unavailable. Copy this key before closing.', secret: created.key };
                 }
             });
