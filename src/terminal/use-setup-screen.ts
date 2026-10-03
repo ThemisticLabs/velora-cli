@@ -4,7 +4,7 @@ import style from './style.js';
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS, FOOTER_ROWS, TERMINAL_BOTTOM_MARGIN_ROWS } from './setup-dimensions.js';
 import openDocumentation from '../system/open-documentation.js';
 
-export default function useSetupScreen(content: string, error = '', inputCursor = false, documentationPath = setupLayout.documentationPath): [string, string] {
+export default function useSetupScreen(content: string, error = '', inputCursor = false, documentationPath = setupLayout.documentationPath, footer = setupLayout.footer): [string, string] {
     var [, setSize] = useState('');
     var [documentationStatus, setDocumentationStatus] = useState('');
     var opening = useRef(false);
@@ -74,7 +74,7 @@ export default function useSetupScreen(content: string, error = '', inputCursor 
     }
     var padding = Math.max(0, rows - contentRows - errorRows - FOOTER_ROWS - TERMINAL_BOTTOM_MARGIN_ROWS);
     bottom += '\n'.repeat(padding);
-    bottom += '  ' + style(setupLayout.footer.slice(0, width), 'muted');
+    bottom += '  ' + style(footer.slice(0, width), 'muted');
     var documentationHint = documentationStatus || 'Press F1 to open documentation';
     bottom += '\n  ' + style(documentationHint.slice(0, width), 'muted');
     return [screen, bottom];

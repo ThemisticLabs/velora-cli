@@ -47,7 +47,7 @@ export default async function manageApiKeys(directory?: string, copy = copyClipb
         }
         for (var key of stored.keys) {
             if (key.id !== selected) { continue; }
-            await popup({ title: 'Revoke API key', description: 'Revoke access for ' + key.name + '? The application will need a new key.', background,
+            await popup({ title: 'Revoke API key', description: 'Revoke ' + key.name + '? This app will need a new key.', background,
                 fields: [], submit: 'Revoke key', onSubmit: async function () {
                     await apiKeys({ operation: 'revoke', id: selected }, directory);
                     return { message: 'API key revoked.' };

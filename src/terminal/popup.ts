@@ -86,19 +86,23 @@ export default createPrompt<void, PopupOptions>(function (config, done) {
         setError('');
     });
     var dimensions = setupDimensions();
-    var POPUP_MAX_WIDTH = 56;
-    var POPUP_SIDE_MARGIN = 4;
-    var width = Math.max(6, Math.min(POPUP_MAX_WIDTH, dimensions.contentWidth - POPUP_SIDE_MARGIN));
+    var POPUP_MAX_WIDTH = 76;
+    var POPUP_MAX_HEIGHT = 14;
+    var width = Math.max(6, Math.min(POPUP_MAX_WIDTH, dimensions.contentWidth));
     var innerWidth = Math.max(1, width - 4);
-    var lines = [style(config.title, 'strong')];
+    var lines = [style(config.title, 'strong'), ''];
     var description = config.description;
     if (result) { description = result.message; }
     if (error) { description = error; }
     var descriptionTone: 'muted' | 'Error' = 'muted';
     if (error) { descriptionTone = 'Error'; }
-    for (var offset = 0; offset < description.length; offset += innerWidth) {
-        lines.push(style(description.slice(offset, offset + innerWidth), descriptionTone));
+    while (description.length > innerWidth) {
+        var end = description.lastIndexOf(' ', innerWidth);
+        if (end < 1) { end = innerWidth; }
+        lines.push(style(description.slice(0, end), descriptionTone));
+        description = description.slice(end).trimStart();
     }
+    lines.push(style(description, descriptionTone), '');
     if (!result) {
         for (var index = 0; index < config.fields.length; index++) {
             var field = config.fields[index]!;
@@ -121,11 +125,12 @@ export default createPrompt<void, PopupOptions>(function (config, done) {
     if (result) { button = 'Close'; }
     var buttonText = '  ' + button;
     if (result || focus === config.fields.length) { buttonText = style('› ' + button, 'accent'); }
+    var panelHeight = Math.min(POPUP_MAX_HEIGHT, dimensions.contentRows);
+    while (lines.length < panelHeight - 3) { lines.push(''); }
     lines.push(buttonText);
     var hint = 'Tab Move · Enter Select · Esc Cancel';
     if (busy) { hint = 'Saving…'; }
     if (result) { hint = 'Enter Close · Esc Close'; }
-    lines.push(style(hint, 'muted'));
     var panel = [style('┌' + '─'.repeat(width - 2) + '┐', 'divider')];
     for (var line of lines) {
         var padding = Math.max(0, innerWidth - stripVTControlCharacters(line).length);
@@ -133,16 +138,17 @@ export default createPrompt<void, PopupOptions>(function (config, done) {
     }
     panel.push(style('└' + '─'.repeat(width - 2) + '┘', 'divider'));
     var background = stripVTControlCharacters(config.background()).split('\n');
-    var height = Math.max(panel.length, dimensions.contentRows);
+    var height = dimensions.contentRows;
     var top = Math.max(0, Math.floor((height - panel.length) / 2));
     var left = Math.max(0, Math.floor((dimensions.contentWidth - width) / 2));
     var content = '';
     for (var row = 0; row < height; row++) {
+        if (row > 0) { content += '\n'; }
         if (row >= top && row < top + panel.length) {
-            content += '  ' + ' '.repeat(left) + panel[row - top] + '\n';
+            content += '  ' + ' '.repeat(left) + panel[row - top];
         } else {
-            content += style((background[row] || '').slice(0, dimensions.contentWidth + 2), 'muted') + '\n';
+            content += style((background[row] || '  ').slice(0, dimensions.contentWidth + 2), 'muted');
         }
     }
-    return useSetupScreen(content);
+    return useSetupScreen(content, '', false, undefined, hint + ' · Ctrl+C Quit');
 });

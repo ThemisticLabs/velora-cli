@@ -8,19 +8,47 @@ test.skipIf(process.platform === 'win32').each(['create', 'required', 'clipboard
     var rawOutput = '';
     var decoder = new TextDecoder();
     var phase = 0;
+    var terminalWidth = 60;
+    var terminalHeight = 20;
+    var tableHeadingRow = -1;
+    var checkedFrame = -1;
+    var panelTop = -1;
+    var panelBottom = -1;
     var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/api-keys.ts', import.meta.url)), scenario], {
         env: { ...process.env, TERM: 'xterm-256color', FORCE_COLOR: '1', NO_COLOR: undefined },
         terminal: { cols: 60, rows: 20, data: function (terminal, bytes) {
             rawOutput += decoder.decode(bytes, { stream: true });
             output = stripVTControlCharacters(rawOutput);
-            var frame = stripVTControlCharacters(rawOutput.slice(rawOutput.lastIndexOf('\u001b[H\u001b[2J')));
+            var frameOffset = rawOutput.lastIndexOf('\u001b[H\u001b[2J');
+            var frame = stripVTControlCharacters(rawOutput.slice(frameOffset));
             if (phase === 7 && frame.includes('Enla')) {
                 phase = 8;
-                terminal.resize(85, 30);
+                terminalWidth = 85;
+                terminalHeight = 30;
+                terminal.resize(terminalWidth, terminalHeight);
                 return;
             }
-            if (!frame.includes('Press F1 to open documentation')) { return; }
+            if (!frame.includes('Press F1 to open documentation') || frameOffset === checkedFrame) { return; }
+            checkedFrame = frameOffset;
+            var screenLines = frame.slice(0, frame.indexOf('Press F1 to open documentation') + 'Press F1 to open documentation'.length).split('\n');
+            expect(screenLines.length, frame).toBeLessThanOrEqual(terminalHeight);
+            var headingRow = -1;
+            var currentPanelTop = -1;
+            var currentPanelBottom = -1;
+            for (var index = 0; index < screenLines.length; index++) {
+                var line = screenLines[index]!;
+                expect(line.length, frame).toBeLessThan(terminalWidth);
+                if (line.includes('Created')) { headingRow = index; }
+                if (line.includes('┌')) { currentPanelTop = index; }
+                if (line.includes('└')) { currentPanelBottom = index; }
+            }
+            if (currentPanelTop !== -1 && scenario !== 'resize') {
+                if (panelTop === -1) { panelTop = currentPanelTop; panelBottom = currentPanelBottom; }
+                expect(currentPanelTop).toBe(panelTop);
+                expect(currentPanelBottom).toBe(panelBottom);
+            }
             if (phase === 0 && frame.includes('Add API key')) {
+                tableHeadingRow = headingRow;
                 phase = 1;
                 if (scenario === 'revoke' || scenario === 'cancel-revoke') { terminal.write('\u001b[A\r'); }
                 else { terminal.write('\r'); }
@@ -65,11 +93,12 @@ test.skipIf(process.platform === 'win32').each(['create', 'required', 'clipboard
             }
             if ((phase === 3 || phase === 4) && (frame.includes('clipboard.') || frame.includes('Clipboard unavailable.') || frame.includes('API key revoked.'))) {
                 phase = 5;
-                if (scenario === 'clipboard' || scenario === 'clipboard-throws') { expect(frame).toContain('velora_'); }
+                if (scenario === 'clipboard' || scenario === 'clipboard-throws') { expect(frame).toMatch(/velora_[A-Za-z0-9_-]{43}/); }
                 terminal.write('\r');
                 return;
             }
-            if ((phase === 2 && scenario === 'cancel' || phase === 3 && scenario === 'cancel-revoke' || phase === 5) && frame.includes('Add API key') && !frame.includes('Create key') && !frame.includes('Revoke key')) {
+            if ((phase === 2 && scenario === 'cancel' || phase === 3 && scenario === 'cancel-revoke' || phase === 5) && frame.includes('Add API key') && frame.includes('Created') && !frame.includes('Create key') && !frame.includes('Revoke key')) {
+                if (scenario !== 'resize') { expect(headingRow, frame).toBe(tableHeadingRow); }
                 phase = 6;
                 terminal.write('\u001b');
             }
