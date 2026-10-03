@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline';
 import directoryLock from './directory-lock.js';
 import serviceControl from '../service/service-control.js';
 import openInteractive from './open-interactive.js';
+import interactiveSession from './interactive-session.js';
 import logoPath from '../assets/logo.svg' with { type: 'file' };
 import htmlPath from '../assets/menu-bar.markup' with { type: 'file' };
 import nativePath from '../assets/menu-bar.jxa' with { type: 'file' };
@@ -53,11 +54,17 @@ export default async function menuBarWorker(directory: string, launch = spawn): 
             })();
             return;
         }
-        if (!['service', 'open', 'settings', 'website'].includes(command) || busy) { return; }
+        if (!['service', 'open', 'settings', 'website', 'quit'].includes(command) || busy) { return; }
         busy = true;
         message = '';
         action = (async function () {
             try {
+                if (command === 'quit') {
+                    await serviceControl('stop', directory);
+                    await interactiveSession('quit', directory);
+                    stop.abort();
+                    return;
+                }
                 if (command === 'website') {
                     var website = Bun.spawn(['/usr/bin/open', 'https://themistic.com'], { stdout: 'ignore', stderr: 'ignore' });
                     if (await website.exited !== 0) { throw new Error('Could not open Themistic in your browser.'); }

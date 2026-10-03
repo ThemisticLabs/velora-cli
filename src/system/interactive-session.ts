@@ -8,7 +8,7 @@ import navigation from '../terminal/interactive-navigation.js';
 
 export type InteractiveTarget = { application: 'Ghostty' | 'Terminal'; id: string };
 
-export default async function interactiveSession(operation: 'register' | 'open' | 'settings', directory = dataDirectory()): Promise<{ close: () => Promise<void> } | InteractiveTarget | null> {
+export default async function interactiveSession(operation: 'register' | 'open' | 'settings' | 'quit', directory = dataDirectory()): Promise<{ close: () => Promise<void> } | InteractiveTarget | null> {
     if (process.platform !== 'darwin') { return null; }
     var directoryId = createHash('sha256').update(directory).digest('hex').slice(0, 16);
     var endpoint = '/tmp/velora-interactive-' + process.getuid!() + '-' + directoryId + '.sock';
@@ -78,7 +78,11 @@ export default async function interactiveSession(operation: 'register' | 'open' 
         var server = Bun.serve({ unix: endpoint, fetch: function (request) {
             if (request.headers.get('authorization') !== 'Bearer ' + token) { return new Response(null, { status: 403 }); }
             var path = new URL(request.url).pathname;
-            if (!['/open', '/settings'].includes(path)) { return new Response(null, { status: 404 }); }
+            if (!['/open', '/settings', '/quit'].includes(path)) { return new Response(null, { status: 404 }); }
+            if (path === '/quit') {
+                navigation.quit = true;
+                navigation.controller.abort();
+            }
             if (path === '/settings') {
                 navigation.settings = true;
                 navigation.controller.abort();

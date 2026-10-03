@@ -21,6 +21,11 @@ try {
         var target = await session('open', directory);
         assert.deepEqual(target, { application: 'Ghostty', id: 'fixture-terminal' });
         assert.equal(navigation.settings, false);
+        if (scenario === 'quit') {
+            await session('quit', directory);
+            assert.equal(navigation.quit, true);
+            assert.equal(navigation.controller.signal.aborted, true);
+        }
         if (scenario === 'settings') {
             await session('settings', directory);
             assert.equal(navigation.settings, true);

@@ -75,6 +75,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
         session = await interactiveSession('register').catch(function () { return null; });
         if (initialPage === 'settings') { navigation.settings = true; }
         while (true) {
+            if (navigation.quit) { return; }
             try {
                 if (navigation.settings) {
                     navigation.settings = false;
@@ -162,6 +163,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
                 await settingsMenu();
                 if (cliUpdatePending) { return; }
             } catch (error) {
+                if (navigation.quit) { return; }
                 if (navigation.settings) { continue; }
                 if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {
                     throw error;
@@ -184,6 +186,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
     } finally {
         if (session && 'close' in session) { await session.close().catch(function () {}); }
         navigation.settings = false;
+        navigation.quit = false;
         navigation.controller = new AbortController();
         process.stdout.write(RESTORE_TERMINAL);
         if (cliUpdatePending) { process.stdout.write('velora update prepared. Start velora again in a moment.\n'); }

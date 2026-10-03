@@ -93,6 +93,7 @@ var prompt = createPrompt<string, Selection>(function (config, done) {
 });
 
 export default async function select(config: Selection, context?: Parameters<typeof prompt>[1]): Promise<string> {
+    if (navigation.quit) { throw Object.assign(new Error('Closing velora.'), { name: 'AbortPromptError' }); }
     if (navigation.settings) { throw new Error('OpenSettings'); }
     var signal = navigation.controller.signal;
     if (context?.signal) { signal = AbortSignal.any([signal, context.signal]); }

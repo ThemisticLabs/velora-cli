@@ -13,7 +13,7 @@ function run(args) {
     app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
     app.finishLaunching;
     var popover = $.NSPopover.alloc.init;
-    popover.setContentSize($.NSMakeSize(332, 338));
+    popover.setContentSize($.NSMakeSize(332, 360));
     popover.setBehavior($.NSPopoverBehaviorTransient);
     var configuration = $.WKWebViewConfiguration.alloc.init;
     configuration.setWebsiteDataStore($.WKWebsiteDataStore.nonPersistentDataStore);
@@ -45,16 +45,16 @@ function run(args) {
                 types: ['void', ['id', 'id']],
                 implementation: function (controller, message) {
                     var action = ObjC.unwrap(message.body);
-                    if (!['service', 'open', 'settings', 'website'].includes(action)) { return; }
+                    if (!['service', 'open', 'settings', 'website', 'quit'].includes(action)) { return; }
                     $.NSFileHandle.fileHandleWithStandardOutput.writeData($(action + '\n').dataUsingEncoding($.NSUTF8StringEncoding));
-                    if (action !== 'service') { popover.performClose(null); }
+                    if (action !== 'service' && action !== 'quit') { popover.performClose(null); }
                 }
             }
         }
     });
     var actions = $.VeloraMenuActions.alloc.init;
     configuration.userContentController.addScriptMessageHandlerName(actions, 'velora');
-    var web = $.WKWebView.alloc.initWithFrameConfiguration($.NSMakeRect(0, 0, 332, 338), configuration);
+    var web = $.WKWebView.alloc.initWithFrameConfiguration($.NSMakeRect(0, 0, 332, 360), configuration);
     web.loadHTMLStringBaseURL(html, $.NSURL.URLWithString('about:blank'));
     var controller = $.NSViewController.alloc.init;
     controller.setView(web);

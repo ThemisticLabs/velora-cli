@@ -25,6 +25,9 @@ mock.module('../../src/service/service-control.js', function () {
 mock.module('../../src/system/open-interactive.js', function () {
     return { default: async function (page: string, path: string) { assert.equal(path, directory); operations.push(page); } };
 });
+mock.module('../../src/system/interactive-session.js', function () {
+    return { default: async function (operation: string, path: string) { assert.equal(path, directory); operations.push(operation); return null; } };
+});
 var { default: worker } = await import('../../src/system/menu-bar-worker.js');
 var task = worker(directory, launch);
 try {
@@ -45,6 +48,9 @@ try {
     native.stdout.write('open\n');
     await Bun.sleep(30);
     assert.deepEqual(operations, ['start', 'stop', 'settings', 'open']);
+    native.stdout.write('quit\n');
+    await task;
+    assert.deepEqual(operations, ['start', 'stop', 'settings', 'open', 'stop', 'quit']);
 } finally {
     releaseStart!();
     native.emit('close', 0);
