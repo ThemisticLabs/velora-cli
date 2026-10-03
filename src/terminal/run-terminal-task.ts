@@ -3,6 +3,7 @@ import type { EngineProgress } from '../engine/bootstrap-engine.js';
 import renderProgress from './render-progress.js';
 import setupDimensions from './setup-dimensions.js';
 import useSetupScreen from './use-setup-screen.js';
+import navigation from './interactive-navigation.js';
 
 export default async function runTerminalTask<T>(operation: (signal: AbortSignal, onProgress: (progress: EngineProgress) => void) => Promise<T>): Promise<T> {
     var controller = new AbortController();
@@ -45,7 +46,7 @@ export default async function runTerminalTask<T>(operation: (signal: AbortSignal
         return useSetupScreen(output);
     });
     try {
-        var result = await prompt({});
+        var result = await prompt({}, { signal: navigation.controller.signal });
         if ('error' in result) {
             throw result.error;
         }

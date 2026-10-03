@@ -2,8 +2,17 @@ import setupDimensions from '../terminal/setup-dimensions.js';
 import { createPrompt, isEnterKey, useEffect, useKeypress, useState } from '@inquirer/core';
 import style from '../terminal/style.js';
 import useSetupScreen from '../terminal/use-setup-screen.js';
+import navigation from '../terminal/interactive-navigation.js';
 
-export default createPrompt<string, Record<string, never>>(function (_config, done) {
+export default async function licenseInput(config: Record<string, never>, context?: Parameters<typeof prompt>[1]): Promise<string> {
+    var signal = navigation.controller.signal;
+    if (context?.signal) {
+        signal = AbortSignal.any([signal, context.signal]);
+    }
+    return prompt(config, { ...context, signal });
+}
+
+var prompt = createPrompt<string, Record<string, never>>(function (_config, done) {
     var [value, setValue] = useState('');
     var [error, setError] = useState('');
     var [revealedIndex, setRevealedIndex] = useState(-1);

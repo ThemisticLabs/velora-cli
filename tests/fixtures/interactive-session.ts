@@ -31,6 +31,15 @@ try {
             assert.equal(navigation.settings, true);
             assert.equal(navigation.controller.signal.aborted, true);
         }
+        if (scenario === 'setup-settings') {
+            navigation.initializing = true;
+            await session('settings', directory);
+            assert.equal(navigation.settings, true);
+            assert.equal(navigation.controller.signal.aborted, false);
+            await session('quit', directory);
+            assert.equal(navigation.quit, true);
+            assert.equal(navigation.controller.signal.aborted, true);
+        }
         if (scenario === 'duplicate') {
             assert.equal(await session('register', directory), null);
             assert.deepEqual(await session('open', directory), target);

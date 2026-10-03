@@ -85,7 +85,9 @@ export default async function interactiveSession(operation: 'register' | 'open' 
             }
             if (path === '/settings') {
                 navigation.settings = true;
-                navigation.controller.abort();
+                if (!navigation.initializing) {
+                    navigation.controller.abort();
+                }
             }
             return Response.json({ application, id });
         } });

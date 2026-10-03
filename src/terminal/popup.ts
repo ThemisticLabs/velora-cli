@@ -3,6 +3,7 @@ import { stripVTControlCharacters } from 'node:util';
 import setupDimensions from './setup-dimensions.js';
 import useSetupScreen from './use-setup-screen.js';
 import style from './style.js';
+import navigation from './interactive-navigation.js';
 
 type PopupResult = { message: string; secret?: string };
 type PopupOptions = {
@@ -14,7 +15,11 @@ type PopupOptions = {
     onSubmit: (values: Record<string, string>, showResult: (result: PopupResult) => void) => Promise<PopupResult>;
 };
 
-export default createPrompt<void, PopupOptions>(function (config, done) {
+export default async function popup(config: PopupOptions): Promise<void> {
+    return prompt(config, { signal: navigation.controller.signal });
+}
+
+var prompt = createPrompt<void, PopupOptions>(function (config, done) {
     var [values, setValues] = useState<Record<string, string>>({});
     var [focus, setFocus] = useState(0);
     var [busy, setBusy] = useState(false);

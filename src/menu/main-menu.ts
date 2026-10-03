@@ -33,6 +33,8 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
     var session: Awaited<ReturnType<typeof interactiveSession>> | undefined;
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
     try {
+        navigation.initializing = true;
+        session = await interactiveSession('register').catch(function () { return null; });
         if (!await onboarding({ review: startSetup })) { return; }
         try {
             setSetupLayout('Opening velora…', '', '/velora', 'Ctrl+C Close');
@@ -71,7 +73,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
             }
             // Update availability never prevents access to settings.
         }
-        session = await interactiveSession('register').catch(function () { return null; });
+        navigation.initializing = false;
         if (initialPage === 'settings') { navigation.settings = true; }
         while (true) {
             if (navigation.quit) { return; }
@@ -186,6 +188,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
         if (session && 'close' in session) { await session.close().catch(function () {}); }
         navigation.settings = false;
         navigation.quit = false;
+        navigation.initializing = false;
         navigation.controller = new AbortController();
         process.stdout.write(RESTORE_TERMINAL);
         if (cliUpdatePending) { process.stdout.write('velora update prepared. Start velora again in a moment.\n'); }

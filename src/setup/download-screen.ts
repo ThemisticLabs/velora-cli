@@ -11,6 +11,7 @@ import useSetupScreen from '../terminal/use-setup-screen.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import style from '../terminal/style.js';
 import renderProgress from '../terminal/render-progress.js';
+import navigation from '../terminal/interactive-navigation.js';
 
 export default async function downloadScreen(license: string, model: LicenseModel): Promise<'complete' | 'failed' | 'cancelled-after-install'> {
     var controller = new AbortController();
@@ -126,7 +127,7 @@ export default async function downloadScreen(license: string, model: LicenseMode
     });
     try {
         try {
-            var complete = await prompt({});
+            var complete = await prompt({}, { signal: navigation.controller.signal });
         } finally {
             controller.abort();
             await task;
