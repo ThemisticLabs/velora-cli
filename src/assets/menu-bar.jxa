@@ -21,6 +21,18 @@ function run(args) {
         name: 'VeloraMenuActions',
         superclass: 'NSObject',
         methods: {
+            'refreshStatus:': {
+                types: ['void', ['id']],
+                implementation: function () {
+                    if ($.kill(owner, 0) !== 0) { app.terminate(null); return; }
+                    var value = $.NSString.stringWithContentsOfFileEncodingError(statusPath, $.NSUTF8StringEncoding, null);
+                    if (value.isNil()) { return; }
+                    var status = ObjC.unwrap(value);
+                    if (web.isLoading || status === previous) { return; }
+                    web.evaluateJavaScriptCompletionHandler('renderStatus(' + JSON.stringify(JSON.parse(status)) + ')', function () {});
+                    previous = status;
+                }
+            },
             'togglePopover:': {
                 types: ['void', ['id']],
                 implementation: function (sender) {
@@ -56,13 +68,7 @@ function run(args) {
     item.button.setAction('togglePopover:');
     $.NSFileHandle.fileHandleWithStandardOutput.writeData($('ready\n').dataUsingEncoding($.NSUTF8StringEncoding));
     var previous = '';
-    while ($.kill(owner, 0) === 0) {
-        $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.2));
-        var value = $.NSString.stringWithContentsOfFileEncodingError(statusPath, $.NSUTF8StringEncoding, null);
-        if (value.isNil()) { continue; }
-        var status = ObjC.unwrap(value);
-        if (web.isLoading || status === previous) { continue; }
-        web.evaluateJavaScriptCompletionHandler('renderStatus(' + JSON.stringify(JSON.parse(status)) + ')', function () {});
-        previous = status;
-    }
+    var timer = $.NSTimer.scheduledTimerWithTimeIntervalTargetSelectorUserInfoRepeats(0.5, actions, 'refreshStatus:', null, true);
+    app.run;
+    timer.invalidate;
 }
