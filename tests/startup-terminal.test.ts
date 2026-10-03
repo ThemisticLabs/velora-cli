@@ -5,69 +5,30 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['yes', 'no', 'cancel'])('startup consent terminal: %s', async function (choice) {
-    var root = await mkdtemp(join(tmpdir(), 'velora-startup-'));
+test.skipIf(process.platform === 'win32').each(['yes', 'no', 'cancel'])('setup consent terminal: %s', async function (choice) {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-consent-terminal-'));
+    var output = '';
+    var sent = false;
+    var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/startup-update.ts', import.meta.url))], {
+        env: { ...process.env, VELORA_TEST_DIRECTORY: directory },
+        terminal: { cols: 60, rows: 20, data: function (terminal, bytes) {
+            output += Buffer.from(bytes).toString('utf8');
+            if (sent || !output.includes('Save changes')) { return; }
+            sent = true;
+            if (choice === 'cancel') { terminal.write(' \u001b'); return; }
+            var keys = '\u001b[B\u001b[B\u001b[B\u001b[B\r';
+            if (choice === 'yes') { keys = ' ' + keys; }
+            terminal.write(keys);
+        } }
+    });
+    var timeout = setTimeout(function () { child.kill(); }, 4000);
     try {
-        for (var launch = 0; launch < 3; launch++) {
-            var output = '';
-            var sent = false;
-            var answeredInstallation = false;
-            var child = spawn([process.execPath, 'run', fileURLToPath(new URL('./fixtures/startup-update.ts', import.meta.url))], {
-                env: { ...process.env, VELORA_TEST_DIRECTORY: root },
-                terminal: {
-                    cols: 90, rows: 30,
-                    data: function (terminal, data) {
-                        output += Buffer.from(data).toString('utf8');
-                        if (sent && !answeredInstallation && output.includes('Allow automatic velora updates?')) {
-                            answeredInstallation = true;
-                            terminal.write('\r');
-                        }
-                        if (sent || !output.includes('Check for velora updates on startup?')) {
-                            return;
-                        }
-                        sent = true;
-                        if (choice === 'cancel') {
-                            terminal.write('\u0003');
-                            return;
-                        }
-                        if (choice === 'yes') {
-                            terminal.write('\u001b[B');
-                        }
-                        terminal.write('\r');
-                    }
-                }
-            });
-            var TEST_TIMEOUT_MS = 4000;
-            var timeout = setTimeout(function () { child.kill(); }, TEST_TIMEOUT_MS);
-            try {
-                expect(await child.exited).toBe(0);
-                if (launch === 0) {
-                    expect(sent).toBe(false);
-                    expect(await readdir(root)).toEqual(['cli-updates.json']);
-                    expect(JSON.parse(await readFile(join(root, 'cli-updates.json'), 'utf8'))).toEqual({ checkAutomatically: null, installAutomatically: null });
-                    continue;
-                }
-                if (choice === 'cancel') {
-                    expect(output).toContain('Cancelled.');
-                    expect(JSON.parse(await readFile(join(root, 'cli-updates.json'), 'utf8'))).toEqual({ checkAutomatically: null, installAutomatically: null });
-                    expect(sent).toBe(true);
-                    continue;
-                }
-                expect(output).toContain('Fixture menu opened.');
-                expect(sent).toBe(launch === 1);
-                expect(JSON.parse(await readFile(join(root, 'cli-updates.json'), 'utf8'))).toEqual({ checkAutomatically: choice === 'yes', installAutomatically: false });
-                if (choice === 'yes') {
-                    expect(await readFile(join(root, 'requests'), 'utf8')).toBe('request\n'.repeat(launch));
-                } else {
-                    expect(await readdir(root)).toEqual(['cli-updates.json']);
-                }
-            } finally {
-                clearTimeout(timeout);
-                child.kill();
-                child.terminal?.close();
-            }
-        }
-    } finally {
-        await rm(root, { recursive: true, force: true });
-    }
+        expect(await child.exited, output).toBe(0);
+        expect(sent).toBe(true);
+        expect(output).toContain('Setup 2 of 5');
+        if (choice === 'cancel') { expect(await readdir(directory)).toEqual([]); return; }
+        expect(output).toContain('Setup consent saved.');
+        expect(JSON.parse(await readFile(join(directory, 'cli-updates.json'), 'utf8'))).toEqual({ checkAutomatically: choice === 'yes', installAutomatically: false });
+        expect(JSON.parse(await readFile(join(directory, 'engine-updates.json'), 'utf8'))).toEqual({ checkAutomatically: false, installAutomatically: false });
+    } finally { clearTimeout(timeout); child.kill(); child.terminal?.close(); await rm(directory, { recursive: true, force: true }); }
 });

@@ -14,6 +14,7 @@ import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimens
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import manageApiKeys from './api-keys.js';
 import serviceControl from '../service/service-control.js';
+import onboarding from '../setup/onboarding.js';
 
 export default async function mainMenu(startSetup = false, initialPage: 'main' | 'settings' = 'main'): Promise<void> {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -32,6 +33,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
     var session: Awaited<ReturnType<typeof interactiveSession>> | undefined;
     process.stdout.write(ENTER_ALTERNATE_SCREEN);
     try {
+        if (!await onboarding({ review: startSetup })) { return; }
         try {
             setSetupLayout('Opening velora…', '', '/velora', 'Ctrl+C Close');
             var savedLicense = await runTerminalTask(function () { return licenseStore({ operation: 'read' }); });

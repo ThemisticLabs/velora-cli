@@ -2,7 +2,6 @@ import installedModels from '../models/installed-models.js';
 import select from './select-option.js';
 import runTerminalTask from '../terminal/run-terminal-task.js';
 import { ExitPromptError } from '@inquirer/core';
-import engineUpdatePreferences from '../updates/engine-update-preferences.js';
 import manageLicense from '../license/manage-license.js';
 import licenseStore from '../license/license-store.js';
 import downloadScreen from './download-screen.js';
@@ -12,7 +11,9 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 
 export default async function setup(options: { modelsOnly?: boolean } = {}): Promise<boolean | undefined> {
     while (true) {
-        setSetupLayout('Choose your model access.', 'Use a license or explore the upcoming public model.', '/velora/setup', '↑/↓ Move  ·  Enter Select  ·  Ctrl+C Cancel');
+        var title = 'Setup 5 of 5 / License and model';
+        if (options.modelsOnly) { title = 'Install a model'; }
+        setSetupLayout(title, 'Use a license or explore the upcoming public model.', '/velora/license-api/', '↑/↓ Move  ·  Enter Select  ·  Ctrl+C Cancel');
         var choice = 'license';
         if (!options.modelsOnly) {
             choice = await select({
@@ -132,33 +133,6 @@ export default async function setup(options: { modelsOnly?: boolean } = {}): Pro
                     continue;
                 }
                 await installedModels({ operation: 'select', id: next.id });
-                try {
-                    if (await engineUpdatePreferences()) {
-                        return true;
-                    }
-                } catch {
-                    setSetupLayout('Model installed. Update settings unavailable.', 'Check engine-updates.json before changing engine permissions.', '/velora/updates', 'Enter Continue · Ctrl+C Close', 'Warning');
-                    await select({ message: '', choices: [{ name: 'Continue', value: 'continue' }] });
-                    return true;
-                }
-                setSetupLayout('Engine update checks.', 'Check the shared engine when velora starts.', '/velora/updates', '↑/↓ Move · Enter Select · Ctrl+C Cancel');
-                var checks = await select({ message: 'Check for engine updates on startup?', choices: [
-                    { name: 'No, do not check automatically', value: 'no' }, { name: 'Yes, allow automatic engine checks', value: 'yes' }
-                ] });
-                var installAutomatically = false;
-                if (checks === 'yes') {
-                    setSetupLayout('Engine update installation.', 'Save your choice. Automatic installation is coming later.', '/velora/updates', '↑/↓ Move · Enter Select · Ctrl+C Cancel');
-                    var installation = await select({ message: 'Allow the engine to install updates automatically?', choices: [
-                        { name: 'No, install manually', value: 'no' }, { name: 'Yes, allow automatic engine installation', value: 'yes' }
-                    ] });
-                    installAutomatically = installation === 'yes';
-                }
-                try {
-                    await engineUpdatePreferences({ checkAutomatically: checks === 'yes', installAutomatically });
-                } catch {
-                    setSetupLayout('Model installed. Preferences not saved.', 'Open Settings to save engine update permissions.', '/velora/updates', 'Enter Continue · Ctrl+C Close', 'Warning');
-                    await select({ message: '', choices: [{ name: 'Continue', value: 'continue' }] });
-                }
                 return true;
             }
             break;

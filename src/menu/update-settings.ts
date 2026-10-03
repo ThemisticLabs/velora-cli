@@ -10,7 +10,7 @@ import engineUpdatePreferences from '../updates/engine-update-preferences.js';
 
 type Scope = { name: string; engine?: boolean; saved: CliUpdatePreferences; readable: boolean };
 
-export default async function updateSettings(): Promise<void> {
+export default async function updateSettings(options: { setup?: boolean } = {}): Promise<boolean> {
     var scopes: Scope[] = [
         { name: 'velora', saved: { checkAutomatically: null, installAutomatically: null }, readable: true },
         { name: 'Engine', engine: true, saved: { checkAutomatically: null, installAutomatically: null }, readable: true }
@@ -31,7 +31,12 @@ export default async function updateSettings(): Promise<void> {
     var selectedIndex = 0;
     var pending: CliUpdatePreferences[] = [];
     for (var scope of scopes) {
-        pending.push({ ...scope.saved });
+        var preference = { ...scope.saved };
+        if (options.setup) {
+            preference.checkAutomatically = preference.checkAutomatically === true;
+            preference.installAutomatically = preference.installAutomatically === true;
+        }
+        pending.push(preference);
     }
     var rows: { scopeIndex: number; field: keyof CliUpdatePreferences; label: string }[] = [];
     for (var scopeIndex = 0; scopeIndex < scopes.length; scopeIndex++) {
@@ -44,7 +49,9 @@ export default async function updateSettings(): Promise<void> {
     }
     values.push('save');
     while (true) {
-        setSetupLayout('Settings / Update permissions', 'Save applies changes. Esc discards unsaved edits.', '/velora/updates', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit');
+        var title = 'Settings / Update permissions';
+        if (options.setup) { title = 'Setup 2 of 5 / Automatic updates'; }
+        setSetupLayout(title, 'Save applies changes. Esc discards unsaved edits.', '/velora/updates', '↑/↓ Move · Enter Change · Esc Back · Ctrl+C Quit');
         var edit = createPrompt<CliUpdatePreferences[] | null, Record<string, never>>(function (_config, done) {
             var [draft, setDraft] = useState(pending);
             var selected = useListNavigation({ values, activateWithSpace: true, initialValue: values[selectedIndex],
@@ -125,7 +132,7 @@ export default async function updateSettings(): Promise<void> {
         });
         var draft = await edit({});
         if (!draft) {
-            return;
+            return false;
         }
         pending = draft;
         feedback = 'No changes.';
@@ -151,5 +158,8 @@ export default async function updateSettings(): Promise<void> {
                 break;
             }
         }
+        var allReadable = true;
+        for (var scope of scopes) { allReadable = allReadable && scope.readable; }
+        if (options.setup && allReadable && feedbackTone !== 'Error') { return true; }
     }
 }

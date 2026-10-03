@@ -19,11 +19,11 @@ try {
         assert.equal((await apiKeys({ operation: 'verify', key }, directory)).authorized, true);
         if (scenario === 'clipboard-throws') { throw new Error('Clipboard unavailable'); }
         return scenario !== 'clipboard';
-    });
+    }, { createOnly: scenario === 'first' });
     var stored = await apiKeys({ operation: 'list' }, directory);
     if (scenario === 'cancel' || scenario === 'revoke') { assert.equal(stored.keys.length, 0); }
     else { assert.equal(stored.keys.length, 1); }
-    if (scenario === 'create' || scenario === 'slow-clipboard' || scenario === 'required' || scenario === 'clipboard' || scenario === 'clipboard-throws' || scenario === 'resize') {
+    if (scenario === 'first' || scenario === 'create' || scenario === 'slow-clipboard' || scenario === 'required' || scenario === 'clipboard' || scenario === 'clipboard-throws' || scenario === 'resize') {
         assert.equal(stored.keys[0]?.name, 'Editor');
         assert.equal(stored.keys[0]?.note, 'My local app');
         assert.equal(copies, 1);

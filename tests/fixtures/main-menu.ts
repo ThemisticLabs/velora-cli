@@ -2,6 +2,7 @@ import { mock } from 'bun:test';
 import assert from 'node:assert/strict';
 
 var scenario = process.argv[2];
+mock.module('../../src/setup/onboarding.js', function () { return { default: async function () { return true; } }; });
 mock.module('../../src/system/menu-bar.js', function () {
     return { default: async function () { return { available: true, close: function () {} }; } };
 });

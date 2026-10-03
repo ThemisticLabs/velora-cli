@@ -3,7 +3,7 @@ import { spawn } from 'bun';
 import { stripVTControlCharacters } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['create', 'slow-clipboard', 'required', 'clipboard', 'clipboard-throws', 'cancel', 'resize', 'revoke', 'cancel-revoke'])('API key table and popup: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'create', 'slow-clipboard', 'required', 'clipboard', 'clipboard-throws', 'cancel', 'resize', 'revoke', 'cancel-revoke'])('API key table and popup: %s', async function (scenario) {
     var output = '';
     var rawOutput = '';
     var decoder = new TextDecoder();
@@ -47,6 +47,12 @@ test.skipIf(process.platform === 'win32').each(['create', 'slow-clipboard', 'req
                 if (panelTop === -1) { panelTop = currentPanelTop; panelBottom = currentPanelBottom; }
                 expect(currentPanelTop).toBe(panelTop);
                 expect(currentPanelBottom).toBe(panelBottom);
+            }
+            if (phase === 0 && scenario === 'first' && frame.includes('Create key')) {
+                phase = 2;
+                expect(frame).toContain('Setup 1 of 5');
+                terminal.write('Editor\r');
+                return;
             }
             if (phase === 0 && frame.includes('Add API key')) {
                 tableHeadingRow = headingRow;
@@ -115,6 +121,6 @@ test.skipIf(process.platform === 'win32').each(['create', 'slow-clipboard', 'req
         expect(await child.exited, output).toBe(0);
         expect(output).toContain('API keys verified.');
         expect(output).toContain('They do not encrypt processing.');
-        expect(output).toContain('Created');
+        if (scenario !== 'first') { expect(output).toContain('Created'); }
     } finally { clearTimeout(timer); child.kill(); child.terminal?.close(); }
 }, 10000);

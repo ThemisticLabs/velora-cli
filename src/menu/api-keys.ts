@@ -6,10 +6,12 @@ import setupDimensions from '../terminal/setup-dimensions.js';
 import select from '../setup/select-option.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 
-export default async function manageApiKeys(directory?: string, copy = copyClipboard): Promise<void> {
+export default async function manageApiKeys(directory?: string, copy = copyClipboard, options: { createOnly?: boolean } = {}): Promise<boolean | void> {
     var initialValue = 'add';
     while (true) {
-        setSetupLayout('API keys', 'Keys identify apps. They do not encrypt processing.', '/velora');
+        var title = 'API keys';
+        if (options.createOnly) { title = 'Setup 1 of 5 / First API key'; }
+        setSetupLayout(title, 'Keys identify apps. They do not encrypt processing.', '/velora');
         try {
             var stored = await apiKeys({ operation: 'list' }, directory);
         } catch {
@@ -25,7 +27,10 @@ export default async function manageApiKeys(directory?: string, copy = copyClipb
         }
         var columns = [{ title: 'Name' }, { title: 'Note' }, { title: 'Created', width: 10 }];
         var actions = [{ name: 'Add API key', value: 'add' }];
-        var selected = await select({ back: true, message: '', initialValue, choices, columns, actions, emptyMessage: 'No API keys yet.' });
+        var selected = 'add';
+        if (!options.createOnly) {
+            selected = await select({ back: true, message: '', initialValue, choices, columns, actions, emptyMessage: 'No API keys yet.' });
+        }
         if (selected === 'back') { return; }
         initialValue = selected;
         var detail = '';
@@ -37,10 +42,12 @@ export default async function manageApiKeys(directory?: string, copy = copyClipb
             return renderList({ rows, columns, actions, selected, width: dimensions.contentWidth, height: dimensions.contentRows, detail });
         };
         if (selected === 'add') {
+            var createdKey = false;
             await popup({ title: 'Add API key', description: 'Name the application and add an optional note.', background,
                 fields: [{ name: 'name', label: 'Name', required: true, maxLength: MAX_KEY_NAME_LENGTH }, { name: 'note', label: 'Note', maxLength: MAX_KEY_NOTE_LENGTH }],
                 submit: 'Create key', onSubmit: async function (values, showResult) {
                     var created = await apiKeys({ operation: 'create', name: values.name || '', note: values.note || '' }, directory);
+                    createdKey = true;
                     showResult({ message: 'Key created.', secret: created.key });
                     var copied = false;
                     try { copied = await copy(created.key!); } catch {}
@@ -48,6 +55,7 @@ export default async function manageApiKeys(directory?: string, copy = copyClipb
                     return { message: 'Clipboard unavailable. Copy this key before closing.', secret: created.key };
                 }
             });
+            if (options.createOnly) { return createdKey; }
             continue;
         }
         for (var key of stored.keys) {

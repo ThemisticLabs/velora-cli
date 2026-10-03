@@ -2,10 +2,7 @@ import { mock } from 'bun:test';
 import assert from 'node:assert/strict';
 
 var scenario = process.argv[2];
-var choices = ['license', 'saved', 'download', 'yes', 'no'];
-if (scenario === 'corrupt-preferences') {
-    choices = ['license', 'saved', 'download', 'continue'];
-}
+var choices = ['license', 'saved', 'download'];
 if (scenario === 'navigation') {
     choices = ['public', 'back', 'license', 'saved', 'retry', 'saved', 'back', 'download', 'license', 'saved'];
 }
@@ -20,7 +17,6 @@ if (scenario === 'all-installed') {
 var checks = 0;
 var lists = 0;
 var downloads = 0;
-var saved = false;
 mock.module('../../src/setup/select-option.js', function () {
     return { default: async function (config: { back?: boolean; choices: { value: string }[] }) {
         var choice = choices.shift();
@@ -71,14 +67,6 @@ mock.module('../../src/setup/download-screen.js', function () {
         return 'complete';
     } };
 });
-mock.module('../../src/updates/engine-update-preferences.js', function () {
-    return { default: async function (preferences?: unknown) {
-        if (scenario === 'corrupt-preferences') { throw new Error('Unreadable preferences'); }
-        if (!preferences) { return null; }
-        assert.deepEqual(preferences, { checkAutomatically: true, installAutomatically: false });
-        saved = true;
-    } };
-});
 mock.module('../../src/models/installed-models.js', function () {
     return { default: async function () {
         if (scenario === 'all-installed') {
@@ -102,7 +90,6 @@ if (scenario === 'all-installed') {
 } else {
     assert.equal(downloads, 1);
 }
-assert.equal(saved, scenario === 'complete');
 if (scenario === 'navigation') {
     assert.equal(checks, 3);
     assert.equal(lists, 4);
