@@ -11,7 +11,17 @@ import licenseCommand from './commands/license-command.js';
 import doctor from './commands/doctor.js';
 import style from './terminal/style.js';
 import header from './terminal/header.js';
+import serviceCommand from './commands/service-command.js';
+import serviceWorker from './service/service-worker.js';
 
+if (process.argv[2] === '--service-worker' && process.argv[3]) {
+    try {
+        await serviceWorker(process.argv[3]);
+    } catch {
+        process.exitCode = 1;
+    }
+    process.exit(process.exitCode || 0);
+}
 if (process.argv[2] === '--self-test') {
     try { await selfTest(process.argv[3]); }
     catch { process.stderr.write('velora self-test failed. Saved data was not changed.\n'); process.exit(1); }
@@ -96,6 +106,20 @@ program.command('doctor')
     .action(function () {
         return doctor();
     });
+
+var serve = program.command('serve')
+    .description('Control the independent local service; the HTTP API is not connected yet');
+serve.command('start')
+    .description('Start the independent service')
+    .requiredOption('--headless', 'Keep the service running after this terminal closes')
+    .action(function () { return serviceCommand('start'); });
+serve.command('status')
+    .description('Show whether the local service is running')
+    .action(function () { return serviceCommand('status'); });
+serve.command('stop')
+    .description('Stop the independent local service')
+    .action(function () { return serviceCommand('stop'); });
+serve.action(function () { serve.outputHelp(); });
 
 var license = program.command('license')
     .description('Manage your saved license and check device capacity');

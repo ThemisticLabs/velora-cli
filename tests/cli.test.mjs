@@ -127,3 +127,14 @@ test('license commands are discoverable and never accept a key as an argument', 
         assert.doesNotMatch(argument.stdout + argument.stderr, /TEST-ONLY-KEY/);
     }
 });
+
+test('service commands expose the headless lifecycle without claiming an API', function () {
+    for (var args of [['serve'], ['serve', 'start', '--help'], ['serve', 'status', '--help'], ['serve', 'stop', '--help']]) {
+        var result = spawnSync(CLI_PATH, args, { cwd: tmpdir(), encoding: 'utf8' });
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /serve/);
+    }
+    var result = spawnSync(CLI_PATH, ['serve', 'start'], { cwd: tmpdir(), encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--headless/);
+});
