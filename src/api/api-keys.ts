@@ -3,6 +3,7 @@ import { lstat, mkdir, mkdtemp, open, readFile, rename, rm } from 'node:fs/promi
 import { join } from 'node:path';
 import syncDirectory from '../system/sync-directory.js';
 import dataDirectory from '../system/data-directory.js';
+import directoryLock, { type DirectoryLease } from '../system/directory-lock.js';
 
 export var MAX_KEY_NAME_LENGTH = 64;
 export var MAX_KEY_NOTE_LENGTH = 256;
@@ -36,10 +37,10 @@ export default async function apiKeys(action: Action, directory = dataDirectory(
     }
     var path = join(directory, 'api-keys.json');
     var lockPath = join(directory, '.api-keys.lock');
-    var lock;
+    var lock: DirectoryLease | undefined;
     var committed = false;
     if (mutating) {
-        lock = await open(lockPath, 'wx', 0o600);
+        lock = await directoryLock({ operation: 'acquire', path: lockPath });
     }
     try {
         var records: KeyRecord[] = [];
@@ -56,7 +57,9 @@ export default async function apiKeys(action: Action, directory = dataDirectory(
                 if (stored && typeof stored === 'object' && !Array.isArray(stored) && 'schemaVersion' in stored && stored.schemaVersion === 1 &&
                     'revision' in stored && typeof stored.revision === 'number' && Number.isSafeInteger(stored.revision) && stored.revision >= 1 && 'keys' in stored) {
                     var checksum = createHash('sha256').update(JSON.stringify({ revision: stored.revision, keys: stored.keys })).digest('hex');
-                    if (!('checksum' in stored) || stored.checksum !== checksum) { throw new Error('API key storage checksum mismatch.'); }
+                    if (!('checksum' in stored) || stored.checksum !== checksum) {
+                        throw new Error('API key storage checksum mismatch.');
+                    }
                     candidateRevision = stored.revision;
                     stored = stored.keys;
                 }
@@ -80,12 +83,19 @@ export default async function apiKeys(action: Action, directory = dataDirectory(
                     candidateRecords.push({ id: storedRecord.id, name: storedRecord.name, note: storedRecord.note,
                         createdAt: storedRecord.createdAt, digest: storedRecord.digest });
                 }
-                if (candidateRevision > revision) { revision = candidateRevision; records = candidateRecords; }
+                if (candidateRevision > revision) {
+                    revision = candidateRevision;
+                    records = candidateRecords;
+                }
             } catch (error) {
-                if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) { unreadable = true; }
+                if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+                    unreadable = true;
+                }
             }
         }
-        if (revision === -1 && unreadable) { throw new Error('Could not read API keys or their backup. Restore a valid copy before changing keys.'); }
+        if (revision === -1 && unreadable) {
+            throw new Error('Could not read API keys or their backup. Restore a valid copy before changing keys.');
+        }
         var result: { keys: ApiKey[]; key?: string; authorized?: boolean } = { keys: [] };
         if (action.operation === 'create') {
             var KEY_BYTES = 32;
@@ -103,13 +113,17 @@ export default async function apiKeys(action: Action, directory = dataDirectory(
                 }
                 remaining.push(record);
             }
-            if (!found) { throw new Error('This API key no longer exists.'); }
+            if (!found) {
+                throw new Error('This API key no longer exists.');
+            }
             records = remaining;
         }
         if (mutating) {
             var temporary = await mkdtemp(join(directory, '.api-keys-'));
             try {
-                if (revision === Number.MAX_SAFE_INTEGER) { throw new Error('API key storage revision cannot advance. Restore an earlier backup.'); }
+                if (revision === Number.MAX_SAFE_INTEGER) {
+                    throw new Error('API key storage revision cannot advance. Restore an earlier backup.');
+                }
                 var nextRevision = Math.max(0, revision) + 1;
                 var checksum = createHash('sha256').update(JSON.stringify({ revision: nextRevision, keys: records })).digest('hex');
                 var content = JSON.stringify({ schemaVersion: 1, revision: nextRevision, checksum, keys: records }) + '\n';
@@ -118,23 +132,38 @@ export default async function apiKeys(action: Action, directory = dataDirectory(
                 }
                 for (var name of ['backup', 'primary']) {
                     var file = await open(join(temporary, name), 'wx', 0o600);
-                    try { await file.writeFile(content); await file.sync(); } finally { await file.close(); }
+                    try {
+                        await file.writeFile(content);
+                        await file.sync();
+                    } finally {
+                        await file.close();
+                    }
                 }
                 await rename(join(temporary, 'backup'), path + '.backup');
                 await syncDirectory(directory);
                 committed = true;
                 // The synced backup commits the revision. Readers also accept it if the primary replacement fails.
-                try { await rename(join(temporary, 'primary'), path); await syncDirectory(directory); } catch {}
+                try {
+                    await rename(join(temporary, 'primary'), path);
+                    await syncDirectory(directory);
+                } catch {}
             } finally {
-                try { await rm(temporary, { recursive: true, force: true }); }
-                catch (error) { if (!committed) { throw error; } }
+                try {
+                    await rm(temporary, { recursive: true, force: true });
+                } catch (error) {
+                    if (!committed) {
+                        throw error;
+                    }
+                }
             }
         }
         if (action.operation === 'verify') {
             result.authorized = false;
             var digest = createHash('sha256').update(action.key).digest();
             for (var record of records) {
-                if (timingSafeEqual(digest, Buffer.from(record.digest, 'hex'))) { result.authorized = true; }
+                if (timingSafeEqual(digest, Buffer.from(record.digest, 'hex'))) {
+                    result.authorized = true;
+                }
             }
         }
         for (var record of records) {
@@ -143,8 +172,13 @@ export default async function apiKeys(action: Action, directory = dataDirectory(
         return result;
     } finally {
         if (lock) {
-            try { await lock.close(); await rm(lockPath, { force: true }); }
-            catch (error) { if (!committed) { throw error; } }
+            try {
+                await directoryLock({ operation: 'release', path: lockPath, lease: lock });
+            } catch (error) {
+                if (!committed) {
+                    throw error;
+                }
+            }
         }
     }
 }

@@ -102,3 +102,30 @@ test('API key storage migrates legacy hashes and refuses to replace two corrupt 
         expect(await readFile(path + '.backup', 'utf8')).toBe('broken');
     } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+test('API key writes recover a lock after its owning process is killed', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-api-crash-lock-'));
+    var source = new URL('../src/system/directory-lock.ts', import.meta.url).href;
+    var script = 'import directoryLock from ' + JSON.stringify(source) + ';';
+    script += 'await directoryLock({ operation: "acquire", path: ' + JSON.stringify(join(directory, '.api-keys.lock')) + ' });';
+    script += 'process.stdout.write("ready\\n"); await Bun.sleep(60000);';
+    var child = Bun.spawn([process.execPath, '-e', script], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' });
+    try {
+        var reader = child.stdout.getReader();
+        var ready = await reader.read();
+        reader.releaseLock();
+        expect(new TextDecoder().decode(ready.value)).toBe('ready\n');
+        await expect(apiKeys({ operation: 'create', name: 'Blocked', note: '' }, directory)).rejects.toThrow('Another operation');
+        child.kill('SIGKILL');
+        await child.exited;
+        var created = await apiKeys({ operation: 'create', name: 'Recovered', note: '' }, directory);
+        expect((await apiKeys({ operation: 'verify', key: created.key! }, directory)).authorized).toBe(true);
+        await apiKeys({ operation: 'revoke', id: created.keys[0]!.id }, directory);
+        expect((await apiKeys({ operation: 'verify', key: created.key! }, directory)).authorized).toBe(false);
+    } finally {
+        child.kill('SIGKILL');
+        await child.exited;
+        await rm(directory, { recursive: true, force: true });
+    }
+});
