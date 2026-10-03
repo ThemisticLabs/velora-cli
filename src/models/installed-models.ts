@@ -1,3 +1,4 @@
+import syncDirectory from '../system/sync-directory.js';
 import { lstat, mkdtemp, open, readdir, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import dataDirectory from '../system/data-directory.js';
@@ -147,6 +148,7 @@ export default async function installedModels(action: ModelAction, directory = d
                     await file.close();
                 }
                 await rename(path, selectionPath);
+                await syncDirectory(directory);
             } finally {
                 await rm(temporary, { recursive: true, force: true });
             }

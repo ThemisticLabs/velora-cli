@@ -1,5 +1,6 @@
 import { lstat, mkdir, mkdtemp, open, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import syncDirectory from '../system/sync-directory.js';
 import dataDirectory from '../system/data-directory.js';
 
 export type CliUpdatePreferences = { checkAutomatically: boolean | null; installAutomatically: boolean | null };
@@ -51,6 +52,7 @@ export default async function cliUpdatePreferences(preferences?: CliUpdatePrefer
             }
             signal?.throwIfAborted();
             await rename(temporaryPath, path);
+            await syncDirectory(directory);
         } finally {
             await rm(temporary, { recursive: true, force: true });
         }
