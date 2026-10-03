@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor'])('main menu terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor', 'api-keys'])('main menu terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var recoverySent = false;
@@ -22,11 +22,20 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                     terminal.write('\u0003');
                     return;
                 }
+                if (scenario === 'api-keys') {
+                    terminal.write('\u001b[B\r');
+                    return;
+                }
                 if (scenario === 'resize') {
                     terminal.resize(40, 10);
                     return;
                 }
                 terminal.write('\r');
+                return;
+            }
+            if (scenario === 'api-keys' && phase === 1 && frame.includes('Selected model:')) {
+                phase++;
+                terminal.write('\u0003');
                 return;
             }
             if (scenario === 'resize') {
@@ -50,7 +59,7 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                 } else if (scenario === 'offline' || scenario === 'current') {
                     terminal.write('\u001b[B\u001b[B\u001b[B\r');
                 } else if (scenario === 'doctor') {
-                    terminal.write('\u001b[A\u001b[A\r');
+                    terminal.write('\u001b[A\r');
                 } else {
                     terminal.write('\u001b[B\u001b[B\r');
                 }

@@ -9,7 +9,7 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 export default async function manageApiKeys(directory?: string, copy = copyClipboard): Promise<void> {
     var initialValue = 'add';
     while (true) {
-        setSetupLayout('Settings / API keys', 'Keys identify apps. They do not encrypt processing.', '/velora');
+        setSetupLayout('API keys', 'Keys identify apps. They do not encrypt processing.', '/velora');
         try {
             var stored = await apiKeys({ operation: 'list' }, directory);
         } catch {

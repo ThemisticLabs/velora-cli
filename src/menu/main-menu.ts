@@ -10,6 +10,7 @@ import installedModels, { type InstalledModel } from '../models/installed-models
 import setupDimensions, { MIN_COLUMNS, MIN_ROWS } from '../terminal/setup-dimensions.js';
 import setSetupLayout from '../terminal/set-setup-layout.js';
 import menuBar from '../system/menu-bar.js';
+import manageApiKeys from './api-keys.js';
 
 export default async function mainMenu(startSetup = false): Promise<void> {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -79,8 +80,15 @@ export default async function mainMenu(startSetup = false): Promise<void> {
                 if (selected) {
                     title = 'Selected model: ' + selected.name;
                 }
-                setSetupLayout(title, '', '/velora', 'Enter Settings · Ctrl+C Quit');
-                await select({ message: '', choices: [{ name: 'Settings', value: 'settings' }] });
+                setSetupLayout(title, '', '/velora', FOOTER);
+                var choice = await select({ message: '', choices: [
+                    { name: 'Settings', value: 'settings' },
+                    { name: 'API keys', value: 'keys' }
+                ] });
+                if (choice === 'keys') {
+                    await manageApiKeys();
+                    continue;
+                }
                 await settingsMenu();
             } catch (error) {
                 if (error instanceof Error && ['ExitPromptError', 'AbortPromptError'].includes(error.name)) {

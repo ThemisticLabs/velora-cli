@@ -10,6 +10,10 @@ var licenseCalls = 0;
 var updateCalls = 0;
 var engineCalls = 0;
 var doctorCalls = 0;
+var apiKeyCalls = 0;
+mock.module('../../src/menu/api-keys.js', function () {
+    return { default: async function () { apiKeyCalls++; } };
+});
 var models = [{ id: 'skira7alpha', name: 'Skira 7 Alpha', version: '1', revision: 'r1', sequence: 1, engineVersion: '0.1.1', selected: true }];
 if (scenario === 'switch') {
     for (var index = 1; index <= 12; index++) {
@@ -88,6 +92,7 @@ if (scenario === 'delete') {
     assert.equal(models.length, 1);
 }
 assert.equal(doctorCalls, Number(scenario === 'doctor'));
+assert.equal(apiKeyCalls, Number(scenario === 'api-keys'));
 assert.equal(licenseCalls, Number(scenario === 'license'));
 assert.equal(updateCalls, Number(scenario === 'offline' || scenario === 'current'));
 process.stdout.write('Menu verified.\n');
