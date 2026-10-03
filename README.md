@@ -6,6 +6,7 @@ Local anonymization for the tools you already use.
 
 velora is an open-source CLI from Themistic, being built to run model families such as Skira and Veyra on your device and make them available through a local API.
 <img width="1179" height="761" alt="velora CLI development screenshot" src="https://github.com/user-attachments/assets/23185312-759a-44a4-94c8-f10075d08203" />
+
 ## Planned workflow
 
 The planned workflow will guide you from choosing a model to creating an API key for your tools. velora is designed to guide you through model downloads and license activation, with commands to check, pause, and resume the local service. On macOS, a small menu bar control will keep its status close at hand.
@@ -40,7 +41,8 @@ The menu shows the selected model and current service state, followed by **Start
 
 Deleting a model removes its local package. The shared engine, its update permissions, saved license and device identity remain. Update checks and permissions for velora and the engine stay separate; automatic velora installation is available with explicit consent. Automatic engine installation is not connected.
 
-screenshot settings
+<img width="1055" height="711" alt="VeloraCliSettings" src="https://github.com/user-attachments/assets/697fffd2-32e6-45d7-881f-dbcad5608634" />
+
 
 ## Independent service
 
@@ -73,7 +75,8 @@ Stop waits for active processing and response completion before closing the engi
 
 Open **API keys** in the main menu for the key table. Choose **Add API key** to open a popup, enter a name and an optional note, then select **Create key**. The new key appears immediately in the popup and is copied to the clipboard automatically. It stays visible until you close the popup, including when copying fails. Keys cannot be retrieved later. Select an existing row to revoke that application's key after confirmation.
 
-screenshot api tabelle
+<img width="1055" height="711" alt="VeloraCliApiKeys" src="https://github.com/user-attachments/assets/24531d5b-6e66-4c71-bc08-d4816c18c094" />
+
 
 API keys identify applications and separate their access. They do not encrypt requests, responses or processing. Key metadata and SHA-256 hashes are stored in `api-keys.json` and a recovery copy with restricted file permissions. Plaintext keys are never saved. Both copies carry a revision and checksum; the latest valid revision is used if one copy is damaged. If both are unreadable, changes are refused. This is a file store, not a database. Names and notes are not encrypted. License keys remain in the system credential store. Creating an application key does not start the HTTP service.
 
