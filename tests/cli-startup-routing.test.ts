@@ -8,6 +8,9 @@ var COMMANDS = [
     { args: ['--help'], expected: 'Usage: velora' },
     { args: ['doctor'], expected: 'Fixture doctor called.' },
     { args: ['license', 'status'], expected: 'Fixture license called.' },
+    { args: ['models', 'list'], expected: 'Fixture models called.' },
+    { args: ['models', 'install', 'model-a'], expected: 'Fixture models called.' },
+    { args: ['models', 'select', 'model-a'], expected: 'Fixture models called.' },
     { args: ['setup', '--help'], expected: 'Usage: velora setup' }
 ];
 test.skipIf(process.platform === 'win32').each(COMMANDS)('explicit command bypasses pending startup work: $args', async function (command) {

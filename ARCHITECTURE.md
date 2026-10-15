@@ -14,7 +14,7 @@ Setup sends the entered key over HTTPS for a signed read-only access check and d
 src/
   cli.ts       Command registration and startup
   api/         Loopback HTTP listener, response adaptation, keys and port
-  commands/    Doctor, license and service commands
+  commands/    Doctor, license, model and service commands
   service/     Independent worker and private local lifecycle control
   menu/        Main menu, settings and cancellable menu tasks
   models/      Installed package inventory, selection and deletion
@@ -33,6 +33,7 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | File | Responsibility |
 | --- | --- |
 | `src/cli.ts` | Configure Commander, register commands, and dispatch arguments. |
+| `src/commands/model-command.ts` | Run noninteractive model listing, licensed installation and selection through the existing model and license modules. |
 | `src/setup/setup.ts` | Own the setup flow, prompt theme, model access checks and update permission prompts. |
 | `src/terminal/set-setup-layout.ts` | Store the screen title, detail, F1 target and shared default footer. |
 | `src/terminal/setup-dimensions.ts` | Define terminal limits and derive available content space from the rendered header. |
@@ -62,9 +63,14 @@ arguments
     version              -> package version
     unknown command      -> error and spelling suggestion
     setup                -> setup, then main menu
+    models list          -> installed models, or licensed models with --available
+    models install <id>  -> verified installation using the saved license
+    models select <id>   -> persist selection while the service is stopped
 ```
 
 Commander owns argument parsing and suggestions. `package.json` is the version source for both command output and the header. The source imports use `.js` extensions under the NodeNext TypeScript configuration; they resolve to the TypeScript modules during development and bundling. They do not require duplicate hand-maintained JavaScript files.
+
+Model commands do not enter interactive startup or update recovery. Local listing and selection do not read credentials or contact the network. Online listing and installation reuse `manage-license.ts` and `download-model.ts`; they preserve signature checks, installation receipts and model locks. Installation does not change an existing selection. `list --json` writes only the array to stdout, while progress and errors use stderr. Failures, cancellation and incomplete cleanup return nonzero exit codes.
 
 ## Setup lifecycle
 

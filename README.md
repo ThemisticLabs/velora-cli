@@ -44,6 +44,25 @@ Deleting a model removes its local package. The shared engine, its update permis
 <img width="1055" height="711" alt="VeloraCliSettings" src="https://github.com/user-attachments/assets/697fffd2-32e6-45d7-881f-dbcad5608634" />
 
 
+## Model commands
+
+List, install and select models without opening the interactive menu:
+
+```sh
+velora models list
+velora models list --available
+velora models install skira7alpha
+velora models select skira7alpha
+```
+
+`list` reads installed models locally and marks the selected model. Add `--available` to check the models included in your saved license, including download availability and installation status. Both forms accept `--json`; progress and errors go to stderr so stdout contains only the JSON array. A failed command exits nonzero.
+
+Online checks and installation use the license saved by `velora license set`. They may download the verified standalone engine first. License keys are not accepted as command arguments. Model identifiers come from `list --available`; the example requires that model to be included in your license.
+
+`install` downloads and verifies the model without prompting and may register this device with your license. An already installed model is kept. Installing another model preserves the saved selection; use `select` to change it. A single installed model is selected automatically when no selection has been saved. Stop the service before changing the selection. These commands do not start or reload the service. After selection, use `velora serve start --headless` to load the model and start the API.
+
+Ctrl+C cancels an online operation with exit code 130; SIGTERM uses 143. Partial downloads and engine locks may remain after interruption. Inspect them before retrying. If installation succeeds but cleanup fails, the command reports the installed model and exits nonzero with a cleanup warning.
+
 ## Independent service
 
 The independent service process can be started, checked and stopped:

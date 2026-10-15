@@ -23,4 +23,7 @@ mock.module('../../src/commands/doctor.js', function () {
 mock.module('../../src/commands/license-command.js', function () {
     return { default: async function () { process.stdout.write('Fixture license called.\n'); } };
 });
+mock.module('../../src/commands/model-command.js', function () {
+    return { default: async function () { process.stdout.write('Fixture models called.\n'); } };
+});
 await import('../../src/cli.js');

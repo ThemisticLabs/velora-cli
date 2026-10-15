@@ -119,6 +119,8 @@ Menu tests use isolated credential and network fixtures. Storage tests cover sel
 
 ## Engine integration tests
 
+Model command tests cover offline listing, JSON output, persisted selection, service locks, licensed download dispatch, cancellation and failure exit codes. They use temporary storage and synthetic license/engine fixtures. `models list --available` and `models install <id>` use the saved system credential; tests must not read a developer's real license or register a production device.
+
 The regular tests use generated signing keys, synthetic packages and a compiled fixture process. They do not contact the production license server. Package extraction uses yauzl; yazl is only a test dependency for creating archives.
 
 To exercise a locally built macOS Engine 0.4.2 through the real velora bridge:

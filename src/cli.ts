@@ -12,6 +12,7 @@ import doctor from './commands/doctor.js';
 import style from './terminal/style.js';
 import header from './terminal/header.js';
 import serviceCommand from './commands/service-command.js';
+import modelCommand from './commands/model-command.js';
 import serviceWorker from './service/service-worker.js';
 import menuBarWorker from './system/menu-bar-worker.js';
 import menuBar from './system/menu-bar.js';
@@ -138,6 +139,29 @@ serve.command('stop')
     .description('Stop the independent local service')
     .action(function () { return serviceCommand('stop'); });
 serve.action(function () { serve.outputHelp(); });
+
+var models = program.command('models')
+    .description('List, install and select models without interactive prompts');
+models.command('list')
+    .description('List installed models, or models included in your saved license')
+    .option('--available', 'Check licensed models online; may download the verified engine')
+    .option('--json', 'Write the model list as JSON')
+    .action(function (options: { available?: boolean; json?: boolean }) {
+        return modelCommand({ operation: 'list', available: options.available, json: options.json });
+    });
+models.command('install <id>')
+    .description('Download and verify a licensed model; may register this device')
+    .action(function (id: string) {
+        return modelCommand({ operation: 'install', id });
+    });
+models.command('select <id>')
+    .description('Select an installed model while the service is stopped')
+    .action(function (id: string) {
+        return modelCommand({ operation: 'select', id });
+    });
+models.action(function () {
+    models.outputHelp();
+});
 
 var license = program.command('license')
     .description('Manage your saved license and check device capacity');
