@@ -122,7 +122,7 @@ export default async function serviceWorker(directory: string, loadEngine = serv
             api = await listen(paths.directory, function () {
                 if (stopping || state.state !== 'running') { return; }
                 return engine;
-            });
+            }, undefined, token);
             engine = await loadEngine(paths.directory, engineController.signal);
             if (engine && !stopping) {
                 state = { state: 'running', pid: process.pid, model: engine.model, engineVersion: engine.engineVersion, port: api.port };

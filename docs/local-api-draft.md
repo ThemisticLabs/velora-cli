@@ -15,6 +15,8 @@ Content-Type: application/json
 
 The main menu provides key creation and individual revocation. Keys have a name and optional note. A new key is shown immediately and copied to the clipboard. Only SHA-256 digests and metadata are persisted; plaintext keys cannot be retrieved later.
 
+The local CLI and its Anonymize text screen reuse the private service token from the restricted `service.json` record. They authenticate through an internal `x-velora-control-token` header, scoped to that running service instance, after checking status through the existing private control channel. This does not create an application key or change license authorization. External applications should use their own Bearer API keys. Browser, Host, input-size, concurrency and response-validation checks also apply to internal requests.
+
 API keys authenticate requests and let users manage access separately for each application. They do not encrypt text, mappings or responses. Requests use HTTP over loopback, and anonymization happens locally. License checks can contact the license server; local processing does not mean that every operation is offline.
 
 The first implementation rejects requests containing Origin or Sec-Fetch-Site and provides no CORS permission. Browser access is not enabled. Host must exactly match 127.0.0.1:{running port}; DNS names are rejected. Loopback binding alone does not prevent other programs on the device from making requests.

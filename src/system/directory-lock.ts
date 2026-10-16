@@ -77,6 +77,8 @@ export default async function directoryLock(action: Claim | Cleanup): Promise<Di
         }
         var CLAIM_ATTEMPTS = 3;
         for (var attempt = 0; attempt < CLAIM_ATTEMPTS; attempt++) {
+            // Windows directory renames can replace files, including legacy locks.
+            await lockOwners(action.path);
             try {
                 await rename(temporary, action.path);
                 published = true;

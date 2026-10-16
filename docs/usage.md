@@ -4,11 +4,32 @@
 
 ## Main menu
 
-The menu shows the selected model and current service state, followed by **Start** or **Stop**, **API keys**, then **Settings**. Service status refreshes while the main menu is open, including changes made from another terminal. Start uses the same independent service as `velora serve start --headless`; opening the menu does not start it. Stop waits for active requests. Ctrl+C closes only the interactive session, including during a service startup or shutdown wait.
+The menu shows the selected model and current service state, followed by **Start** or **Stop**, **Anonymize text**, **API keys**, then **Settings**. Service status refreshes while the main menu is open, including changes made from another terminal. Start uses the same independent service as `velora serve start --headless`; opening the menu does not start it. Stop waits for active requests. Ctrl+C closes only the interactive session, including during a service startup or shutdown wait.
 
 Use `velora settings` to open the settings page directly. Settings let you change your license, switch between installed models, install another model, delete a model after confirmation, edit update permissions, and check for velora and engine updates. Permissions are edited together with On/Off rows and an explicit Save changes action. Esc goes back and discards unsaved edits; Ctrl+C closes velora.
 
 Selection is saved locally. Installed-model lists show model versions. New model versions are separate choices, not updates to an installed model. Update checks show installed and available versions separately. Available shows `Not checked`, a newer version, `Up to date` after a successful check, or `Unavailable` when verification fails. The engine runs temporarily for license checks and installation. Selecting a model does not load it for inference.
+
+## Anonymize text
+
+Choose **Anonymize text** in the main menu to enter a single line. If the service is stopped, the screen offers **Start service** before asking for text. Enter submits the text; Esc returns. The input accepts up to 4096 characters. Errors offer a retry and keep the entered text available for editing.
+
+The result supports ↑/↓ scrolling and Home/End. Press **M** to toggle the mapping, **C** to copy the anonymized text, Enter for another input or Esc to return. Mapping shows original values; copying always copies only the anonymized text. Input and results are not saved by the menu.
+
+For UTF-8 files, multiline text or pipelines, use the running service from your terminal:
+
+```sh
+velora anonymize input.txt
+velora anonymize < input.txt > anonymized.txt
+printf 'Hallo Anna Müller.' | velora anonymize --json
+velora anonymize input.txt --mapping > result.json
+```
+
+With no file argument or with `-`, the command reads stdin until EOF. A file argument reads that file. Plain output preserves the returned text without adding a newline. `--json` returns a JSON object containing `text`; `--mapping` adds the original-value mapping and implies JSON output. Progress and errors do not appear on stdout. The command writes no files itself; shell redirection chooses where output is saved.
+
+Start the service with `velora serve start --headless` first. The command reuses its loaded model and authenticates using the current private service record. It does not create an application API key, read the license store, download packages or start a second engine. Other applications still use their application API keys.
+
+Input must be valid UTF-8 and fit both the 1.6 MiB raw-input limit and the 1.6 MiB encoded JSON body limit. JSON escaping can make the encoded body larger than the file. The service also enforces its existing engine-message limit and single processing slot. Oversized or invalid input, service errors and output-pipe failures exit with code 1 and a plain stderr message. SIGINT uses 130 and SIGTERM uses 143. Cancellation closes the client wait; an engine request already running in the independent service may finish and continues to occupy the processing slot until it settles.
 
 ## Manage models
 

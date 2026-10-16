@@ -2,6 +2,9 @@ import { mock } from 'bun:test';
 
 var scenario = process.argv[2];
 process.argv.splice(2, 1);
+mock.module('../../src/system/menu-bar.js', function () {
+    return { default: async function () { return { available: true }; } };
+});
 mock.module('../../src/updates/recover-cli-update.js', function () {
     return { default: async function () {
         process.stdout.write('Fixture recovery called.\n');
@@ -25,5 +28,8 @@ mock.module('../../src/commands/license-command.js', function () {
 });
 mock.module('../../src/commands/model-command.js', function () {
     return { default: async function () { process.stdout.write('Fixture models called.\n'); } };
+});
+mock.module('../../src/commands/anonymize-command.js', function () {
+    return { default: async function () { process.stdout.write('Fixture anonymize called.\n'); } };
 });
 await import('../../src/cli.js');

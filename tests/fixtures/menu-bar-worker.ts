@@ -8,6 +8,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 Object.defineProperty(process, 'platform', { value: 'darwin' });
+mock.module('../../src/system/sync-directory.js', function () {
+    return { default: async function () {} };
+});
 var directory = await mkdtemp(join(tmpdir(), 'velora-menubar-test-'));
 var native = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), kill: function () { native.emit('close', 0); } });
 var launch = function () { setTimeout(function () { native.stdout.write('ready\n'); }, 0); return native; } as unknown as typeof spawn;

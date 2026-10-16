@@ -13,6 +13,7 @@ import style from './terminal/style.js';
 import header from './terminal/header.js';
 import serviceCommand from './commands/service-command.js';
 import modelCommand from './commands/model-command.js';
+import anonymizeCommand from './commands/anonymize-command.js';
 import serviceWorker from './service/service-worker.js';
 import menuBarWorker from './system/menu-bar-worker.js';
 import menuBar from './system/menu-bar.js';
@@ -124,6 +125,14 @@ program.command('doctor')
     .description('Check your system, global command, storage, local API port, server connection and saved license')
     .action(function () {
         return doctor();
+    });
+
+program.command('anonymize [file]')
+    .description('Anonymize UTF-8 text from a file or stdin through the running service')
+    .option('--json', 'Write the response as JSON')
+    .option('--mapping', 'Include original values and occurrences; implies --json')
+    .action(function (file: string | undefined, options: { json?: boolean; mapping?: boolean }) {
+        return anonymizeCommand({ file, json: options.json, mapping: options.mapping });
     });
 
 var serve = program.command('serve')

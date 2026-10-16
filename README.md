@@ -15,6 +15,7 @@ velora handles setup, model installation and the service lifecycle. The shared T
 ## What it provides
 
 - **Guided setup.** Create an application API key, choose update permissions, verify a license and download a model from one terminal flow.
+- **Direct anonymization.** Try a line of text in the menu, process a UTF-8 file or pipe text through `velora anonymize`.
 - **A local HTTP API.** Send JSON to `POST /anonymize`. Each application uses its own API key, and responses can include the original-value mapping when requested.
 - **An independent service.** Load a model once and keep it ready for requests. Closing the terminal or the interactive menu leaves the service running.
 - **Model management.** List, install and select models through commands, or use Settings to switch and delete installed models. One shared engine serves your installed models.
@@ -51,7 +52,21 @@ velora serve start --headless
 
 Start reports ready after the selected model is loaded and shows the actual API address. The default is `http://127.0.0.1:8001`. If setup or startup fails, `velora doctor` checks storage, the saved license, engine and selected model and reports a next step for checks that need attention.
 
-## Send your first request
+## Anonymize text from the terminal
+
+With the service running, process a UTF-8 file or stdin:
+
+```sh
+velora anonymize input.txt > anonymized.txt
+printf 'Hallo Anna Müller.' | velora anonymize
+velora anonymize input.txt --mapping > result.json
+```
+
+The default output is the anonymized text, with no status messages on stdout. `--json` returns a JSON response; `--mapping` includes original values and occurrences and implies JSON output. These local commands authenticate through the private service record, so you do not need to copy an application API key into your shell.
+
+For a quick interactive test, choose **Anonymize text** in the main menu. Start the service when offered, enter one line and inspect the result. You can show the mapping, copy the anonymized text or try another input. Use the command for files and multiline text. See [Usage](docs/usage.md#anonymize-text) for limits and cancellation.
+
+## Call the API from your application
 
 Set `VELORA_API_KEY` to the application API key shown during setup, then send a request from your local application or terminal:
 

@@ -29,7 +29,7 @@ velora-cli/
     cli.ts          CLI entry point
     api/            Local API settings, keys and request handling
     service/        Independent API service and control
-    commands/       Doctor, license, model and service commands
+    commands/       Anonymize, Doctor, license, model and service commands
     menu/           Main menu and settings
     models/         Installed model selection and deletion
     setup/          Guided setup and model selection
@@ -119,6 +119,8 @@ Run `bun run start` in a terminal. A saved license opens the main menu; without 
 Menu tests use isolated credential and network fixtures. Storage tests cover selection persistence, deletion scope, held installation locks, missing packages and symlinks. Keep tests away from real licenses and installed models.
 
 ## Engine integration tests
+
+Direct anonymization tests use a real private control channel and loopback HTTP server with a synthetic service engine. They check compiled file/stdin commands, JSON and mapping output, UTF-8 and size limits, private-token rejection, cancellation and output-pipe failures. PTY tests exercise the Anonymize text screen at 60×20, including service startup, retry, mapping, copying and scrolling. They do not evaluate model quality or use real licenses. A CLI cancellation must leave the service running and retain the occupied inference slot until processing finishes.
 
 Model command tests cover offline listing, JSON output, persisted selection, service locks, licensed download dispatch, cancellation and failure exit codes. Download tests also check that installing a second model preserves an automatically selected model while the service lock is held. Cancellation tests distinguish an interrupted transfer from an installation completed before cancellation, including cleanup failures. They use temporary storage and synthetic license/engine fixtures. `models list --available` and `models install <id>` use the saved system credential; tests must not read a developer's real license or register a production device.
 

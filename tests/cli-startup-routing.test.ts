@@ -1,12 +1,14 @@
 import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import packageInfo from '../package.json' with { type: 'json' };
 
 var COMMANDS = [
     { args: ['--version'], expected: packageInfo.version },
     { args: ['--help'], expected: 'Usage: velora' },
     { args: ['doctor'], expected: 'Fixture doctor called.' },
+    { args: ['anonymize'], expected: 'Fixture anonymize called.' },
     { args: ['license', 'status'], expected: 'Fixture license called.' },
     { args: ['models', 'list'], expected: 'Fixture models called.' },
     { args: ['models', 'install', 'model-a'], expected: 'Fixture models called.' },
@@ -23,7 +25,7 @@ test.skipIf(process.platform === 'win32').each(COMMANDS)('explicit command bypas
         var timeout = setTimeout(function () { child.kill(); }, TEST_TIMEOUT_MS);
         try {
             expect(await child.exited, output).toBe(0);
-            expect(output).toContain(command.expected);
+            expect(stripVTControlCharacters(output)).toContain(command.expected);
             expect(output).not.toContain('Fixture recovery called.');
             expect(output).not.toContain('Fixture startup called.');
         } finally {

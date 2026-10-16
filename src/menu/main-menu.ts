@@ -15,6 +15,7 @@ import setSetupLayout from '../terminal/set-setup-layout.js';
 import manageApiKeys from './api-keys.js';
 import serviceControl from '../service/service-control.js';
 import onboarding from '../setup/onboarding.js';
+import anonymize from './anonymize.js';
 
 export default async function mainMenu(startSetup = false, initialPage: 'main' | 'settings' = 'main'): Promise<void> {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -123,6 +124,7 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
                     }
                     return { message, choices: [
                         { name: action, value: 'service' },
+                        { name: 'Anonymize text', value: 'anonymize' },
                         { name: 'API keys', value: 'keys' },
                         { name: 'Settings', value: 'settings' }
                     ] };
@@ -159,6 +161,10 @@ export default async function mainMenu(startSetup = false, initialPage: 'main' |
                 }
                 if (choice === 'keys') {
                     await manageApiKeys();
+                    continue;
+                }
+                if (choice === 'anonymize') {
+                    await anonymize();
                     continue;
                 }
                 await settingsMenu();

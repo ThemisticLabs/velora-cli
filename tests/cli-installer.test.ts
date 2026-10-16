@@ -76,8 +76,9 @@ test.each(['valid', 'bad-hash', 'bad-signature', 'bad-self-test', 'launch-failur
         } else {
             await expect(installCliUpdate('1.0.0', controller.signal, undefined, options)).rejects.toThrow();
             expect(await updateState(executable)).toBeNull();
-            expect(await readdir(directory)).toEqual(expect.arrayContaining(['installed', 'user-data']));
-            expect((await readdir(directory)).length).toBe(2);
+            var remaining = await readdir(directory);
+            remaining.sort();
+            expect(remaining).toEqual(['installed', 'user-data']);
         }
         expect(await readFile(executable, 'utf8')).toBe('original binary');
         expect(await readFile(join(directory, 'user-data'), 'utf8')).toBe('keep this');

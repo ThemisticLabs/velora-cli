@@ -106,7 +106,7 @@ export default async function installCliUpdate(version: string, signal: AbortSig
                     }
                 }
                 if (workdir) {
-                    await rm(workdir, { recursive: true, force: true });
+                    await rm(workdir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
                 }
             } finally {
                 await directoryLock({ operation: 'release', path: lockPath, lease });

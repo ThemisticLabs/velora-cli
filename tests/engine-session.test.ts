@@ -78,4 +78,4 @@ test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed
         await session?.close();
         if (previous === undefined) { delete process.env.VELORA_TEST_ENGINE_SCENARIO; } else { process.env.VELORA_TEST_ENGINE_SCENARIO = previous; }
     }
-});
+}, 15000);

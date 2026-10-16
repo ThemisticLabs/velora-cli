@@ -3,11 +3,12 @@ import apiKeys from './api-keys.js';
 import anonymizeResponse from './anonymize-response.js';
 import DownloadError from '../downloads/download-error.js';
 import type { ServiceEngine } from '../service/service-engine.js';
+import { timingSafeEqual } from 'node:crypto';
 
 export var MAX_API_BODY_BYTES = Math.floor(1.6 * 1024 ** 2);
 var RESPONSE_HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 
-export default async function apiServer(directory: string, getEngine: () => ServiceEngine | undefined, port?: number) {
+export default async function apiServer(directory: string, getEngine: () => ServiceEngine | undefined, port?: number, controlToken?: string) {
     if (port === undefined) { port = (await apiSettings(undefined, directory)).port; }
     var closing = false;
     var active: Promise<void> | undefined;
@@ -34,15 +35,21 @@ export default async function apiServer(directory: string, getEngine: () => Serv
                     if (request.method !== 'POST') {
                         return sendError(405, 'method_not_allowed', 'Use POST /anonymize.', { Allow: 'POST' });
                     }
-                    var authorization = request.headers.get('authorization');
-                    if (!authorization || !/^Bearer velora_[A-Za-z0-9_-]{43}$/.test(authorization)) {
-                        return sendError(401, 'invalid_api_key', 'Provide a valid application API key.', { 'WWW-Authenticate': 'Bearer' });
-                    }
-                    var verified;
-                    try { verified = await apiKeys({ operation: 'verify', key: authorization.slice('Bearer '.length) }, directory); }
-                    catch { return sendError(503, 'key_store_unavailable', 'Could not read API keys. Check key storage in velora.'); }
-                    if (!verified.authorized) {
-                        return sendError(401, 'invalid_api_key', 'Provide a valid application API key.', { 'WWW-Authenticate': 'Bearer' });
+                    var localToken = request.headers.get('x-velora-control-token');
+                    var localAccess = controlToken !== undefined && localToken !== null &&
+                        Buffer.byteLength(localToken) === Buffer.byteLength(controlToken) &&
+                        timingSafeEqual(Buffer.from(localToken), Buffer.from(controlToken));
+                    if (!localAccess) {
+                        var authorization = request.headers.get('authorization');
+                        if (!authorization || !/^Bearer velora_[A-Za-z0-9_-]{43}$/.test(authorization)) {
+                            return sendError(401, 'invalid_api_key', 'Provide a valid application API key.', { 'WWW-Authenticate': 'Bearer' });
+                        }
+                        var verified;
+                        try { verified = await apiKeys({ operation: 'verify', key: authorization.slice('Bearer '.length) }, directory); }
+                        catch { return sendError(503, 'key_store_unavailable', 'Could not read API keys. Check key storage in velora.'); }
+                        if (!verified.authorized) {
+                            return sendError(401, 'invalid_api_key', 'Provide a valid application API key.', { 'WWW-Authenticate': 'Bearer' });
+                        }
                     }
                     var contentType = request.headers.get('content-type');
                     if (!contentType || !/^application\/json(?:\s*;\s*charset=(?:"utf-8"|utf-8))?\s*$/i.test(contentType)) {

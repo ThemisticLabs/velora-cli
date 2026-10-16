@@ -32,14 +32,14 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
                     return;
                 }
                 if (scenario === 'api-keys') {
-                    terminal.write('\u001b[B\r');
+                    terminal.write('\u001b[B\u001b[B\r');
                     return;
                 }
                 if (scenario === 'resize') {
                     terminal.resize(40, 10);
                     return;
                 }
-                terminal.write('\u001b[B\u001b[B\r');
+                terminal.write('\u001b[B\u001b[B\u001b[B\r');
                 return;
             }
             if (scenario.startsWith('service-')) {

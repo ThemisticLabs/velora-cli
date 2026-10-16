@@ -34,6 +34,9 @@ Tests stay under `tests/` and exercise these modules or the compiled CLI. `src/c
 | --- | --- |
 | `src/cli.ts` | Configure Commander, register commands, and dispatch arguments. |
 | `src/commands/model-command.ts` | Run noninteractive model listing, licensed installation and selection through the existing model and license modules. |
+| `src/commands/anonymize-command.ts` | Read bounded UTF-8 input from a file or stdin and write plain text or JSON without stdout status messages. |
+| `src/api/anonymize-text.ts` | Authenticate against the running local service and submit text through its existing HTTP API. |
+| `src/menu/anonymize.ts` | Enter a line, view and scroll results or mapping, and copy anonymized text. |
 | `src/setup/setup.ts` | Own the setup flow, prompt theme, model access checks and update permission prompts. |
 | `src/terminal/set-setup-layout.ts` | Store the screen title, detail, F1 target and shared default footer. |
 | `src/terminal/setup-dimensions.ts` | Define terminal limits and derive available content space from the rendered header. |
@@ -66,6 +69,7 @@ arguments
     setup                -> setup, then main menu
     settings             -> startup checks, then Settings
     doctor               -> diagnostic report, without downloading packages
+    anonymize [file]     -> UTF-8 file or stdin through the running service
     license set/status   -> verify and save a key, or check the saved key
     serve start --headless -> start or reuse the independent service
     serve status         -> current service state and bound API address
@@ -92,6 +96,16 @@ Model commands do not enter interactive startup or update recovery. Local listin
 Ctrl+C is identified through Inquirer's `ExitPromptError` and ends interactive setup normally with status 0, so script runners do not report a failure for a deliberate cancellation. A terminal resize redraws the active prompt while preserving its state. The menu reports unexpected failures without exposing raw exception details. Download completion requires a verified engine receipt, matching model and engine revisions, and publication of velora's installation record. Cancelling waits for download cleanup before leaving the alternate screen.
 
 `set-setup-layout.ts` stores the current step's labels. Every prompt calls `use-setup-screen.ts`, which subscribes to resize events and redraws the full frame through Inquirer's rendering cycle. The resize listener is removed when the prompt settles. Input, selected models and detail pages remain in prompt state. Below 60 columns or 20 rows, the prompt displays a size notice and suspends normal interaction; Ctrl+C still cancels. The header is compact below 28 rows, and the model table reserves space for at least three models and separate actions.
+
+## Direct anonymization
+
+`commands/anonymize-command.ts` reads a file or stdin in bounded chunks and rejects invalid UTF-8 before submitting it. It writes only returned text by default; `--json` writes the response object and `--mapping` requests original values and implies JSON. It adds a newline only to JSON output. Failures use sanitized stderr messages and code 1; cancellation uses 130 or 143 and does not stop the service. Input files are opened read-only. Output files are controlled by shell redirection.
+
+`api/anonymize-text.ts` checks status through the authenticated private control channel, reads the matching bounded service record and sends an HTTP request to its reported loopback port. The current service token authenticates an internal `x-velora-control-token` header. `service-worker.ts` passes that token to `api-server.ts`; a constant-time comparison distinguishes internal requests from application-key requests. No new credential is persisted, and the CLI does not recover plaintext application keys. Existing browser and Host checks apply before authentication. Both caller types share the same body validation, inference slot, mapping adaptation and draining behavior.
+
+The client limits the serialized request to 1.6 MiB, bounds responses to 16 MiB, disallows redirects and applies a 45-second HTTP deadline. It converts unsuccessful HTTP responses to fixed public messages. It does not read credentials from the license store or open an engine session. Aborting the HTTP client does not release the service's processing slot until its engine request settles.
+
+`menu/anonymize.ts` uses the shared prompt frame for single-line input and a scrollable result. It offers service startup explicitly when stopped, keeps text available for retries, toggles mapping on request and copies only anonymized text. Terminal control characters are removed from rendered results; command output preserves the returned text. Files and multiline input use the command. Menu tests exercise 60×20 prompts, startup, retry, mapping, copying, empty input, cancellation and scrolling. Compiled command tests send real loopback requests through a synthetic service engine and cover file/stdin output, limits, UTF-8, authentication, cancellation and closed stdout pipes.
 
 ## Main menu and settings
 

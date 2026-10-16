@@ -10,6 +10,7 @@ import servicePaths from '../src/service/service-paths.js';
 
 var CLI_PATH = fileURLToPath(new URL('../dist/velora', import.meta.url));
 if (process.platform === 'win32') { CLI_PATH += '.exe'; }
+CLI_PATH = process.env.VELORA_TEST_BINARY || CLI_PATH;
 var fixture = fileURLToPath(new URL('./fixtures/service-control.ts', import.meta.url));
 
 var fixtureLaunch: ServiceLaunch = function (_command, args, options) {
