@@ -25,6 +25,8 @@ mock.module('../../src/api/anonymize-text.js', function () {
             output = '';
             for (var index = 0; index < 40; index++) { output += 'line-' + index + '\n'; }
         }
+        if (scenario === 'unicode') { output = 'a'.repeat(55) + '🙂👩‍👩‍👧‍👦é'; }
+        if (scenario === 'wide') { output = ('界'.repeat(50) + '\n').repeat(12); }
         return { text: output, mapping: { '[PERSON:1]': { original: 'Anna Müller', type: 'PERSON', occurrences: [{ start: 6, end: 17 }] } } };
     } };
 });
@@ -38,7 +40,11 @@ try {
     if (scenario === 'cancel-input') { expectedRequests = 0; }
     if (scenario === 'retry') { expectedRequests = 2; assert.equal(requests[0], requests[1]); }
     assert.equal(requests.length, expectedRequests);
-    if (requests.length && scenario !== 'empty') { assert.equal(requests[0], 'Hallo Anna Müller.'); }
+    var expectedText = 'Hallo Anna Müller.';
+    if (scenario === 'long-input') { expectedText = 'a'.repeat(1000); }
+    if (scenario === 'wide-input') { expectedText = '界'.repeat(1000); }
+    if (scenario === 'edit-input') { expectedText = 'abZc'; }
+    if (requests.length && scenario !== 'empty') { assert.equal(requests[0], expectedText); }
     if (scenario === 'empty') { assert.equal(requests[0], ''); }
     assert.equal(starts, Number(scenario === 'start'));
     if (scenario === 'copy') { assert.equal(copied, 'Hallo [PERSON:1].'); }

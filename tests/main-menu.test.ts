@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { spawn } from 'bun';
 import { fileURLToPath } from 'node:url';
 
-test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor', 'api-keys', 'service-start', 'service-running', 'service-failure', 'service-external', 'service-close-loading', 'settings-entry'])('main menu terminal: %s', async function (scenario) {
+test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 'cancel-delete', 'resize', 'license', 'offline', 'current', 'switch', 'escape-license', 'escape-delete', 'skip-license', 'doctor', 'api-keys', 'service-start', 'service-running', 'service-failure', 'service-external', 'service-close-loading', 'settings-entry', 'anonymize-start-failure'])('main menu terminal: %s', async function (scenario) {
     var output = '';
     var phase = 0;
     var recoverySent = false;
@@ -11,6 +11,12 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
         terminal: { cols: 60, rows: 20, data: function (terminal, data) {
             var frame = Buffer.from(data).toString('utf8');
             output += frame;
+            if (scenario === 'anonymize-start-failure') {
+                if (phase === 0 && frame.includes('Selected model:')) { phase = 1; terminal.write('\u001b[B\r'); return; }
+                if (phase === 1 && frame.includes('Start the service first.')) { phase = 2; terminal.write('\r'); return; }
+                if (phase === 2 && frame.includes('Port 8001 is already in use.')) { phase = 3; terminal.write('\u0003'); }
+                return;
+            }
             if (!recoverySent && scenario === 'skip-license' && frame.includes('Change license')) {
                 recoverySent = true;
                 terminal.write('\u001b[B\u001b[B\r');
@@ -201,6 +207,10 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
         expect(code, output).toBe(0);
         expect(output).toContain('Menu verified.');
         expect(output).not.toContain('FIXTURE-PRIVATE');
+        if (scenario === 'anonymize-start-failure') {
+            expect(output).toContain('Port 8001 is already in use.');
+            expect(output).not.toContain('Check model storage permissions');
+        }
         expect(output).toContain('\u001b[?25h\u001b[?1049l');
         if (scenario === 'switch') {
             expect(output).toContain('More below');

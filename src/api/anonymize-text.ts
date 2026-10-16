@@ -14,6 +14,15 @@ export default async function anonymizeText(text: string, includeMapping: boolea
             throw new AnonymizeError('Keep the encoded JSON request within 1.6 MiB. Use a smaller input.');
         }
         var status = await serviceRequest('status', directory, signal);
+        if (status.state === 'failed') {
+            throw new AnonymizeError('The service failed. Check velora serve status, then run velora serve stop and velora serve start --headless.');
+        }
+        if (status.state === 'starting') {
+            throw new AnonymizeError('The service is loading the selected model. Wait for velora serve status to report running, then try again.');
+        }
+        if (status.state === 'stopping') {
+            throw new AnonymizeError('The service is stopping. Wait for it to stop, then run velora serve start --headless and try again.');
+        }
         if (status.state !== 'running') {
             throw new AnonymizeError('The service is not ready. Run velora serve start --headless, then try again.');
         }

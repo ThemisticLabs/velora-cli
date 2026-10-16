@@ -120,6 +120,28 @@ test('anonymize reports a stopped service without reading credentials or startin
     } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
+test('anonymize tells users to stop a failed service before starting it again', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-anonymize-failed-'));
+    var worker = serviceWorker(directory, async function () {
+        throw new DownloadError('The selected model could not be loaded.');
+    }, function (path, getEngine, _port, token) { return apiServer(path, getEngine, 0, token); });
+    try {
+        var deadline = Date.now() + 5000;
+        while ((await serviceControl('status', directory)).state !== 'failed') {
+            if (Date.now() >= deadline) { throw new Error('Fixture service did not fail.'); }
+            await Bun.sleep(10);
+        }
+        await expect(anonymizeText('private', false, new AbortController().signal, directory)).rejects.toThrow('velora serve stop');
+        await expect(serviceControl('start', directory)).rejects.toThrow('The selected model could not be loaded.');
+        expect((await serviceControl('status', directory)).state).toBe('failed');
+    } finally {
+        await serviceControl('stop', directory);
+        await worker;
+        await rm(servicePaths(directory).runtime, { recursive: true, force: true });
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
 test.skipIf(process.platform === 'win32')('SIGTERM while reading stdin returns 143 without stopping the service', async function () {
     var context = await start();
     var child = Bun.spawn([CLI_PATH, 'anonymize'], { env: context.environment, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' });

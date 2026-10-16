@@ -19,7 +19,7 @@ mock.module('../../src/service/service-control.js', function () {
         }
         if (operation === 'start') {
             serviceStarts++;
-            if (scenario === 'service-failure') { throw new Error('Port 8001 is already in use. Choose another port in Settings.'); }
+            if (scenario === 'service-failure' || scenario === 'anonymize-start-failure') { throw new Error('Port 8001 is already in use. Choose another port in Settings.'); }
             serviceState = 'running';
             if (scenario === 'service-close-loading') {
                 serviceState = 'starting';

@@ -12,7 +12,7 @@ Selection is saved locally. Installed-model lists show model versions. New model
 
 ## Anonymize text
 
-Choose **Anonymize text** in the main menu to enter a single line. If the service is stopped, the screen offers **Start service** before asking for text. Enter submits the text; Esc returns. The input accepts up to 4096 characters. Errors offer a retry and keep the entered text available for editing.
+Choose **Anonymize text** in the main menu to enter a single line. If the service is stopped, the screen offers **Start service** before asking for text. Start failures show the service error before returning to the menu. Enter submits the text; Esc returns. The input accepts up to 4096 characters, scrolls horizontally and supports ←/→, Home/End, Backspace and Delete. Errors offer a retry and keep the entered text available for editing.
 
 The result supports ↑/↓ scrolling and Home/End. Press **M** to toggle the mapping, **C** to copy the anonymized text, Enter for another input or Esc to return. Mapping shows original values; copying always copies only the anonymized text. Input and results are not saved by the menu.
 
@@ -27,7 +27,7 @@ velora anonymize input.txt --mapping > result.json
 
 With no file argument or with `-`, the command reads stdin until EOF. A file argument reads that file. Plain output preserves the returned text without adding a newline. `--json` returns a JSON object containing `text`; `--mapping` adds the original-value mapping and implies JSON output. Progress and errors do not appear on stdout. The command writes no files itself; shell redirection chooses where output is saved.
 
-Start the service with `velora serve start --headless` first. The command reuses its loaded model and authenticates using the current private service record. It does not create an application API key, read the license store, download packages or start a second engine. Other applications still use their application API keys.
+Start the service with `velora serve start --headless` first. If status reports `failed`, inspect `velora serve status`, then run `velora serve stop` before starting it again. While the service is loading or stopping, wait for that operation to finish. The command reuses its loaded model and authenticates using the current private service record. It does not create an application API key, read the license store, download packages or start a second engine. Other applications still use their application API keys.
 
 Input must be valid UTF-8 and fit both the 1.6 MiB raw-input limit and the 1.6 MiB encoded JSON body limit. JSON escaping can make the encoded body larger than the file. The service also enforces its existing engine-message limit and single processing slot. Oversized or invalid input, service errors and output-pipe failures exit with code 1 and a plain stderr message. SIGINT uses 130 and SIGTERM uses 143. Cancellation closes the client wait; an engine request already running in the independent service may finish and continues to occupy the processing slot until it settles.
 
