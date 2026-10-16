@@ -10,6 +10,7 @@ import directoryLock, { type DirectoryLease } from '../../src/system/directory-l
 import servicePaths from '../../src/service/service-paths.js';
 
 var scenario = process.argv[2];
+var cancelledAfterInstall = ['interrupt-cleanup', 'terminate-cleanup', 'terminate-failed-cleanup'].includes(scenario!);
 var directory = await mkdtemp(join(tmpdir(), 'velora-model-command-'));
 var licenseCalls = 0;
 var downloads = 0;
@@ -90,7 +91,13 @@ try {
             var path = join(options.root, 'installed', 'model-c', 'r1');
             await mkdir(path, { recursive: true });
             await writeFile(join(options.root, 'current.json'), JSON.stringify({ model_id: 'model-c', revision: 'r1', version: '2.0', sequence: 1 }));
-            return { path, cleanupRequired: scenario === 'cleanup' };
+            if (scenario === 'interrupt-cleanup') {
+                process.emit('SIGINT');
+            }
+            if (['terminate-cleanup', 'terminate-failed-cleanup'].includes(scenario!)) {
+                process.emit('SIGTERM');
+            }
+            return { path, cleanupRequired: ['cleanup', 'terminate-failed-cleanup'].includes(scenario!) };
         }
     };
     var request: Parameters<typeof modelCommand>[0] = { operation: 'list' };
@@ -107,7 +114,7 @@ try {
         }
         request = { operation: 'select', id };
     }
-    if (['install', 'already-installed', 'missing-license', 'withdrawn', 'not-entitled', 'invalid-id', 'download-failure', 'cancel-download', 'cleanup'].includes(scenario!)) {
+    if (cancelledAfterInstall || ['install', 'already-installed', 'missing-license', 'withdrawn', 'not-entitled', 'invalid-id', 'download-failure', 'cancel-download', 'cleanup'].includes(scenario!)) {
         var id = 'model-c';
         if (scenario === 'already-installed') {
             id = 'model-a';
@@ -123,7 +130,7 @@ try {
     await modelCommand(request, directory, services);
     assert.equal(process.listenerCount('SIGINT'), beforeInterrupt);
     assert.equal(process.listenerCount('SIGTERM'), beforeTerminate);
-    if (['install', 'cleanup', 'download-failure', 'cancel-download'].includes(scenario!)) {
+    if (cancelledAfterInstall || ['install', 'cleanup', 'download-failure', 'cancel-download'].includes(scenario!)) {
         assert.equal(downloads, 1);
     } else {
         assert.equal(downloads, 0);
@@ -139,7 +146,7 @@ try {
     if (scenario === 'cancel-before-select') {
         assert.equal(JSON.parse(await readFile(join(directory, 'selected-model.json'), 'utf8')).id, 'model-b');
     }
-    if (['install', 'cleanup'].includes(scenario!)) {
+    if (cancelledAfterInstall || ['install', 'cleanup'].includes(scenario!)) {
         assert.equal(JSON.parse(await readFile(join(directory, 'selected-model.json'), 'utf8')).id, 'model-b');
         var models = await installedModels({ operation: 'list' }, directory);
         assert.equal(models.length, 3);

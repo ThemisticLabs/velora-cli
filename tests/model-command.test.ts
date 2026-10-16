@@ -22,8 +22,12 @@ test.each([
     { scenario: 'cancel-before-select', code: 130, message: 'Model operation cancelled.' },
     { scenario: 'cancel-refresh', code: 143, message: 'Model operation cancelled.' },
     { scenario: 'cancel-download', code: 143, message: 'Model operation cancelled.' },
-    { scenario: 'cleanup', code: 1, message: 'Installed, but cleanup failed.' }
+    { scenario: 'cleanup', code: 1, message: 'Installed, but cleanup failed.' },
+    { scenario: 'interrupt-cleanup', code: 130, message: 'Model installed before cancellation completed.' },
+    { scenario: 'terminate-cleanup', code: 143, message: 'Model installed before cancellation completed.' },
+    { scenario: 'terminate-failed-cleanup', code: 143, message: 'Installed, but cleanup failed.' }
 ])('noninteractive model command: $scenario', async function (scenario) {
+    var cancelledAfterInstall = ['interrupt-cleanup', 'terminate-cleanup', 'terminate-failed-cleanup'].includes(scenario.scenario);
     var child = Bun.spawn([process.execPath, FIXTURE, scenario.scenario], { stdout: 'pipe', stderr: 'pipe' });
     var output = await new Response(child.stdout).text();
     var errors = await new Response(child.stderr).text();
@@ -31,8 +35,13 @@ test.each([
     expect(output + errors).toContain(scenario.message);
     expect(output + errors).not.toContain('FIXTURE-PRIVATE-LICENSE');
     expect(output + errors).not.toContain('\u001b[');
-    if (scenario.code !== 0 && scenario.scenario !== 'cleanup') {
+    if (scenario.code !== 0 && scenario.scenario !== 'cleanup' && !cancelledAfterInstall) {
         expect(output).toBe('');
+    }
+    if (cancelledAfterInstall) {
+        expect(output).toContain('Installed model model-c.');
+        expect(errors).toContain('Model installed before cancellation completed.');
+        expect(errors).not.toContain('partial downloads');
     }
     if (scenario.scenario === 'install') {
         expect(errors).toContain('may register this device');

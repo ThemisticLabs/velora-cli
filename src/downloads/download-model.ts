@@ -3,6 +3,8 @@ import { dirname, join, resolve } from 'node:path';
 import DownloadError from './download-error.js';
 import engineSession from '../engine/engine-session.js';
 import type { EngineProgress } from '../engine/bootstrap-engine.js';
+import installedModels from '../models/installed-models.js';
+import syncDirectory from '../system/sync-directory.js';
 
 export type DownloadProgress = EngineProgress;
 export type DownloadOptions = {
@@ -56,6 +58,26 @@ export default async function downloadModel(options: DownloadOptions) {
         } catch (error) {
             if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
                 throw error;
+            }
+        }
+        var directory = dirname(modelsRoot);
+        var installed = await installedModels({ operation: 'list' }, directory);
+        if (installed.length === 1 && installed[0]!.selected) {
+            // A second package removes the implicit single-model selection unless it is saved first.
+            var selectionTemporary = await mkdtemp(join(directory, '.selection-'));
+            try {
+                var selectionPath = join(selectionTemporary, 'selected-model.json');
+                var selectionFile = await open(selectionPath, 'wx', 0o600);
+                try {
+                    await selectionFile.writeFile(JSON.stringify({ id: installed[0]!.id }) + '\n');
+                    await selectionFile.sync();
+                } finally {
+                    await selectionFile.close();
+                }
+                await rename(selectionPath, join(directory, 'selected-model.json'));
+                await syncDirectory(directory);
+            } finally {
+                await rm(selectionTemporary, { recursive: true, force: true });
             }
         }
         var connect = options.connect || engineSession;

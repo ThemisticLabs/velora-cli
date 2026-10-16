@@ -6,8 +6,10 @@ import enginePackage from './fixtures/engine-package.js';
 import downloadModel from '../src/downloads/download-model.js';
 import installedModels from '../src/models/installed-models.js';
 import type engineSession from '../src/engine/engine-session.js';
+import directoryLock from '../src/system/directory-lock.js';
+import servicePaths from '../src/service/service-paths.js';
 
-test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision', 'changed engine', 'wrong engine version', 'wrong engine revision', 'cancel', 'retry'])('engine model installation: %s', async function (scenario) {
+test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision', 'changed engine', 'wrong engine version', 'wrong engine revision', 'cancel', 'retry', 'automatic selection', 'saved selection', 'stale selection'])('engine model installation: %s', async function (scenario) {
     var directory = await mkdtemp(join(tmpdir(), 'velora-install-'));
     var root = join(directory, 'models', 'model-a');
     var path = join(root, 'installed', 'model-a', 'r1');
@@ -52,6 +54,29 @@ test.each(['valid', 'unconfirmed', 'wrong model', 'wrong path', 'wrong revision'
             await mkdir(path, { recursive: true });
             await writeFile(join(root, 'current.json'), JSON.stringify({ model_id: 'model-a', revision: 'r1', sequence: 1 }));
             expect(await installedModels({ operation: 'list' }, directory)).toEqual([]);
+        }
+        if (['automatic selection', 'saved selection', 'stale selection'].includes(scenario)) {
+            var existingRoot = join(directory, 'models', 'model-b');
+            await mkdir(join(existingRoot, 'installed', 'model-b', 'r1'), { recursive: true });
+            await writeFile(join(existingRoot, 'current.json'), JSON.stringify({ model_id: 'model-b', revision: 'r1', version: '1.0', sequence: 1 }));
+            if (scenario === 'saved selection') {
+                await installedModels({ operation: 'select', id: 'model-b' }, directory);
+            }
+            if (scenario === 'stale selection') {
+                await writeFile(join(directory, 'selected-model.json'), JSON.stringify({ id: 'removed-model' }));
+            }
+            var selectionBefore = await installedModels({ operation: 'list' }, directory);
+            var serviceLock = servicePaths(directory).lock;
+            var lease = await directoryLock({ operation: 'acquire', path: serviceLock });
+            try {
+                await downloadModel({ license: 'FIXTURE-LICENSE', modelId: 'model-a', root, signal: controller.signal, onProgress: function () {}, connect });
+                var selectionAfter = await installedModels({ operation: 'list' }, directory);
+                expect(selectionAfter[1]?.selected).toBe(selectionBefore[0]?.selected);
+                expect(selectionAfter[0]?.selected).toBe(false);
+            } finally {
+                await directoryLock({ operation: 'release', path: serviceLock, lease });
+            }
+            return;
         }
         var options = { license: 'FIXTURE-LICENSE', modelId: 'model-a', modelName: 'Model A', root, signal: controller.signal, onProgress: function () {}, connect };
         var task = downloadModel(options);

@@ -16,8 +16,11 @@ export default async function installedModels(action: ModelAction, directory = d
                 throw new ModelStorageError('Model storage must be a directory, not a link.');
             }
         } catch (error) {
-            if (action.operation === 'list' && error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-                return [];
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+                if (action.operation === 'list') {
+                    return [];
+                }
+                throw new ModelStorageError('This model is not installed. Run velora models list to see installed identifiers.');
             }
             throw error;
         }
@@ -127,7 +130,7 @@ export default async function installedModels(action: ModelAction, directory = d
             }
         }
         if (!found) {
-            throw new ModelStorageError('This model is no longer installed.');
+            throw new ModelStorageError('This model is not installed. Run velora models list to see installed identifiers.');
         }
         var root = join(modelsPath, action.id);
         if (!(await lstat(root)).isDirectory()) {

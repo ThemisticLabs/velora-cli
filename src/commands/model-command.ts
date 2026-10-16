@@ -31,18 +31,6 @@ export default async function modelCommand(request: ModelRequest, directory = da
         var installed = await services.models({ operation: 'list' }, directory);
         controller.signal.throwIfAborted();
         if (request.operation === 'select') {
-            var found = false;
-            for (var model of installed) {
-                if (model.id === request.id) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                process.stderr.write('This model is not installed. Run velora models list to see installed identifiers.\n');
-                process.exitCode = 1;
-                return;
-            }
             await services.models({ operation: 'select', id: request.id }, directory);
             process.stdout.write('Selected model ' + request.id + '. Start the service to load it.\n');
             return;
@@ -122,27 +110,27 @@ export default async function modelCommand(request: ModelRequest, directory = da
             }
             return;
         }
-        var selectedModel: LicenseModel | undefined;
+        var requestedModel: LicenseModel | undefined;
         for (var licensedModel of access.models) {
             if (licensedModel.id === request.id) {
-                selectedModel = licensedModel;
+                requestedModel = licensedModel;
                 break;
             }
         }
-        if (!selectedModel) {
+        if (!requestedModel) {
             process.stderr.write('This model is not included in your license. Run velora models list --available.\n');
             process.exitCode = 1;
             return;
         }
-        if (!selectedModel.canDownload) {
+        if (!requestedModel.canDownload) {
             process.stderr.write('This model is not available for download. Check model access in the Themistic console.\n');
             process.exitCode = 1;
             return;
         }
-        process.stderr.write('Installing ' + selectedModel.id + '. This may register this device with your license.\n');
+        process.stderr.write('Installing ' + requestedModel.id + '. This may register this device with your license.\n');
         var lastPercent = -10;
-        var result = await services.download({ license: access.license, modelId: selectedModel.id, modelName: selectedModel.name,
-            root: join(directory, 'models', selectedModel.id), signal: controller.signal,
+        var result = await services.download({ license: access.license, modelId: requestedModel.id, modelName: requestedModel.name,
+            root: join(directory, 'models', requestedModel.id), signal: controller.signal,
             onProgress: function (progress) {
                 if (progress.total <= 0) {
                     return;
@@ -154,10 +142,14 @@ export default async function modelCommand(request: ModelRequest, directory = da
                 }
             }
         });
-        process.stdout.write('Installed model ' + selectedModel.id + '. Use velora models select ' + selectedModel.id + ' to select it.\n');
+        process.stdout.write('Installed model ' + requestedModel.id + '. Use velora models select ' + requestedModel.id + ' to select it.\n');
         if (result.cleanupRequired) {
             process.stderr.write('Installed, but cleanup failed. Inspect model storage and locks before another model operation.\n');
             process.exitCode = 1;
+        }
+        if (controller.signal.aborted) {
+            process.stderr.write('Model installed before cancellation completed.\n');
+            process.exitCode = cancelExitCode;
         }
     } catch (error) {
         if (controller.signal.aborted) {
