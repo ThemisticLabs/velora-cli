@@ -4,7 +4,7 @@ Help make local anonymization easier to set up and use. Clear bug reports, thoug
 
 ## Start with the current state
 
-velora is in early development. The CLI supports guided setup, saved licenses, verified engine and model installation, application API keys, and interactive service controls. A headless local API is available. Native platform acceptance and release distribution are still being completed.
+velora is in early development. The CLI supports guided setup, saved licenses, verified engine and model installation, noninteractive model commands, application API keys, and interactive service controls. A headless local API is available. Native platform acceptance and release distribution are still being completed.
 
 Use Bun 1.3.14 or newer for development. Users of the compiled CLI do not need Bun or Node.js installed:
 
@@ -29,7 +29,7 @@ velora-cli/
     cli.ts          CLI entry point
     api/            Local API settings, keys and request handling
     service/        Independent API service and control
-    commands/       Doctor and license commands
+    commands/       Doctor, license, model and service commands
     menu/           Main menu and settings
     models/         Installed model selection and deletion
     setup/          Guided setup and model selection
@@ -42,6 +42,7 @@ velora-cli/
     assets/         Brand assets
   scripts/          Release builds and metadata
   tests/            Automated behavior tests
+  docs/             Setup, usage, updates, API contract and design references
   README.md         Product overview and development status
   CONTRIBUTING.md   Contribution guide and code conventions
   CODINGSTYLE.md    Full TypeScript and JavaScript style guide
@@ -103,7 +104,7 @@ Piped output is plain. `NO_COLOR`, `TERM=dumb`, and `FORCE_COLOR=0` disable colo
 
 ## Interactive development checks
 
-Run `bun run start` for the main menu or `bun run start setup` for setup without rebuilding the standalone executable. For the user workflow, license storage and update behavior, see [README.md](README.md#setup). Keep that description in one place when behavior changes.
+Run `bun run start` for the main menu or `bun run start setup` for setup without rebuilding the standalone executable. For the user workflow, license storage and update behavior, see [Setup](docs/setup.md) and [Updates](docs/updates.md). Keep that description in one place when behavior changes.
 
 Use a terminal of at least 60 columns and 20 rows. Check arrow-key selection, Enter to activate, Esc to return, and Ctrl+C to close. Model details use left/right arrows for pages and Enter for Install model when a download is available. F1 opens the contextual documentation route.
 
@@ -119,14 +120,24 @@ Menu tests use isolated credential and network fixtures. Storage tests cover sel
 
 ## Engine integration tests
 
-Model command tests cover offline listing, JSON output, persisted selection, service locks, licensed download dispatch, cancellation and failure exit codes. They use temporary storage and synthetic license/engine fixtures. `models list --available` and `models install <id>` use the saved system credential; tests must not read a developer's real license or register a production device.
+Model command tests cover offline listing, JSON output, persisted selection, service locks, licensed download dispatch, cancellation and failure exit codes. Download tests also check that installing a second model preserves an automatically selected model while the service lock is held. Cancellation tests distinguish an interrupted transfer from an installation completed before cancellation, including cleanup failures. They use temporary storage and synthetic license/engine fixtures. `models list --available` and `models install <id>` use the saved system credential; tests must not read a developer's real license or register a production device.
 
 The regular tests use generated signing keys, synthetic packages and a compiled fixture process. They do not contact the production license server. Package extraction uses yauzl; yazl is only a test dependency for creating archives.
 
-To exercise a locally built macOS Engine 0.4.2 through the real velora bridge:
+To run the optional native protocol smoke test, provide a standalone Engine 0.4.4 executable for the host platform:
 
 ```bash
 VELORA_TEST_ENGINE_BINARY=/absolute/path/to/themistic-engine bun test tests/native-engine.test.ts
 ```
 
-This test installs synthetic model data through a signed loopback server in temporary storage. It checks real progress and completion, not inference. Never substitute a production license or production signing key. Windows and Linux runtime integration need their own native verification.
+This test checks the 0.4.4 handshake, the `install_model` capability, rejection of the retired combined `install` operation and rejection of `install_model` without its required fields. It uses a fixture license string and injected bootstrap metadata. It does not read a real license, download or install model data, or run inference. Without `VELORA_TEST_ENGINE_BINARY`, the test is skipped; the regular CI workflow does not supply this variable.
+
+Successful installation and progress tests in `tests/engine-session.test.ts` use a compiled synthetic engine process. They verify the CLI bridge and receipt handling, not a native engine's installation behavior. Never substitute production credentials or signing keys in fixture tests.
+
+For an explicitly authorized inference check against an existing installation:
+
+```sh
+bun run scripts/check-inference.ts /path/to/installed/data
+```
+
+This script reads the saved system credential, loads the selected installed model in a temporary engine process and checks fixed synthetic input, mapping round trips, empty input and shutdown. It downloads no packages and can contact the license server. It bypasses the HTTP layer, so it does not verify API authentication, HTTP responses or service lifecycle. Native credential, installation, service and HTTP acceptance remain separate checks on each supported engine platform; see [RELEASE.md](RELEASE.md#release-acceptance).

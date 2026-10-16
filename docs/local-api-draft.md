@@ -1,6 +1,6 @@
-# Local API plan
+# Local API contract
 
-HTTP contract, first implementation and remaining lifecycle work, 3 October 2026. The independent service now loads the selected model and serves POST /anonymize through the configured loopback port. API-key management, saved port settings and an engine inference check are available. Interactive Start/Stop is connected; macOS menubar controls are connected; macOS start at login is registered only when the user enables it; Windows/Linux autostart remain unimplemented.
+This document describes the implemented HTTP contract and service lifecycle. The independent service loads the selected model and serves `POST /anonymize` through the configured loopback port. Interactive Start/Stop and macOS menubar controls use the same service. macOS start at login is registered only when the user enables it; Windows/Linux autostart remain unimplemented. Remaining work is listed at the end.
 
 ## Local access
 
@@ -30,7 +30,7 @@ Use `POST /anonymize`. There is no `/v1` prefix.
 }
 ```
 
-`text` is a required string. `include_mapping` is an optional boolean and defaults to `false`. The API uses the model selected in velora. Requests cannot select or change a model.
+`text` is a required string. `include_mapping` is an optional boolean and defaults to `false`. The API uses the model selected when the service starts. Requests cannot select or change a model.
 
 A successful response without mapping contains only the anonymized text:
 
@@ -70,11 +70,11 @@ Mapping contains sensitive original values. It is returned only when requested a
 
 The entire UTF-8 JSON request body is limited to **1.6 MiB**. The implementation uses `floor(1.6 × 1024 × 1024)`, or **1,677,721 bytes**. This is a byte limit, not a token limit. There is no 32K-token limit.
 
-Enforce the limit while reading the body, including requests without a reliable `Content-Length`. Reject larger bodies with HTTP `413`. Never silently truncate input.
+The server enforces the limit while reading the body, including requests without a reliable `Content-Length`. Larger bodies receive HTTP `413`. Input is never silently truncated.
 
-The engine protocol currently accepts request lines up to 2 MiB. Before sending a request, check the actual serialized engine message, including its envelope and line terminator. JSON escaping can expand the message, so an HTTP body below 1.6 MiB does not by itself guarantee that the engine request fits. Reject an oversized engine message with `413` before sending it. Keep this protocol check separate from the HTTP body limit.
+The engine bridge limits outgoing request lines to 2 MiB. It checks the serialized engine message, including its envelope and line terminator, before writing it. JSON escaping can expand the message, so an HTTP body below 1.6 MiB does not by itself guarantee that the engine request fits. An oversized engine message receives `413` before it is sent. This protocol check is separate from the HTTP body limit.
 
-Process one anonymization request at a time. While the engine is busy, reject another processing request with `429` and `Retry-After`. Do not create an unbounded queue. Retry-After is 1 second. The slot includes reading an authorized request body; uploads have a 15-second absolute deadline and a 15-second idle timeout. This concurrency rule is separate from the request-size limit.
+The server processes one anonymization request at a time. While the slot is occupied, another authorized processing request receives `429` and `Retry-After: 1`; requests are not queued. The slot includes reading the authorized request body, with a 15-second absolute upload deadline. The listener also has a 15-second transport idle timeout, disabled for a request once its processing slot is acquired. This concurrency rule is separate from the request-size limit.
 
 ## Errors
 
@@ -91,15 +91,7 @@ Errors use one JSON shape:
 
 Codes identify the error for applications. Messages describe the problem and a useful next step. Do not return raw engine exceptions, local paths, license keys, API keys or input text.
 
-Agreed statuses:
-
-| HTTP status | Condition |
-| --- | --- |
-| `413` | HTTP body or serialized engine request is too large |
-| `429` | Another anonymization request is being processed; include `Retry-After` |
-| `503` | The engine crashes during processing; return a readable error if the client is still connected |
-
-Additional implemented errors:
+Implemented errors:
 
 | HTTP status | Code | Condition |
 | --- | --- | --- |
@@ -127,19 +119,19 @@ At API startup, bind the saved port or the default if no port is saved. Handle a
 
 > The local API could not start because port {port} is already in use. Choose another port in Settings, then try again.
 
-Do not silently choose another port or stop another process. Other bind failures need their own error. Applying a port change to a running server still needs a restart policy.
+The service does not silently choose another port or stop another process. Other bind failures have a separate error. Saving or resetting the port does not affect a running listener and does not offer an automatic restart. Run `velora serve stop`, wait for shutdown, then `velora serve start --headless` to apply the saved port. `velora serve status` reports the actual bound address.
 
 ## Engine check
 
-The existing project check records successful synthetic inference with engine 0.4.4 and an isolated skira7alpha3 installation. Repeated occurrences shared a placeholder, mapping positions matched the input, replacing placeholders restored the original text, empty input succeeded and shutdown unloaded the model. This is a functional check, not a model-quality evaluation. It was not repeated as part of this documentation change.
-
-Run against an existing installation:
+For an explicitly authorized inference check against an existing installation:
 
 ```sh
 bun run scripts/check-inference.ts /path/to/installed/data
 ```
 
-The script reads the saved license from the system credential store, uses the selected installed model and cached verified engine, downloads no packages and closes the engine process afterwards. Input is fixed synthetic text. License verification can contact the license server.
+The script reads the saved license from the system credential store, uses the selected installed model and cached verified engine, downloads no packages and closes the engine process afterwards. It checks fixed synthetic input, mapping positions, placeholder round trips, empty input and shutdown. License verification can contact the license server. This is a direct engine check, not a model-quality evaluation or an HTTP API test.
+
+The optional native protocol smoke test in `tests/native-engine.test.ts` is different: it requires Engine 0.4.4 and checks the handshake and rejected installation requests. It does not install a model or run inference. Synthetic service/API tests and successful protocol checks do not establish native end-to-end acceptance; see [the release acceptance checks](../RELEASE.md#release-acceptance).
 
 ## Interactive start and stop
 
@@ -147,13 +139,13 @@ Opening `velora` connects the interactive session to the existing velora service
 
 Once startup succeeds, the same action becomes **Stop**. Stop shuts down the service, including its API and engine, while keeping the interactive menu open. The action returns to **Start** after shutdown completes. Ctrl+C closes only the interactive session. It does not stop an already running service or cancel its active request. Closing the terminal also leaves the independent service running.
 
-The interactive CLI controls the same service used by headless startup. It must not own the service lifetime or create another engine when attaching. The implementation will be built in small steps: service ownership and local control, API startup and shutdown, interactive controls, menubar controls, then operating-system autostart.
+The interactive CLI controls the same service used by headless startup. It does not own the service lifetime or create another engine when attaching. Service ownership, the local control channel, HTTP startup and shutdown, interactive controls, macOS menubar controls and optional macOS start at login are implemented.
 
 ## Stop during an active request
 
 Stop stops accepting new anonymization work and lets the active request finish. After its response completes, shut down the listener and engine and return the menu action to **Start**. Show a stopping state while waiting; do not claim that shutdown has completed early.
 
-Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. If graceful Stop exceeds its waiting deadline, offer an explicit forced Stop. Never automatically cancel the active request merely because the Stop deadline passed. The control command waits up to 60 seconds for its acknowledgement and never automatically force-stops a request. If it times out, the service may still be draining; inspect status. A forced Stop action is not implemented yet.
+Ctrl+C only disconnects and closes the interactive CLI; processing continues in the service. The control command waits up to 60 seconds for its acknowledgement and never automatically force-stops a request. If it times out, the service may still be draining; inspect status. A forced Stop action is not implemented. Any future forced Stop must require an explicit user action.
 
 ## Menubar: Open velora
 
@@ -168,13 +160,13 @@ The independent menubar helper shows service status above Start/Stop, followed b
 
 Open velora authenticates the existing interactive session through a private Unix socket and focuses its exact Ghostty surface or Apple Terminal tab. Settings requests the settings page in that session. Navigation waits for an active installation or write to finish. Without a registered session, the configured shell-script handler launches a normal terminal window and starts the CLI. The terminal uses its own shell configuration and color environment. Unsupported terminal handlers report an opening failure instead of silently choosing another application.
 
-No operating-system autostart is registered.
+Opening the menu or menubar does not register autostart. Registration requires an explicit choice in setup or Settings.
 
 ## Headless startup and autostart
 
 The service runs independently of a terminal. A headless start command must return only after service startup succeeds or report a startup failure. Users can then close the terminal without stopping the service. Running the command when velora is already running must not start another instance.
 
-The first service-core implementation provides:
+The CLI provides:
 
 ```sh
 velora serve start --headless
@@ -182,22 +174,19 @@ velora serve status
 velora serve stop
 ```
 
-Start now opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages. Its local API binds before model loading; port conflicts fail without loading an engine. Model-load failure releases the HTTP port. Ready reports the actual bound port. Stop closes the listener to new connections, waits for active processing and response completion, then closes the engine. Private status stays reachable and reports stopping during that wait. Start/Stop in the interactive menu uses the same service control and displays its current status. Ctrl+C closes only the interactive session and cancels its control wait. The independent macOS menubar controls the same service and remains available after Stop. Autostart is still planned.
+Start opens the verified cached engine and loads the selected installed model once using the saved license. The service retains that session until Stop, reports starting or failed states and confirms model ID and engine version before reporting ready. It does not download packages. Its local API binds before model loading; port conflicts fail without loading an engine. Model-load failure releases the HTTP port. Ready reports the actual bound port. Stop closes the listener to new connections, waits for active processing and response completion, then closes the engine. Private status stays reachable and reports stopping during that wait. Start/Stop in the interactive menu uses the same service control and displays its current status. Ctrl+C closes only the interactive session and cancels its control wait. The independent macOS menubar controls the same service and remains available after Stop.
 
 Optional autostart launches the same service headlessly at the appropriate operating-system startup event. It requires explicit user consent and a saved preference. Autostart must use the saved port and selected model, respect existing-instance detection and leave the interactive terminal closed. Registration alone does not prove that the service started; verify its actual state.
 
 macOS start at login writes a user LaunchAgent after explicit selection in setup or Settings. It runs the public headless command at the next login, without immediately starting a service during registration. Windows/Linux registration and a complete logout/login acceptance check remain open. Manual Stop leaves autostart enabled for the next login. It must not immediately restart the service in the current session.
 
-## Agreed lifecycle behavior
+## Model selection and lifecycle
 
-- Model changes wait for the active anonymization request to finish before switching models. Requests must not race with model loading.
-- Changing the port saves the setting and offers a service restart. Saving alone must not silently restart the running service.
-- A crashed service reports a failure and requires a manual restart. Do not create an automatic restart loop.
-- Manual Stop keeps autostart enabled for the next login.
-- If Stop takes too long, offer a forced Stop that requires an explicit user action. Do not automatically abandon the active request.
-- Interactive CLI and menubar controls use the same local service-control implementation. Do not introduce a second public TCP port for management.
+Stop the service before switching or deleting a model. Selection and deletion acquire the same ownership lock as the service, so they fail while it is starting, running, stopping or retaining ownership after a failure. They do not queue a model change behind an active request. Graceful Stop drains the request; selection and the next Start happen afterward.
 
-These are agreed requirements, not implemented behavior.
+`velora models list` and `velora models list --json` read the local inventory without a license check. `velora models install <id>` can add another licensed model without changing the effective selection or reloading the running engine. An automatically selected single model is saved before installing another package. `velora models select <id>` persists a choice only while the service is stopped. See [Model commands](usage.md#model-commands) for online listing, installation and cancellation behavior.
+
+There is no automatic restart loop. Manual Stop keeps macOS start at login enabled for the next login. CLI and menubar controls share the private local service-control implementation; management does not open a second public TCP port.
 
 ## Failures during a request
 
@@ -205,13 +194,12 @@ If the engine crashes during anonymization, return HTTP `503` with the agreed er
 
 If the HTTP client disconnects, discard its result. Do not interrupt the shared engine process solely because that client disconnected. Keep the engine busy until processing actually finishes or fails; another request must not begin while that work is still running. An explicit service Stop still waits for that work, even though its client has disconnected.
 
-## Remaining decisions and implementation checks
+## Remaining work and acceptance
 
-1. Revisit the first implementation defaults of a 60-second control wait, a 30-second engine request deadline and Retry-After of 1 second when adding interactive lifecycle controls. Add an explicit forced Stop action.
-2. Define visible starting, ready, busy, stopping and failed states, including startup failure feedback. Decide pause behavior separately.
-3. Define recovery if loading another model fails and how selected-model persistence relates to the model actually loaded by the service.
-4. Define when license validity is checked during a long-running session, including offline behavior. Use the engine's entitlement rules rather than inventing a separate policy in the API.
-5. Design local service control and interactive-session discovery. Verify configured terminal discovery and exact tab activation on macOS.
-6. Choose the autostart event and coordinate service lifetime with executable updates.
-
-Unicode code-point offsets, blocked browser access, strict validation and the error list above are the defaults of the first HTTP implementation. These choices can be revised before wider use. Operating-system service registration and optional autostart follow after independent service control and the local API work and their behavior has been tested.
+- A forced Stop action is not implemented. The existing 60-second control wait does not cancel active inference when it expires.
+- Model changes require Stop, selection and Start. Live model switching and rollback after a failed replacement load are not implemented.
+- Port changes require a manual Stop and Start; the settings menu has no restart action.
+- Pause/resume and a separate busy state in service status are not implemented. Concurrent HTTP work receives `429`; service status still reports running while inference is active.
+- Windows/Linux autostart and a complete macOS logout/login acceptance check remain open. The updater does not restart an already running service into the new executable.
+- The engine owns license authorization during processing. Native acceptance must cover expiry, denied access and connection failures during a long-running session; the API does not add an independent entitlement policy.
+- Native credential stores, model installation, configured-terminal activation and the HTTP service need acceptance on their supported platforms. Fixture tests and a design preview do not establish that acceptance. Follow [RELEASE.md](../RELEASE.md#release-acceptance).

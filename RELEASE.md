@@ -1,8 +1,10 @@
 # Releasing velora
 
-The release workflow builds standalone executables for macOS arm64 and x64, Linux arm64 and x64, and Windows x64. Users do not need Bun or Node.js. Homebrew, winget, npm publishing, services and uninstallers are separate work.
+The release workflow builds standalone executables for macOS arm64 and x64, Linux arm64 and x64, and Windows x64. Users do not need Bun or Node.js. Homebrew, winget, npm publishing, Windows service registration, Linux autostart and uninstallers are separate work. The independent velora service and optional macOS user LaunchAgent are implemented in the CLI; release downloads do not register either automatically.
 
 ## Before publishing
+
+Resolve the project licensing noted in [asset provenance](src/assets/SOURCES.md) and include the chosen project license before publication. The repository currently has no project license file; the license decision is separate from building or signing executables.
 
 1. Update `version` in `package.json`. Use a stable version such as `0.1.0` or a prerelease such as `0.1.0-rc.1`.
 2. Run `bun install --frozen-lockfile`, `bun run check`, `bun run test` and `bun run release:build`.
@@ -10,6 +12,24 @@ The release workflow builds standalone executables for macOS arm64 and x64, Linu
 4. Create and push the matching tag, for example `v0.1.0`. Pushing a `v*` tag starts the publishing workflow.
 
 A mismatched tag fails before builds begin. Branch pushes, pull requests and manual runs of Build and test produce CI artifacts without creating a GitHub release. Windows ARM64 and Linux musl are not release targets.
+
+## Release acceptance
+
+Run the native build matrix for the exact commit intended for release. A local development build and tests on one host do not verify the other targets. The workflow tests the release executable through `VELORA_TEST_BINARY`; its synthetic engine fixtures do not require production credentials or install licensed model data.
+
+The optional native protocol smoke test requires `VELORA_TEST_ENGINE_BINARY` pointing to Engine 0.4.4 for the host platform. The regular workflow does not set it, so that test is skipped. It checks the handshake and rejection of invalid installation operations, not successful installation or inference. See [CONTRIBUTING.md](CONTRIBUTING.md#engine-integration-tests) for the command and its limits.
+
+Before accepting licensed runtime behavior on an engine-supported platform:
+
+1. Check native credential storage with an authorized test license. Verify that denied or unavailable access does not replace a saved key or expose credentials.
+2. Use `models list --available`, install an entitled model and check the local inventory, JSON output and selection. Installation can register a device; use a license and device allowance approved for this check. Confirm that installing a second model preserves the existing selection.
+3. Create an application API key, start the service, send synthetic `POST /anonymize` requests with and without mapping, then check status and graceful Stop. Verify unauthorized requests, occupied ports, concurrent requests and engine failures against [the HTTP contract](docs/local-api-draft.md).
+4. Check cancellation, completed-install cleanup warnings, restart behavior and preservation of licenses, keys, models and preferences. Record the platform, CLI commit, engine version, model revision, results and skipped checks.
+5. On macOS, verify menubar controls, configured-terminal activation and the optional LaunchAgent through a full logout/login cycle. Windows/Linux autostart are not implemented and cannot be accepted as working features.
+
+`scripts/check-inference.ts` can check an existing installation directly, but it bypasses HTTP and does not replace service acceptance. Model-quality evaluation is separate from these functional checks.
+
+CLI build targets and engine support differ: the runtime selector supports Apple Silicon on macOS 14+, Windows x64, and Linux x64/ARM64 with glibc 2.38+. The macOS Intel CLI build does not provide a supported engine target. Record CLI-only checks separately from licensed runtime acceptance. A successful CI matrix or protocol smoke test alone is not production approval.
 
 ## Build and publication
 
