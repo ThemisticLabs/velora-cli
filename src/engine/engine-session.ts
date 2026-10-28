@@ -23,10 +23,12 @@ export default async function engineSession(license: string, signal: AbortSignal
     var pending: { id: number; operation: string; downloaded: number; total?: number; resolve: (value: Record<string, unknown>) => void; reject: (error: Error) => void } | undefined;
     var capabilities: unknown;
     var forceKill: ReturnType<typeof setTimeout> | undefined;
-    var stop = function (error: Error) {
+    var stop = function (error: Error, options: { waitForExit?: boolean } = {}) {
         failure = error;
-        pending?.reject(error);
-        pending = undefined;
+        if (!options.waitForExit) {
+            pending?.reject(error);
+            pending = undefined;
+        }
         child.kill();
         if (!forceKill) {
             forceKill = setTimeout(function () { child.kill('SIGKILL'); }, KILL_DELAY_MS);
@@ -36,16 +38,27 @@ export default async function engineSession(license: string, signal: AbortSignal
     var abort = function () { stop(new DownloadError('Engine operation cancelled.')); };
     signal.addEventListener('abort', abort, { once: true });
     child.on('error', function () { stop(new DownloadError('The engine could not start. Check its installation and system permissions.')); });
-    child.stdin.on('error', function () { stop(new DownloadError('The connection to the engine closed. Try again.')); });
+    child.stdin.on('error', function () {
+        if (failure) { return; }
+        // A broken pipe can arrive before close supplies the actual process exit status.
+        stop(new DownloadError('The connection to the engine closed. Try again.', 'engine_connection_closed'), { waitForExit: true });
+    });
     child.on('close', function (code, exitSignal) {
         if (forceKill) {
             clearTimeout(forceKill);
         }
         signal.removeEventListener('abort', abort);
-        var message = 'The engine stopped before completing the request.';
-        if (code !== null) { message += ' Exit code: ' + code + '.'; }
-        if (exitSignal) { message += ' Signal: ' + exitSignal + '.'; }
-        failure ||= new DownloadError(message + ' Try again.', 'engine_exit');
+        if (!failure || failure instanceof DownloadError && failure.code === 'engine_connection_closed') {
+            var message = 'Engine ' + installation.release.version + ' stopped';
+            var operation = pending?.operation;
+            if (operation && ['version', 'models', 'load', 'predict', 'install_model', 'shutdown'].includes(operation)) {
+                message += ' during ' + operation;
+            }
+            message += '.';
+            if (code !== null) { message += ' Exit code: ' + code + '.'; }
+            if (exitSignal) { message += ' Signal: ' + exitSignal + '.'; }
+            failure = new DownloadError(message + ' Try again.', 'engine_exit');
+        }
         pending?.reject(failure);
         pending = undefined;
     });

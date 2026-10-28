@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import downloadModel from '../src/downloads/download-model.js';
 import installedModels from '../src/models/installed-models.js';
 import enginePackage from './fixtures/engine-package.js';
@@ -18,6 +19,13 @@ beforeAll(async function () {
     execFileSync(process.execPath, ['build', './tests/fixtures/engine-process.ts', '--compile', '--outfile', executable], { stdio: 'pipe' });
 });
 afterAll(async function () { await rm(directory, { recursive: true, force: true }); });
+
+test('engine exit status survives a preceding stdin error', function () {
+    var fixture = fileURLToPath(new URL('./fixtures/engine-connection-error.ts', import.meta.url));
+    var result = Bun.spawnSync([process.execPath, fixture]);
+    expect(result.exitCode, result.stderr.toString()).toBe(0);
+    expect(result.stdout.toString()).toContain('Connection error verified.');
+});
 
 test.each(['compatible', 'engine update required'])('new models reuse one verified engine: %s', async function (scenario) {
     var storage = await mkdtemp(join(tmpdir(), 'velora-shared-engine-'));

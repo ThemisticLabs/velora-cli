@@ -2,8 +2,9 @@ import { test, expect } from 'bun:test';
 import doctorEngine from '../src/commands/doctor-engine.js';
 import type { DoctorCheck } from '../src/commands/doctor.js';
 import type engineSession from '../src/engine/engine-session.js';
+import DownloadError from '../src/downloads/download-error.js';
 
-test.each(['ready', 'engine failure', 'license denied', 'no model', 'load failure', 'wrong version', 'invalid inference', 'cancel'])('doctor runtime checks and cleanup: %s', async function (scenario) {
+test.each(['ready', 'engine failure', 'engine exit', 'license denied', 'no model', 'load failure', 'wrong version', 'invalid inference', 'cancel'])('doctor runtime checks and cleanup: %s', async function (scenario) {
     var controller = new AbortController();
     var closed = 0;
     var operations: string[] = [];
@@ -21,6 +22,7 @@ test.each(['ready', 'engine failure', 'license denied', 'no model', 'load failur
         },
         connect: async function () {
             if (scenario === 'engine failure') { throw new Error('PRIVATE-LICENSE diagnostic'); }
+            if (scenario === 'engine exit') { throw new DownloadError('Engine 0.4.4 stopped during version. Exit code: 7. Try again.', 'engine_exit'); }
             return {
                 installation: { release: { version: '0.4.4' } },
                 close: async function () { closed++; },
@@ -53,7 +55,14 @@ test.each(['ready', 'engine failure', 'license denied', 'no model', 'load failur
     }
     await task;
     expect(JSON.stringify(checks)).not.toContain('PRIVATE-LICENSE');
-    expect(closed).toBe(Number(scenario !== 'engine failure'));
+    var expectedClosed = 1;
+    if (scenario === 'engine failure' || scenario === 'engine exit') { expectedClosed = 0; }
+    expect(closed).toBe(expectedClosed);
+    if (scenario === 'engine exit') {
+        expect(checks.engine.status).toBe('Error');
+        expect(checks.engine.detail).toContain('0.4.4');
+        expect(checks.engine.detail).toContain('Exit code: 7.');
+    }
     if (scenario === 'ready') {
         for (var check of Object.values(checks)) { expect(check.status).toBe('OK'); }
         expect(operations).toEqual(['load', 'predict']);
