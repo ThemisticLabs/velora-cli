@@ -138,7 +138,7 @@ The `accent` style uses `#686BE7`, or `#2525CC` when `COLORFGBG` ends in backgro
 
 Commander handles commands. `@inquirer/core` provides the prompt state and keyboard primitives for selection, input, progress and model views. TypeScript and Node-compatible type definitions are development dependencies. Their presence does not require users to install Node.js.
 
-`bun link` exposes the built executable as `velora` during local development. Rebuilding updates that executable. The release workflows build and test the targets listed in `scripts/release-targets.ts` on native runners. Release planning, binary smoke checks and checksum generation live in `scripts/`. Publishing package-manager entries is future work. See [RELEASE.md](RELEASE.md).
+`bun link` exposes `src/cli.ts` as `velora` during local development, using its Bun shebang. This avoids referring to an extensionless build path when Windows produces `dist/velora.exe`. Source changes take effect on the next launch; this command requires Bun. The release workflows build and test the targets listed in `scripts/release-targets.ts` on native runners. Release planning, binary smoke checks and checksum generation live in `scripts/`. Publishing package-manager entries is future work. See [RELEASE.md](RELEASE.md).
 
 ## Data boundaries
 

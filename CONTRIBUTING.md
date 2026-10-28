@@ -15,7 +15,7 @@ bun run test
 ./dist/velora --help
 ```
 
-To make your development build available as `velora` from any directory, run `bun link` after building. Rebuild after changing source files. Remove the global link with `bun unlink` from the project directory when you no longer need it.
+To make the source checkout available as `velora` from any directory, run `bun link` without a package name inside the project directory. The link runs `src/cli.ts` with Bun on Windows, macOS and Linux; no rebuild is needed after source changes. Remove the global link with `bun unlink` from the project directory when you no longer need it.
 
 For a new feature or a change to commands, API responses, or model handling, open an issue before starting substantial work. Describe the task you want to complete, where the current approach falls short, and what you propose. Small documentation corrections can go straight to a pull request.
 

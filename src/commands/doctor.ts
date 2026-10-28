@@ -89,7 +89,7 @@ export default async function doctor(transport = fetch, dataDirectory?: string, 
             }
         }
         commandCheck.status = 'Warning';
-        commandCheck.detail = 'Not found in an absolute PATH directory. Add the folder containing velora to PATH. For this source checkout, run bun run build, then bun link.';
+        commandCheck.detail = 'Not found in an absolute PATH directory. Add the folder containing velora to PATH. For this source checkout, run bun link in the project directory.';
         if (commandPath) {
             commandCheck.status = 'OK';
             commandCheck.detail = commandPath;

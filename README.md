@@ -27,18 +27,17 @@ You need a license that includes a downloadable model. License purchases through
 
 The engine supports Apple Silicon on macOS 14+, Windows x64, and Linux x64/ARM64 with glibc 2.38+. The CLI also has a macOS Intel build, but the engine does not currently support that target. Check the [setup guide](docs/setup.md) for model and credential-store requirements.
 
-For a source checkout, install Git and Bun 1.3.14 or newer, then build and launch velora:
+For a source checkout, install Git and Bun 1.3.14 or newer, then link and launch velora:
 
 ```sh
 git clone https://github.com/ThemisticLabs/velora-cli.git
 cd velora-cli
 bun install --frozen-lockfile
-bun run build
 bun link
 velora
 ```
 
-`bun link` makes the built executable available as `velora`; rebuild after changing source. For standalone binaries, follow [release installation](RELEASE.md#download-names). Compiled builds include their runtime, so users do not need Bun, Node.js, Python or pip.
+Run `bun link` without a package name inside the checkout. It makes the TypeScript entry point available as `velora` on Windows, macOS and Linux; source changes take effect on the next launch. This development command requires Bun. For standalone binaries, follow [release installation](RELEASE.md#download-names). Compiled builds include their runtime, so users do not need Bun, Node.js, Python or pip.
 
 On first launch, setup offers application API key creation, update choices, optional macOS start at login and a short usage guide. License verification and model installation follow. The application API key is shown once and copied when the clipboard is available. Save it for the application that will call the API.
 
