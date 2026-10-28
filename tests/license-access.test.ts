@@ -2,9 +2,10 @@ import { test, expect } from 'bun:test';
 import licenseAccess from '../src/license/license-access.js';
 import type engineSession from '../src/engine/engine-session.js';
 
-test.each(['valid', 'invalid expiry', 'invalid device limit', 'invalid model', 'unsafe description', 'cancel'])('engine model listing: %s', async function (scenario) {
-    var access = { status: 'ok', expires_at: '2026-10-18T10:00:00Z', max_devices: 50, registered_devices: 0,
+test.each(['valid', 'expired', 'invalid expiry', 'invalid device limit', 'invalid model', 'unsafe description', 'cancel'])('engine model listing: %s', async function (scenario) {
+    var access = { status: 'ok', expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), max_devices: 50, registered_devices: 0,
         models: [{ model_id: 'skira7alpha', entitled: true, can_download: true, description: 'Local text processing.' }] };
+    if (scenario === 'expired') { access.expires_at = new Date(Date.now() - 60000).toISOString(); }
     if (scenario === 'invalid expiry') { access.expires_at = 'invalid'; }
     if (scenario === 'invalid device limit') { access.max_devices = -1; }
     if (scenario === 'invalid model') { access.models[0]!.model_id = '../outside'; }
@@ -34,6 +35,9 @@ test.each(['valid', 'invalid expiry', 'invalid device limit', 'invalid model', '
         if (result.ok) {
             expect(result.models[0]?.canDownload).toBe(true);
             expect(result.registeredDevices).toBe(0);
+        }
+        if (scenario === 'expired') {
+            expect(result).toMatchObject({ ok: false, reason: 'expired' });
         }
     }
     expect(closed).toBe(true);

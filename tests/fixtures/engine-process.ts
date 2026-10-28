@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { createInterface } from 'node:readline';
@@ -6,6 +6,9 @@ import { createInterface } from 'node:readline';
 var scenario = process.env.VELORA_TEST_ENGINE_SCENARIO;
 for await (var line of createInterface({ input: process.stdin })) {
     var request = JSON.parse(line);
+    if (process.env.VELORA_TEST_ENGINE_REQUEST_LOG) {
+        await appendFile(process.env.VELORA_TEST_ENGINE_REQUEST_LOG, request.operation + '\n');
+    }
     if (scenario === 'exit') { process.exit(0); }
     if (scenario === 'hang') { await new Promise(function () {}); }
     if (scenario === 'oversized') {
@@ -36,10 +39,14 @@ for await (var line of createInterface({ input: process.stdin })) {
         continue;
     }
     if (scenario?.startsWith('install-') && request.operation === 'install_model') {
-        assert.equal(request.model_id, 'model-a');
+        assert.ok(['model-a', 'model-b'].includes(request.model_id));
         assert.equal(request.progress, true);
         assert.equal(typeof request.engine_package, 'string');
         assert.equal(typeof request.engine_runtime, 'string');
+        if (scenario === 'install-update-required') {
+            process.stdout.write(JSON.stringify({ id: request.id, ok: false, error: 'engine_update_required' }) + '\n');
+            continue;
+        }
         var root = join(request.root, request.model_id);
         var path = join(root, 'installed', request.model_id, 'r1');
         await mkdir(path, { recursive: true });

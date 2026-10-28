@@ -2,10 +2,10 @@ import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import type { PackageRelease } from '../../src/downloads/package-release.js';
 import { ZipFile } from 'yazl';
 
-export default async function enginePackage(scenario = 'valid', engineVersion = '0.4.1', revision = 'engine-r1', sequence = 1) {
+export default async function enginePackage(scenario = 'valid', engineVersion = '0.4.1', revision = 'engine-r1', sequence = 1,
+    content = Buffer.from('synthetic engine, never executed')) {
     var keys = generateKeyPairSync('ed25519');
     var publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
-    var content = Buffer.from('synthetic engine, never executed');
     var digest = createHash('sha256').update(content).digest('hex');
     var entrypoint = 'themistic-engine/themistic-engine';
     var item = { size: content.length, sha256: digest, executable: true };
