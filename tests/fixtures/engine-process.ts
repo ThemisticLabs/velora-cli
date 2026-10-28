@@ -10,6 +10,7 @@ for await (var line of createInterface({ input: process.stdin })) {
         await appendFile(process.env.VELORA_TEST_ENGINE_REQUEST_LOG, request.operation + '\n');
     }
     if (scenario === 'exit') { process.exit(0); }
+    if (scenario === 'exit-error') { process.stderr.write('PRIVATE-DIAGNOSTIC\n'); process.exit(7); }
     if (scenario === 'hang') { await new Promise(function () {}); }
     if (scenario === 'oversized') {
         process.stdout.write('x'.repeat(2 * 1024 ** 2 + 1));

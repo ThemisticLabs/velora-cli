@@ -8,6 +8,7 @@ import DownloadError from '../downloads/download-error.js';
 export default async function engineSession(license: string, signal: AbortSignal,
     onProgress?: (progress: EngineProgress) => void, bootstrap = bootstrapEngine) {
     var installation = await bootstrap(license, signal, onProgress);
+    onProgress?.({ downloaded: 0, total: 0, message: 'Starting the engine.', engineVersion: installation.release.version });
     signal.throwIfAborted();
     var child = spawn(installation.executable, ['--stdio'], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
     var exited = new Promise<void>(function (resolve) { child.once('close', function () { resolve(); }); });
@@ -36,12 +37,15 @@ export default async function engineSession(license: string, signal: AbortSignal
     signal.addEventListener('abort', abort, { once: true });
     child.on('error', function () { stop(new DownloadError('The engine could not start. Check its installation and system permissions.')); });
     child.stdin.on('error', function () { stop(new DownloadError('The connection to the engine closed. Try again.')); });
-    child.on('close', function () {
+    child.on('close', function (code, exitSignal) {
         if (forceKill) {
             clearTimeout(forceKill);
         }
         signal.removeEventListener('abort', abort);
-        failure ||= new DownloadError('The engine stopped before completing the request. Try again.');
+        var message = 'The engine stopped before completing the request.';
+        if (code !== null) { message += ' Exit code: ' + code + '.'; }
+        if (exitSignal) { message += ' Signal: ' + exitSignal + '.'; }
+        failure ||= new DownloadError(message + ' Try again.', 'engine_exit');
         pending?.reject(failure);
         pending = undefined;
     });

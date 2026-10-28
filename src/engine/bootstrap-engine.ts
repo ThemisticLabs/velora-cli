@@ -74,7 +74,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
             }
             var packagePath = join(installation, 'package');
             onProgress({ downloaded: 0, total: 0, message: 'Verifying the installed engine.', engineVersion: release.version });
-            var executable = await engineRuntime(packagePath, join(installation, 'runtime'), release, signal, publicKey);
+            var executable = await engineRuntime(packagePath, join(installation, 'runtime'), release, signal, publicKey, onProgress);
             return { executable, packagePath, runtimePath: join(installation, 'runtime'), release, target };
         }
         if (options.installedOnly) {
@@ -122,7 +122,7 @@ export default async function bootstrapEngine(license: string, signal: AbortSign
             }
         }
         onProgress({ downloaded, total, message: 'Verifying and unpacking the engine.', engineVersion: release.version });
-        await engineRuntime(packagePath, join(temporary, 'runtime'), release, signal, publicKey);
+        await engineRuntime(packagePath, join(temporary, 'runtime'), release, signal, publicKey, onProgress);
         var refreshed = await packageRequest(binding, signal, transport, publicKey);
         if (!isDeepStrictEqual(refreshed.metadata.engine, release)) {
             throw new DownloadError('The engine release changed during download. Try again.');

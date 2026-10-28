@@ -80,7 +80,7 @@ test.each(['compatible', 'engine update required'])('new models reuse one verifi
     }
 }, 120000);
 
-test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed', 'wrong id', 'old version', 'no capability', 'install-valid', 'install-unconfirmed'])('local engine protocol: %s', async function (scenario) {
+test.each(['valid', 'progress', 'error', 'exit', 'exit-error', 'hang', 'oversized', 'malformed', 'wrong id', 'old version', 'no capability', 'install-valid', 'install-unconfirmed'])('local engine protocol: %s', async function (scenario) {
     var previous = process.env.VELORA_TEST_ENGINE_SCENARIO;
     process.env.VELORA_TEST_ENGINE_SCENARIO = scenario;
     var controller = new AbortController();
@@ -117,6 +117,10 @@ test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed
             return;
         }
         var task = engineSession('FIXTURE-LICENSE', controller.signal, function (value) { progress.push(value.downloaded); }, bootstrap);
+        if (scenario === 'exit-error') {
+            await expect(task).rejects.toThrow('Exit code: 7.');
+            return;
+        }
         if (!['valid', 'progress', 'error', 'no capability'].includes(scenario)) {
             await expect(task).rejects.toBeInstanceOf(Error);
             return;
@@ -130,7 +134,7 @@ test.each(['valid', 'progress', 'error', 'exit', 'hang', 'oversized', 'malformed
             expect((await session.request('version')).version).toBe('0.4.1');
         } else if (scenario === 'progress') {
             await session.request('install_model', { model_id: 'model-a' });
-            expect(progress).toEqual([1, 0]);
+            expect(progress).toEqual([0, 1, 0]);
         } else {
             expect(await session.request('models', { license_key: 'FIXTURE-LICENSE' })).toEqual({ status: 'ok', models: [] });
         }

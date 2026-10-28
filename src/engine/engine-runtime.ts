@@ -7,16 +7,41 @@ import type { PackageRelease } from '../downloads/package-release.js';
 import { PACKAGE_PUBLIC_KEY } from '../downloads/package-request.js';
 import DownloadError from '../downloads/download-error.js';
 import verifyFile from './verify-file.js';
+import type { EngineProgress } from './bootstrap-engine.js';
 
 type RuntimeFile = { size: number; sha256: string; executable: boolean };
 
 export default async function engineRuntime(packagePath: string, runtimePath: string, release: PackageRelease,
-    signal: AbortSignal, publicKey = PACKAGE_PUBLIC_KEY): Promise<string> {
+    signal: AbortSignal, publicKey = PACKAGE_PUBLIC_KEY, onProgress?: (progress: EngineProgress) => void): Promise<string> {
     if (!(await lstat(packagePath)).isDirectory()) {
         throw new DownloadError('The engine package directory is missing or linked.');
     }
+    var exists = false;
+    try {
+        if (!(await lstat(runtimePath)).isDirectory()) {
+            throw new DownloadError('The engine runtime directory is linked or invalid.');
+        }
+        exists = true;
+    } catch (error) {
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+            throw error;
+        }
+    }
+    var lastProgress = 0;
+    var PROGRESS_INTERVAL_MS = 100;
+    var packageBytes = 0;
     for (var [name, file] of Object.entries(release.files)) {
-        await verifyFile(join(packagePath, name), file, signal);
+        if (exists && name.endsWith('.zip')) { continue; }
+        packageBytes += file.size;
+    }
+    var verifiedPackageBytes = 0;
+    for (var [name, file] of Object.entries(release.files)) {
+        // An installed runtime is verified against the signed inventory, not its transport archive.
+        if (exists && name.endsWith('.zip')) { continue; }
+        await verifyFile(join(packagePath, name), file, signal, function (bytes) {
+            reportProgress(verifiedPackageBytes + bytes, packageBytes, 'Verifying the engine package.');
+        });
+        verifiedPackageBytes += file.size;
     }
     var raw = await readFile(join(packagePath, 'manifest.json'));
     var signature = await readFile(join(packagePath, 'manifest.sig'));
@@ -87,17 +112,6 @@ export default async function engineRuntime(packagePath: string, runtimePath: st
     if (!files[entrypoint]?.executable) {
         throw new DownloadError('The engine entry point is missing from the signed inventory.');
     }
-    var exists = false;
-    try {
-        if (!(await lstat(runtimePath)).isDirectory()) {
-            throw new DownloadError('The engine runtime directory is linked or invalid.');
-        }
-        exists = true;
-    } catch (error) {
-        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
-            throw error;
-        }
-    }
     if (!exists) {
         await mkdir(runtimePath, { mode: 0o700 });
         var bundle = await openPromise(archive, { lazyEntries: true, strictFileNames: true });
@@ -106,6 +120,7 @@ export default async function engineRuntime(packagePath: string, runtimePath: st
                 throw new DownloadError('The engine archive differs from its inventory.');
             }
             var extracted = new Set<string>();
+            var extractedBytes = 0;
             for await (var entry of bundle.eachEntry()) {
                 signal.throwIfAborted();
                 var item = files[entry.fileName];
@@ -131,6 +146,8 @@ export default async function engineRuntime(packagePath: string, runtimePath: st
                         }
                         hash.update(chunk);
                         await output.writeFile(chunk);
+                        extractedBytes += chunk.length;
+                        reportProgress(extractedBytes, total, 'Preparing the engine runtime.');
                     }
                     if (size !== item.size || hash.digest('hex') !== item.sha256) {
                         throw new DownloadError('An extracted engine file failed checksum verification.');
@@ -155,6 +172,7 @@ export default async function engineRuntime(packagePath: string, runtimePath: st
     }
     var folders = [runtimePath];
     var actual = 0;
+    var verifiedRuntimeBytes = 0;
     for (var index = 0; index < folders.length; index++) {
         for (var member of await readdir(folders[index]!, { withFileTypes: true })) {
             var path = join(folders[index]!, member.name);
@@ -167,7 +185,12 @@ export default async function engineRuntime(packagePath: string, runtimePath: st
                 throw new DownloadError('The engine runtime contains an unexpected or linked file.');
             }
             var storedFile = files[name]!;
-            await verifyFile(path, storedFile, signal);
+            if (exists) {
+                await verifyFile(path, storedFile, signal, function (bytes) {
+                    reportProgress(verifiedRuntimeBytes + bytes, total, 'Verifying the engine files.');
+                });
+                verifiedRuntimeBytes += storedFile.size;
+            }
             if (process.platform !== 'win32' && Boolean((await lstat(path)).mode & 0o111) !== storedFile.executable) {
                 throw new DownloadError('The engine runtime permissions have changed.');
             }
@@ -177,7 +200,16 @@ export default async function engineRuntime(packagePath: string, runtimePath: st
     if (actual !== names.size) {
         throw new DownloadError('The engine runtime is incomplete.');
     }
+    signal.throwIfAborted();
     return join(runtimePath, entrypoint);
+
+    function reportProgress(bytes: number, totalBytes: number, message: string): void {
+        if (!onProgress) { return; }
+        var now = Date.now();
+        if (bytes < totalBytes && now - lastProgress < PROGRESS_INTERVAL_MS) { return; }
+        lastProgress = now;
+        onProgress({ downloaded: bytes, total: totalBytes, message, engineVersion: release.version });
+    }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

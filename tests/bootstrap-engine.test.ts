@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import bootstrapEngine from '../src/engine/bootstrap-engine.js';
 import enginePackage from './fixtures/engine-package.js';
+import type { EngineProgress } from '../src/engine/bootstrap-engine.js';
 
 test.each(['valid', 'bad response signature', 'wrong nonce', 'wrong range', 'truncated', 'wrong checksum',
     'wrong manifest', 'bad manifest signature', 'wrong inventory hash', 'unsafe path', 'linked entry', 'extra entry', 'withdrawn'])('engine bootstrap: %s', async function (scenario) {
@@ -43,6 +44,63 @@ test('cancelled bootstrap publishes nothing and releases its lock', async functi
     } finally {
         await rm(directory, { recursive: true, force: true });
     }
+});
+
+test.each(['runtime', 'inventory', 'extra file'])('cached engine skips its transport archive and still rejects tampering: %s', async function (scenario) {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-cached-engine-'));
+    try {
+        var fixture = await enginePackage();
+        var options = { directory, transport: fixture.transport, publicKey: fixture.publicKey, target: 'macosx-14.0-arm64' };
+        var signal = new AbortController().signal;
+        var installed = await bootstrapEngine('FIXTURE-LICENSE', signal, undefined, options);
+        for (var name of Object.keys(fixture.files)) {
+            if (name.endsWith('.zip')) { await rm(join(installed.packagePath, name)); }
+        }
+        expect((await bootstrapEngine('FIXTURE-LICENSE', signal, undefined, options)).executable).toBe(installed.executable);
+        if (scenario === 'runtime') {
+            var content = await readFile(installed.executable);
+            content[0] = content[0]! ^ 1;
+            await writeFile(installed.executable, content);
+        }
+        if (scenario === 'inventory') { await writeFile(join(installed.packagePath, 'inventory.json'), '{}'); }
+        if (scenario === 'extra file') { await writeFile(join(installed.runtimePath, 'unexpected'), 'untrusted'); }
+        await expect(bootstrapEngine('FIXTURE-LICENSE', signal, undefined, options)).rejects.toBeInstanceOf(Error);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('engine preparation reports extraction and cached file verification progress', async function () {
+    var directory = await mkdtemp(join(tmpdir(), 'velora-engine-progress-'));
+    try {
+        var content = Buffer.alloc(3 * 1024 ** 2, 'x');
+        var fixture = await enginePackage('valid', '0.4.1', 'engine-r1', 1, content);
+        var options = { directory, transport: fixture.transport, publicKey: fixture.publicKey, target: 'macosx-14.0-arm64' };
+        var signal = new AbortController().signal;
+        var events: EngineProgress[] = [];
+        var progress = function (event: EngineProgress) { events.push(event); };
+        await bootstrapEngine('FIXTURE-LICENSE', signal, progress, options);
+        var extracted = false;
+        for (var event of events) {
+            expect(event.message).not.toBe('Verifying the engine files.');
+            if (event.message === 'Preparing the engine runtime.' && event.downloaded === content.length && event.total === content.length) {
+                extracted = true;
+            }
+        }
+        expect(extracted).toBe(true);
+        events = [];
+        await bootstrapEngine('FIXTURE-LICENSE', signal, progress, options);
+        var verified = false;
+        for (var event of events) {
+            if (event.message === 'Verifying the engine files.' && event.downloaded === content.length && event.total === content.length) {
+                verified = true;
+            }
+        }
+        expect(verified).toBe(true);
+        var controller = new AbortController();
+        await expect(bootstrapEngine('FIXTURE-LICENSE', controller.signal, function (event) {
+            if (event.message === 'Verifying the engine files.') { controller.abort(); }
+        }, options)).rejects.toBeInstanceOf(Error);
+        expect(await readdir(join(directory, 'engine'))).not.toContain('.bootstrap.lock');
+    } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 test.each(['valid', 'bad manifest signature', 'withdrawn', 'cancel', 'downgrade', 'changed version'])('engine replacement preserves the previous installation: %s', async function (scenario) {
