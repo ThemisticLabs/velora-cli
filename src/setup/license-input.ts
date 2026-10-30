@@ -20,7 +20,6 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
     var KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     var GROUP_LENGTH = 5;
     var KEY_CHARACTERS = 20;
-    var KEY_LENGTH = KEY_CHARACTERS + 3;
 
     useEffect(function () {
         if (revealedIndex < 0) {
@@ -45,13 +44,14 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
             return;
         }
         setRevealedIndex(-1);
+        var valueCharacters = value.replaceAll('-', '').length;
         if (isEnterKey(key)) {
             if (!value) {
                 setError('Enter a license key, or press Esc to go back.');
                 return;
             }
-            if (value.length < KEY_LENGTH) {
-                setError('The key is incomplete: ' + value.replaceAll('-', '').length + ' of ' + KEY_CHARACTERS + ' characters.');
+            if (valueCharacters < KEY_CHARACTERS) {
+                setError('The key is incomplete: ' + valueCharacters + ' of ' + KEY_CHARACTERS + ' characters.');
                 // Readline clears its buffer on Enter, including rejected input.
                 terminal.write(value);
                 return;
@@ -80,10 +80,7 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
             nextValue += character;
             characters++;
         }
-        if (nextValue.length === value.length + 1 && nextValue.startsWith(value)) {
-            setRevealedIndex(nextValue.length - 1);
-        }
-        if (nextValue.length === value.length + 2 && nextValue.startsWith(value) && nextValue[value.length] === '-') {
+        if (characters === valueCharacters + 1 && nextValue.startsWith(value)) {
             setRevealedIndex(nextValue.length - 1);
         }
         // Keep readline in sync so the dashes appear and backspace removes whole characters.
