@@ -75,7 +75,7 @@ mock.module('../../src/license/manage-license.js', function () {
     return { default: async function (request: { operation: string; license: string }) {
         licenseCalls++;
         assert.equal(request.operation, 'set');
-        assert.equal(request.license, 'FIXTURE-LICENSE');
+        assert.equal(request.license, 'ABCDE-FGHJK-LMNPQ-RSTUV');
         return { ok: false, message: 'This license has expired.' };
     } };
 });

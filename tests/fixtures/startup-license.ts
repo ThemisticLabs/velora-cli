@@ -13,7 +13,7 @@ mock.module('../../src/license/license-access.js', function () {
 });
 mock.module('../../src/license/manage-license.js', function () {
     return { default: async function (request: { license: string }) {
-        assert.equal(request.license, 'FIXTURE-NEW-KEY');
+        assert.equal(request.license, 'ABCDE-FGHJK-LMNPQ-RSTUV');
         saves++;
         return { ok: true };
     } };

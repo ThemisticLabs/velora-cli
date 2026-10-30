@@ -22,7 +22,7 @@ test.skipIf(process.platform === 'win32').each(['typing', 'function-key'])('lice
                 terminal.write('c');
             } else if (stage === 3 && output.includes('License key: * * C')) {
                 stage++;
-                terminal.write('\r');
+                terminal.write('defghjklmnpqrstuv\r');
             }
         } }
     });
@@ -31,6 +31,7 @@ test.skipIf(process.platform === 'win32').each(['typing', 'function-key'])('lice
     try {
         expect(await child.exited, 'Input stage: ' + stage).toBe(0);
         expect(stage).toBe(4);
+        expect(output).toContain('* * * * * - F');
         expect(output).not.toContain('F2');
         expect(output).not.toContain('License purchases');
         expect(output).toContain('Input verified.');

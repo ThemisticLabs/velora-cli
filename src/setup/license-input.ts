@@ -17,6 +17,10 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
     var [error, setError] = useState('');
     var [revealedIndex, setRevealedIndex] = useState(-1);
     var REVEAL_DURATION_MS = 600;
+    var KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var GROUP_LENGTH = 5;
+    var KEY_CHARACTERS = 20;
+    var KEY_LENGTH = KEY_CHARACTERS + 3;
 
     useEffect(function () {
         if (revealedIndex < 0) {
@@ -42,21 +46,54 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
         }
         setRevealedIndex(-1);
         if (isEnterKey(key)) {
-            var license = value.trim();
-            if (!license) {
+            if (!value) {
                 setError('Enter a license key, or press Esc to go back.');
+                return;
+            }
+            if (value.length < KEY_LENGTH) {
+                setError('The key is incomplete: ' + value.replaceAll('-', '').length + ' of ' + KEY_CHARACTERS + ' characters.');
                 // Readline clears its buffer on Enter, including rejected input.
                 terminal.write(value);
                 return;
             }
-            done(license);
+            done(value);
             return;
         }
-        var nextValue = terminal.line.toUpperCase();
-        if (nextValue.length === value.length + 1 && nextValue.startsWith(value) && /^[!-~]$/.test(nextValue.slice(-1))) {
+        var typed = terminal.line.toUpperCase();
+        var nextValue = '';
+        var characters = 0;
+        var rejected = false;
+        for (var character of typed) {
+            if (character === '-' || character === ' ') {
+                continue;
+            }
+            if (!KEY_ALPHABET.includes(character)) {
+                rejected = true;
+                continue;
+            }
+            if (characters === KEY_CHARACTERS) {
+                continue;
+            }
+            if (characters > 0 && characters % GROUP_LENGTH === 0) {
+                nextValue += '-';
+            }
+            nextValue += character;
+            characters++;
+        }
+        if (nextValue.length === value.length + 1 && nextValue.startsWith(value)) {
             setRevealedIndex(nextValue.length - 1);
         }
+        if (nextValue.length === value.length + 2 && nextValue.startsWith(value) && nextValue[value.length] === '-') {
+            setRevealedIndex(nextValue.length - 1);
+        }
+        // Keep readline in sync so the dashes appear and backspace removes whole characters.
+        terminal.line = nextValue;
+        (terminal as unknown as { cursor: number }).cursor = nextValue.length;
         setValue(nextValue);
+        if (rejected) {
+            setError('License keys only use A-Z and 2-9, without I, O, 0 and 1.');
+            return;
+        }
         setError('');
     });
 
@@ -66,6 +103,10 @@ var prompt = createPrompt<string, Record<string, never>>(function (_config, done
     for (var index = 0; index < visibleLength; index++) {
         if (index > 0) {
             maskedValue += ' ';
+        }
+        if (value[index] === '-') {
+            maskedValue += '-';
+            continue;
         }
         if (index === revealedIndex) {
             maskedValue += value[index];
