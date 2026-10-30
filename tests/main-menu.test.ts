@@ -155,7 +155,7 @@ test.skipIf(process.platform === 'win32').each(['first', 'returning', 'delete', 
             if (scenario === 'license') {
                 if (phase === 2 && frame.includes('License key:')) {
                     phase++;
-                    terminal.write('fixture-license\r');
+                    terminal.write('abcde-fghjk-lmnpq-rstuv\r');
                 }
                 if (phase === 3 && frame.includes('This license has expired.')) {
                     phase++;

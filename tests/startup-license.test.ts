@@ -24,7 +24,7 @@ test.skipIf(process.platform === 'win32').each(['valid', 'unknown', 'offline', '
             if (phase === 1 && frame.includes('License key:')) {
                 phase = 2;
                 if (scenario === 'escape') { terminal.write('\u001b'); }
-                else { terminal.write('FIXTURE-NEW-KEY\r'); }
+                else { terminal.write('ABCDE-FGHJK-LMNPQ-RSTUV\r'); }
             }
         } }
     });

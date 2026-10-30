@@ -5,7 +5,7 @@ setSetupLayout('Enter your license.', '', '/velora/license-api/', 'Enter Continu
 process.stdout.write('\u001b[?1049h');
 try {
     var value = await licenseInput({});
-    if (value !== 'ABC') {
+    if (value !== 'ABCDE-FGHJK-LMNPQ-RSTUV') {
         throw new Error('Input was not normalized correctly.');
     }
     process.stdout.write('Input verified.\n');
